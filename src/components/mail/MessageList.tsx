@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNowStrict } from "date-fns";
 import { hu } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
-import { Search, RefreshCw, Loader2 } from "lucide-react";
+import { Search, RefreshCw, Loader2, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useMemo, useRef, useEffect } from "react";
 
@@ -12,6 +12,7 @@ type Props = {
   selectedSeqno: number | null;
   onSelect: (m: MailMessage) => void;
   onOpen?: (m: MailMessage) => void;
+  onToggleFlag?: (m: MailMessage) => void;
   loading: boolean;
   onRefresh: () => void;
   mailbox: string;
@@ -25,7 +26,7 @@ function senderName(from: string) {
   return (m ? m[1] : from).trim() || from;
 }
 
-export function MessageList({ messages, selectedSeqno, onSelect, onOpen, loading, onRefresh, mailbox, onLoadMore, loadingMore, exhausted }: Props) {
+export function MessageList({ messages, selectedSeqno, onSelect, onOpen, onToggleFlag, loading, onRefresh, mailbox, onLoadMore, loadingMore, exhausted }: Props) {
   const [q, setQ] = useState("");
   const filtered = useMemo(() => {
     if (!q.trim()) return messages;
@@ -69,6 +70,7 @@ export function MessageList({ messages, selectedSeqno, onSelect, onOpen, loading
         selectedSeqno={selectedSeqno}
         onSelect={onSelect}
         onOpen={onOpen}
+        onToggleFlag={onToggleFlag}
         onLoadMore={onLoadMore}
         loadingMore={loadingMore}
         exhausted={exhausted}
@@ -79,7 +81,7 @@ export function MessageList({ messages, selectedSeqno, onSelect, onOpen, loading
 }
 
 function ScrollList({
-  loading, messages, filtered, selectedSeqno, onSelect, onOpen, onLoadMore, loadingMore, exhausted, searching,
+  loading, messages, filtered, selectedSeqno, onSelect, onOpen, onToggleFlag, onLoadMore, loadingMore, exhausted, searching,
 }: {
   loading: boolean;
   messages: MailMessage[];
@@ -87,6 +89,7 @@ function ScrollList({
   selectedSeqno: number | null;
   onSelect: (m: MailMessage) => void;
   onOpen?: (m: MailMessage) => void;
+  onToggleFlag?: (m: MailMessage) => void;
   onLoadMore?: () => void;
   loadingMore?: boolean;
   exhausted?: boolean;
@@ -118,19 +121,30 @@ function ScrollList({
           <ul>
             {filtered.map((m) => {
               const active = selectedSeqno === m.seqno;
+              const unread = m.seen === false;
+              const flagged = !!m.flagged;
               return (
-                <li key={m.seqno + ":" + (m.uid ?? "")}>
+                <li key={m.seqno + ":" + (m.uid ?? "")} className="relative">
                   <button
                     onClick={() => onSelect(m)}
                     onDoubleClick={() => onOpen?.(m)}
                     className={cn(
-                      "w-full text-left px-4 py-3 border-b border-border/60 transition-colors",
+                      "w-full text-left pl-4 pr-10 py-3 border-b border-border/60 transition-colors",
                       active ? "bg-accent" : "hover:bg-muted/60",
+                      flagged && !active && "bg-amber-50/60 dark:bg-amber-950/20",
                     )}
                   >
                     <div className="flex items-baseline justify-between gap-2">
-                      <span className={cn("text-sm truncate", active ? "font-semibold" : "font-medium")}>
-                        {senderName(m.from)}
+                      <span className="flex items-center gap-2 min-w-0">
+                        {unread && (
+                          <span
+                            className="h-2 w-2 rounded-full bg-primary shrink-0"
+                            aria-label="Olvasatlan"
+                          />
+                        )}
+                        <span className={cn("text-sm truncate", unread || active ? "font-semibold" : "font-medium")}>
+                          {senderName(m.from)}
+                        </span>
                       </span>
                       <span className="text-[11px] text-muted-foreground shrink-0">
                         {m.date
@@ -138,9 +152,25 @@ function ScrollList({
                           : ""}
                       </span>
                     </div>
-                    <div className="text-sm truncate mt-0.5">{m.subject}</div>
+                    <div className={cn("text-sm truncate mt-0.5", unread && "font-semibold")}>{m.subject}</div>
                     <div className="text-xs text-muted-foreground truncate mt-0.5">{m.snippet}</div>
                   </button>
+                  {onToggleFlag && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onToggleFlag(m); }}
+                      className={cn(
+                        "absolute top-2 right-2 p-1.5 rounded-md transition-opacity",
+                        flagged
+                          ? "opacity-100 text-amber-500 hover:bg-amber-100/60 dark:hover:bg-amber-900/30"
+                          : "opacity-40 hover:opacity-100 text-muted-foreground hover:bg-muted",
+                      )}
+                      title={flagged ? "Csillag eltávolítása" : "Megjelölés csillaggal"}
+                      aria-label={flagged ? "Csillag eltávolítása" : "Megjelölés csillaggal"}
+                    >
+                      <Star className={cn("h-3.5 w-3.5", flagged && "fill-current")} />
+                    </button>
+                  )}
                 </li>
               );
             })}

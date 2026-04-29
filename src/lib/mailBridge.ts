@@ -42,6 +42,8 @@ export type MailMessage = {
   text: string;
   html: string;
   snippet: string;
+  flagged?: boolean;
+  seen?: boolean;
 };
 
 const isElectron = typeof window !== "undefined" && (window as any).mailAPI?.isElectron;
@@ -194,6 +196,19 @@ export const mailAPI = {
       if (isElectron) return (window as any).mailAPI.cache.syncAccount({ accountId });
       await new Promise((r) => setTimeout(r, 200));
       return { ok: true, results: [] };
+    },
+  },
+
+  mail: {
+    async setFlag(params: {
+      accountId: string;
+      mailbox: string;
+      uid: string | number;
+      patch: { flagged?: boolean; seen?: boolean };
+    }): Promise<{ ok: true; messages: MailMessage[]; updatedAt: number }> {
+      if (isElectron) return (window as any).mailAPI.mail.setFlag(params);
+      // Böngésző / demó: csak színlelt OK válasz, nincs szerver.
+      return { ok: true, messages: [], updatedAt: Date.now() };
     },
   },
 

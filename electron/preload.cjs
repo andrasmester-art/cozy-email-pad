@@ -17,6 +17,9 @@ contextBridge.exposeInMainWorld("mailAPI", {
     listInbox: (params) => ipcRenderer.invoke("imap:listInbox", params),
     appendDraft: (params) => ipcRenderer.invoke("imap:appendDraft", params),
   },
+  mail: {
+    setFlag: (params) => ipcRenderer.invoke("mail:setFlag", params),
+  },
   cache: {
     read: (params) => ipcRenderer.invoke("cache:read", params),
     syncMailbox: (params) => ipcRenderer.invoke("cache:syncMailbox", params),

@@ -258,6 +258,42 @@ const Index = () => {
   const quoteBody = (m: MailMessage) =>
     `<p></p><blockquote><p><em>${m.from} írta:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`;
 
+  // Optimista flag-frissítés a lokális state-ben + szerverhívás. Ha hibázik, visszagörgetjük.
+  const applyFlagPatch = useCallback(async (m: MailMessage, patch: { flagged?: boolean; seen?: boolean }) => {
+    if (!activeAccountId || !m.uid) return;
+    const prevMessages = messages;
+    setMessages((arr) => arr.map((x) => (x.uid === m.uid ? { ...x, ...patch } : x)));
+    setSelected((s) => (s && s.uid === m.uid ? { ...s, ...patch } : s));
+    try {
+      const r = await mailAPI.mail.setFlag({
+        accountId: activeAccountId,
+        mailbox: activeMailbox,
+        uid: m.uid,
+        patch,
+      });
+      if (r?.messages?.length) setMessages(r.messages);
+    } catch (e: any) {
+      setMessages(prevMessages);
+      toast.error("Megjelölés sikertelen", { description: String(e?.message || e) });
+    }
+  }, [activeAccountId, activeMailbox, messages]);
+
+  const toggleFlag = useCallback((m: MailMessage) => {
+    applyFlagPatch(m, { flagged: !m.flagged });
+  }, [applyFlagPatch]);
+
+  const toggleSeen = useCallback((m: MailMessage) => {
+    applyFlagPatch(m, { seen: m.seen === false ? true : false });
+  }, [applyFlagPatch]);
+
+  // Kiválasztáskor automatikusan jelöljük olvasottnak (ha még nem az).
+  useEffect(() => {
+    if (!selected || !selected.uid) return;
+    if (selected.seen === false) {
+      applyFlagPatch(selected, { seen: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.uid]);
 
   const handleReply = (m: MailMessage) => {
     setComposerInitial({
@@ -371,6 +407,7 @@ const Index = () => {
           selectedSeqno={selected?.seqno ?? null}
           onSelect={setSelected}
           onOpen={openInNewWindow}
+          onToggleFlag={toggleFlag}
           loading={loading}
           onRefresh={loadMessages}
           mailbox={activeMailbox}
@@ -385,6 +422,8 @@ const Index = () => {
             onReply={handleReply}
             onReplyAll={handleReplyAll}
             onForward={handleForward}
+            onToggleFlag={toggleFlag}
+            onToggleSeen={toggleSeen}
           />
         </div>
       </div>

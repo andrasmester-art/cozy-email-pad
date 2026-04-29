@@ -105,6 +105,27 @@ const MessagePage = () => {
     setComposerOpen(true);
   };
 
+  const applyFlagPatch = async (m: MailMessage, patch: { flagged?: boolean; seen?: boolean }) => {
+    if (!m.uid) return;
+    setMessage((prev) => (prev ? { ...prev, ...patch } : prev));
+    try {
+      await mailAPI.mail.setFlag({ accountId, mailbox, uid: m.uid, patch });
+    } catch (e: any) {
+      setMessage((prev) => (prev ? { ...prev, flagged: m.flagged, seen: m.seen } : prev));
+      toast.error("Megjelölés sikertelen", { description: String(e?.message || e) });
+    }
+  };
+  const toggleFlag = (m: MailMessage) => applyFlagPatch(m, { flagged: !m.flagged });
+  const toggleSeen = (m: MailMessage) => applyFlagPatch(m, { seen: m.seen === false ? true : false });
+
+  // Levél megnyitásakor automatikusan olvasottnak jelöljük (ha még nem az).
+  useEffect(() => {
+    if (message && message.uid && message.seen === false) {
+      applyFlagPatch(message, { seen: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [message?.uid]);
+
   // "Szerkesztés" gomb a Drafts mappához: betöltjük az eredeti tartalmat új levélként.
   const handleEditAsNew = (m: MailMessage) => {
     setComposerInitial({
@@ -134,6 +155,8 @@ const MessagePage = () => {
               onReply={handleReply}
               onReplyAll={handleReplyAll}
               onForward={handleForward}
+              onToggleFlag={toggleFlag}
+              onToggleSeen={toggleSeen}
             />
             {mailbox.toLowerCase().includes("draft") && (
               <div className="border-t border-border px-3 py-2 flex justify-end">

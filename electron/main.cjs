@@ -136,9 +136,9 @@ function withImap(account, totalTimeoutMs, work) {
   });
 }
 
-function openBox(imap, name) {
+function openBox(imap, name, readOnly = true) {
   return new Promise((resolve, reject) => {
-    imap.openBox(name, true, (err, box) => (err ? reject(err) : resolve(box)));
+    imap.openBox(name, readOnly, (err, box) => (err ? reject(err) : resolve(box)));
   });
 }
 
@@ -203,6 +203,7 @@ function fetchByUidRange(imap, range) {
         msg.once("end", () => {
           Promise.resolve(simpleParser(raw))
             .then((parsed) => {
+              const flags = Array.isArray(attrs?.flags) ? attrs.flags : [];
               out.push({
                 uid: attrs?.uid,
                 from: parsed.from?.text || "",
@@ -212,6 +213,8 @@ function fetchByUidRange(imap, range) {
                 text: parsed.text || "",
                 html: parsed.html || "",
                 snippet: (parsed.text || "").slice(0, 140),
+                flagged: flags.includes("\\Flagged"),
+                seen: flags.includes("\\Seen"),
               });
             })
             .catch(() => {
@@ -408,6 +411,48 @@ ipcMain.handle("cache:loadOlder", async (_e, { accountId, mailbox, pageSize }) =
   const result = await loadOlder(account, mailbox, pageSize);
   const state = cache.read(userDataDir(), accountId, mailbox);
   return { ...result, messages: state.messages, updatedAt: state.updatedAt };
+});
+
+// Levél flag-ek beállítása (\\Flagged = csillag, \\Seen = olvasott).
+// patch: { flagged?: boolean, seen?: boolean }
+async function setMessageFlags(account, logicalMailbox, uid, patch) {
+  return withImap(account, 30000, async (imap) => {
+    const realName = await resolveMailbox(imap, logicalMailbox);
+    if (!realName) throw new Error(`Mappa nem található: ${logicalMailbox}`);
+    await openBox(imap, realName, false); // RW mód a flag-íráshoz
+
+    const numericUid = Number(uid);
+    if (!numericUid || Number.isNaN(numericUid)) throw new Error("Érvénytelen UID");
+
+    const addFlags = (flags) => new Promise((resolve, reject) => {
+      imap.addFlags(numericUid, flags, (err) => (err ? reject(err) : resolve()));
+    });
+    const delFlags = (flags) => new Promise((resolve, reject) => {
+      imap.delFlags(numericUid, flags, (err) => (err ? reject(err) : resolve()));
+    });
+
+    if (typeof patch.flagged === "boolean") {
+      if (patch.flagged) await addFlags(["\\Flagged"]);
+      else await delFlags(["\\Flagged"]);
+    }
+    if (typeof patch.seen === "boolean") {
+      if (patch.seen) await addFlags(["\\Seen"]);
+      else await delFlags(["\\Seen"]);
+    }
+
+    // Cache frissítése a renderer kérése alapján — szervervisszaolvasás nélkül,
+    // hogy gyors legyen; a következő syncMailbox úgyis felülírja a friss flags-szel.
+    const state = cache.read(userDataDir(), account.id, logicalMailbox);
+    const next = cache.updateMessageFlags(state, numericUid, patch);
+    cache.write(userDataDir(), account.id, logicalMailbox, next);
+    return { ok: true, messages: next.messages, updatedAt: next.updatedAt };
+  });
+}
+
+ipcMain.handle("mail:setFlag", async (_e, { accountId, mailbox, uid, patch }) => {
+  const account = loadAccounts().find((a) => a.id === accountId);
+  if (!account) throw new Error("A fiók nem található.");
+  return setMessageFlags(account, mailbox, uid, patch || {});
 });
 
 // Egy fiók szinkronizálása. Csak az INBOX-ot húzzuk inkrementálisan, hogy

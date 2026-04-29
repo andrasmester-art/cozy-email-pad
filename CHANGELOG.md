@@ -3,6 +3,19 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.13.0] – 2026-04-29
+
+### Új
+- **Csillag (\\Flagged) és olvasott/olvasatlan (\\Seen) megjelölés** mostantól látszik és állítható:
+  - **Listában**: olvasatlan leveleknél kék pötty + vastag betű, csillagozott leveleknél halvány sárga háttér + sárga csillag ikon a sor jobb felső sarkában (kattintásra váltakozik).
+  - **Részletes nézet** (és új ablakban nyitott levél) fejlécében: csillag toggle gomb és „Megjelölés olvasatlannak / olvasottnak" gomb.
+  - **Kiválasztáskor** a levél automatikusan olvasottá válik a szerveren is.
+- A megjelölések valódi IMAP flag-ekként mennek ki a szerverre, így minden más kliensben (Mail.app, Gmail webfelület, mobil) is ugyanúgy látszanak.
+
+### Változás
+- Új `mail:setFlag` IPC végpont (`\\Flagged`, `\\Seen` add/del) optimista UI-frissítéssel és cache-szinkronizálással.
+- A levelek lehúzásakor a fetch mostantól rögzíti a szerver `attrs.flags` mezőjét → `flagged` és `seen` mezők a `MailMessage`-ben.
+
 ## [1.12.0] – 2026-04-29
 
 ### Új

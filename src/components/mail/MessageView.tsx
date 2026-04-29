@@ -1,16 +1,19 @@
 import { MailMessage } from "@/lib/mailBridge";
 import { Button } from "@/components/ui/button";
-import { Reply, ReplyAll, Forward, Trash2, Archive } from "lucide-react";
+import { Reply, ReplyAll, Forward, Trash2, Archive, Star, Mail, MailOpen } from "lucide-react";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 type Props = {
   message: MailMessage | null;
   onReply: (m: MailMessage) => void;
   onReplyAll?: (m: MailMessage) => void;
   onForward?: (m: MailMessage) => void;
+  onToggleFlag?: (m: MailMessage) => void;
+  onToggleSeen?: (m: MailMessage) => void;
 };
 
-export function MessageView({ message, onReply, onReplyAll, onForward }: Props) {
+export function MessageView({ message, onReply, onReplyAll, onForward, onToggleFlag, onToggleSeen }: Props) {
   if (!message) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground bg-background">
@@ -20,6 +23,9 @@ export function MessageView({ message, onReply, onReplyAll, onForward }: Props) 
       </div>
     );
   }
+
+  const flagged = !!message.flagged;
+  const seen = message.seen !== false;
 
   return (
     <div className="flex-1 flex flex-col h-full bg-background">
@@ -43,6 +49,29 @@ export function MessageView({ message, onReply, onReplyAll, onForward }: Props) 
         >
           <Forward className="h-4 w-4 mr-1.5" /> Tov.
         </Button>
+        <div className="w-px h-5 bg-border mx-1" />
+        {onToggleFlag && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onToggleFlag(message)}
+            className={cn(flagged ? "text-amber-500" : "text-muted-foreground")}
+            title={flagged ? "Csillag eltávolítása" : "Megjelölés csillaggal"}
+          >
+            <Star className={cn("h-4 w-4", flagged && "fill-current")} />
+          </Button>
+        )}
+        {onToggleSeen && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onToggleSeen(message)}
+            className="text-muted-foreground"
+            title={seen ? "Megjelölés olvasatlannak" : "Megjelölés olvasottnak"}
+          >
+            {seen ? <Mail className="h-4 w-4" /> : <MailOpen className="h-4 w-4" />}
+          </Button>
+        )}
         <Button size="sm" variant="ghost" className="text-muted-foreground"><Archive className="h-4 w-4" /></Button>
         <Button size="sm" variant="ghost" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
       </div>
