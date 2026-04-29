@@ -3,6 +3,12 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.9.0] – 2026-04-29
+
+### Új
+- **Kapcsolatok** menü az oldalsávon (Users ikon): automatikusan összegyűjti az összes egyedi e-mail címet a fogadott és elküldött leveleidből (INBOX, Sent, Drafts, Archive, Spam mappákból, minden fiókon át). Mindegyiknél látszik a név, hányszor szerepelt, és mikor volt utoljára. Keresés név vagy e-mail alapján, „Saját rejtve" kapcsoló a saját fiókcímek elrejtéséhez.
+- A kapcsolatok listájából egy kattintással **másolható** az e-mail cím, vagy **új levél** indítható az adott partnernek (a Címzett mező előre kitöltve, „Név <email>" formátumban).
+
 ## [1.8.0] – 2026-04-29
 
 ### Új
