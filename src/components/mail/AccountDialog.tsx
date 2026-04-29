@@ -29,9 +29,14 @@ const PRESETS: Record<string, Partial<Account>> = {
 
 export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
   const [a, setA] = useState<Account>(() => initial || blank());
+  const [status, setStatus] = useState<AccountStatus | null>(null);
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
-    if (open) setA(initial || blank());
+    if (open) {
+      setA(initial || blank());
+      setStatus(initial ? getAccountStatus(initial.id) : null);
+    }
   }, [open, initial]);
 
   const update = (patch: Partial<Account>) => setA((prev) => ({ ...prev, ...patch }));
@@ -44,6 +49,29 @@ export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
     toast.success(initial ? "Fiók frissítve" : "Fiók hozzáadva");
     onSaved(a);
     onClose();
+  };
+
+  const handleTest = async () => {
+    if (!a.label || !a.user || !a.imapHost) {
+      return toast.error("Hiányzó adatok", { description: "Add meg legalább a nevet, e-mailt és IMAP hostot." });
+    }
+    setTesting(true);
+    try {
+      await mailAPI.accounts.save(a);
+      await mailAPI.imap.fetch({ accountId: a.id, mailbox: "INBOX", limit: 1 });
+      const next: AccountStatus = { lastChecked: Date.now(), ok: true };
+      setAccountStatus(a.id, next);
+      setStatus(next);
+      toast.success("Sikeres kapcsolódás");
+    } catch (e: any) {
+      const msg = String(e?.message || e);
+      const next: AccountStatus = { lastChecked: Date.now(), ok: false, error: msg };
+      setAccountStatus(a.id, next);
+      setStatus(next);
+      toast.error("Kapcsolódás sikertelen", { description: msg });
+    } finally {
+      setTesting(false);
+    }
   };
 
   return (
