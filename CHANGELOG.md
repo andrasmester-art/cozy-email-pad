@@ -3,6 +3,14 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.10.0] – 2026-04-29
+
+### Új
+- **Visszavonás / Újra (Undo / Redo)** működő gombok a levélíró és aláírás/sablon szerkesztők eszköztárán. A gombok automatikusan **letiltódnak**, ha nincs mit visszavonni vagy újra-csinálni, és valós időben követik az editor előzmény-állapotát. Billentyűparancsok továbbra is: ⌘Z / ⌘⇧Z (Ctrl+Z / Ctrl+Shift+Z).
+
+### Javítás
+- A formázó gombok aktív (kiemelt) állapota mostantól minden kurzormozgás és tranzakció után azonnal frissül — eddig csak az editor példány cseréjekor rajzolódott újra a toolbar.
+
 ## [1.9.0] – 2026-04-29
 
 ### Új

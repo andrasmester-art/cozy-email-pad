@@ -4,7 +4,7 @@ import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import Typography from "@tiptap/extension-typography";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -22,13 +22,14 @@ type Props = {
 };
 
 const ToolbarBtn = ({
-  active, onClick, children, title,
-}: { active?: boolean; onClick: () => void; children: React.ReactNode; title: string }) => (
+  active, disabled, onClick, children, title,
+}: { active?: boolean; disabled?: boolean; onClick: () => void; children: React.ReactNode; title: string }) => (
   <Button
     type="button"
     variant="ghost"
     size="sm"
     title={title}
+    disabled={disabled}
     // FONTOS: a mousedown alapértelmezett viselkedése elvenné a fókuszt az
     // editorról, mire a kattintás-handler lefut. Ettől a chain().focus()
     // hívás új szelekcióval vagy hibásan futna, és pl. a H1/lista/link
@@ -57,8 +58,16 @@ function Toolbar({ editor }: { editor: Editor | null }) {
   };
   return (
     <div className="flex flex-wrap items-center gap-0.5 border-b border-border px-2 py-1.5 bg-surface-elevated rounded-t-md">
-      <ToolbarBtn title="Visszavonás" onClick={() => editor.chain().focus().undo().run()}><Undo2 className="h-4 w-4" /></ToolbarBtn>
-      <ToolbarBtn title="Újra" onClick={() => editor.chain().focus().redo().run()}><Redo2 className="h-4 w-4" /></ToolbarBtn>
+      <ToolbarBtn
+        title="Visszavonás (⌘Z)"
+        disabled={!editor.can().chain().focus().undo().run()}
+        onClick={() => editor.chain().focus().undo().run()}
+      ><Undo2 className="h-4 w-4" /></ToolbarBtn>
+      <ToolbarBtn
+        title="Újra (⌘⇧Z)"
+        disabled={!editor.can().chain().focus().redo().run()}
+        onClick={() => editor.chain().focus().redo().run()}
+      ><Redo2 className="h-4 w-4" /></ToolbarBtn>
       <Separator orientation="vertical" className="h-5 mx-1" />
       <ToolbarBtn title="H1" active={editor.isActive("heading", { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}><Heading1 className="h-4 w-4" /></ToolbarBtn>
       <ToolbarBtn title="H2" active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}><Heading2 className="h-4 w-4" /></ToolbarBtn>
@@ -119,6 +128,23 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Prop
       },
     },
   });
+
+  // A toolbar gombok (undo/redo disabled, aktív formázás) állapota az editor
+  // tranzakcióitól függ. A useEditor hook alapból csak akkor triggerel
+  // re-rendert, ha az editor példány maga változik. Ezért feliratkozunk a
+  // transaction/selectionUpdate eseményekre, és egy számláló növelésével
+  // kényszerítjük a komponens újrarajzolását.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!editor) return;
+    const rerender = () => setTick((t) => t + 1);
+    editor.on("transaction", rerender);
+    editor.on("selectionUpdate", rerender);
+    return () => {
+      editor.off("transaction", rerender);
+      editor.off("selectionUpdate", rerender);
+    };
+  }, [editor]);
 
   useEffect(() => {
     if (!editor) return;
