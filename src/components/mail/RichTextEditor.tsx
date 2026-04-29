@@ -106,11 +106,18 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Prop
   });
 
   useEffect(() => {
-    if (editor && value !== editor.getHTML()) {
-      editor.commands.setContent(value || "", { emitUpdate: false });
-    }
+    if (!editor) return;
+    // Csak akkor írjuk felül a tartalmat kívülről, ha tényleg eltér ÉS az
+    // editor épp nincs fókuszban. Különben minden gépelés után a parent által
+    // visszaadott (esetleg normalizált) HTML resetelné a kurzort és a
+    // formázási állapotot — pl. a H1/H2 gomb megnyomása "nem csinálna semmit",
+    // mert a setContent rögtön visszaállítaná a régi blokkot.
+    if (editor.isFocused) return;
+    const current = editor.getHTML();
+    if ((value || "") === current) return;
+    editor.commands.setContent(value || "", { emitUpdate: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
+  }, [value, editor]);
 
   return (
     <div className={cn("border border-border rounded-md bg-surface flex flex-col", className)}>
