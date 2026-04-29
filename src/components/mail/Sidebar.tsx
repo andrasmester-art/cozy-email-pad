@@ -295,6 +295,7 @@ export function Sidebar({
         <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={onOpenUpdater}>
           <Download className="h-4 w-4" /> App frissítése
         </Button>
+        <ThemeToggle />
       </div>
       {/* Átméretező fogantyú a jobb szélen */}
       <div
