@@ -86,7 +86,7 @@ export function MessageView({ message, onReply, onReplyAll, onForward, onToggleF
             }
           }}
           className="text-muted-foreground"
-          title="Levél mentése PDF-ként (a megnyíló nyomtatási ablakban válaszd a „PDF-ként mentés" opciót)"
+          title="Levél mentése PDF-ként – a megnyíló nyomtatási ablakban válaszd a PDF-ként mentés opciót"
         >
           <FileDown className="h-4 w-4 mr-1.5" /> PDF
         </Button>
