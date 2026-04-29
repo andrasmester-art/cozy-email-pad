@@ -53,6 +53,12 @@ export function Sidebar({
     <aside className="w-60 shrink-0 bg-gradient-sidebar border-r border-sidebar-border flex flex-col h-full">
       <div className="mac-titlebar shrink-0" />
 
+      <div className="px-3 pb-3">
+        <Button onClick={onCompose} className="w-full bg-gradient-primary shadow-mac-md">
+          <PenSquare className="h-4 w-4 mr-1.5" /> Új levél
+        </Button>
+      </div>
+
       <div className="px-3 pb-2">
         <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 mb-1.5">
           Fiókok
