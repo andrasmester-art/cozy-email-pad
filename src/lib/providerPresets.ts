@@ -5,6 +5,7 @@
 import type { Account } from "./mailBridge";
 
 export type ProviderId =
+  | "hostinger"
   | "hoating"
   | "gmail"
   | "icloud"
