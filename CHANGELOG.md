@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.16.6] – 2026-04-29
+
+### Javítás
+- **Piszkozat mentése most már működik** (`TypeError: isDate is not a function`). A `node-imap` `append()` hívásban átadott `date: new Date()` opció miatt a könyvtár belső formázója egy `util.isDate` helpert keresett, ami az újabb Node verziókban már nem létezik, ezért a Drafts mappába mentés mindig elhasalt. A `date` mezőt eltávolítottuk; piszkozatnál a szerver a saját aktuális idejét használja, ami megfelelő.
+
 ## [1.16.5] – 2026-04-29
 
 ### Javítás
