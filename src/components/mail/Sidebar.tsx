@@ -1,6 +1,6 @@
 import { Account } from "@/lib/mailBridge";
 import { cn } from "@/lib/utils";
-import { Inbox, Send, FileText, Archive, Trash2, AlertOctagon, Plus, Settings, FileCode2, Pencil } from "lucide-react";
+import { Inbox, Send, FileText, Archive, Trash2, AlertOctagon, Plus, Settings, FileCode2, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type Props = {
@@ -11,6 +11,7 @@ type Props = {
   onSelectMailbox: (mb: string) => void;
   onAddAccount: () => void;
   onEditAccount: (a: Account) => void;
+  onDeleteAccount: (a: Account) => void;
   onOpenTemplates: () => void;
   onOpenSettings: () => void;
 };
