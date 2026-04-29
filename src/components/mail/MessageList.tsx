@@ -275,7 +275,8 @@ function ScrollList({
                     onClick={() => onSelect(m)}
                     onDoubleClick={() => onOpen?.(m)}
                     className={cn(
-                      "w-full text-left pl-4 pr-10 py-3 border-b border-border/60 transition-colors",
+                      "w-full text-left pl-4 pr-10 border-b border-border/60 transition-colors",
+                      DENSITY_STYLES[density].padding,
                       active ? "bg-accent" : "hover:bg-muted/60",
                       flagged && !active && "bg-amber-50/60 dark:bg-amber-950/20",
                     )}
@@ -298,8 +299,8 @@ function ScrollList({
                           : ""}
                       </span>
                     </div>
-                    <div className={cn("text-sm truncate mt-0.5", unread && "font-semibold")}>{m.subject}</div>
-                    <div className="text-xs text-muted-foreground truncate mt-0.5">{m.snippet}</div>
+                    <div className={cn("text-sm truncate", DENSITY_STYLES[density].gap, unread && "font-semibold")}>{m.subject}</div>
+                    <div className={cn("text-xs text-muted-foreground truncate", DENSITY_STYLES[density].gap)}>{m.snippet}</div>
                   </button>
                   {onToggleFlag && (
                     <button
