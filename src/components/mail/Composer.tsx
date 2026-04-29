@@ -252,7 +252,7 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
       <div className="bg-surface rounded-xl shadow-mac-lg w-full max-w-3xl h-[85vh] flex flex-col overflow-hidden border border-border">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <h2 className="text-sm font-semibold">
-            {pending ? "Tart a küldés…" : sending ? "Küldés folyamatban…" : "Új levél"}
+            {pending ? "Tart a küldés…" : sending ? "Küldés folyamatban…" : titleIdle}
           </h2>
           <Button
             variant="ghost"
