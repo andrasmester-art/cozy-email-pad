@@ -223,7 +223,10 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
 
   const applyTemplate = (tpl: EmailTemplate) => {
     if (!subject) setSubject(tpl.subject);
-    setBody((prev) => (prev && prev !== "<p></p>" ? prev + tpl.body : tpl.body));
+    // A sablon törzsét beillesztés előtt megtisztítjuk, hogy se XSS, se
+    // tördelést rontó (script/style/eseménykezelő) markup ne kerüljön a Composerbe.
+    const safeBody = sanitizeEmailHtml(tpl.body || "");
+    setBody((prev) => (prev && prev !== "<p></p>" ? prev + safeBody : safeBody));
   };
 
   const applySignature = (sig: Signature | null) => {
