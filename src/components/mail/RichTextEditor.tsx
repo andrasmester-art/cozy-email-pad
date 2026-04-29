@@ -208,6 +208,7 @@ function Toolbar({ editor }: { editor: Editor | null }) {
             variant="ghost"
             size="sm"
             title="Link"
+            onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
             onMouseDown={(e) => e.preventDefault()}
             onClick={openLinkEditor}
             className={cn("h-8 w-8 p-0", editor.isActive("link") && "bg-accent text-accent-foreground")}
