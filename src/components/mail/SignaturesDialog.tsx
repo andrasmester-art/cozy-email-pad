@@ -306,10 +306,63 @@ export function SignaturesDialog({ open, onClose }: Props) {
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="sm:justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleExport}>
+              <Download className="h-4 w-4 mr-1.5" /> Exportálás (JSON)
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleImportClick}>
+              <Upload className="h-4 w-4 mr-1.5" /> Importálás
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={handleFilePicked}
+            />
+          </div>
           <Button onClick={onClose}>Kész</Button>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog
+        open={!!pendingImport}
+        onOpenChange={(o) => !o && setPendingImport(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Aláírások importálása</AlertDialogTitle>
+            <AlertDialogDescription>
+              A <strong>{pendingImport?.fileName}</strong> fájl{" "}
+              <strong>{pendingImport?.count}</strong> aláírást tartalmaz.
+              Hogyan szeretnéd egyesíteni a meglévő{" "}
+              <strong>{signatures.length}</strong> aláírással?
+              <br />
+              <span className="text-xs text-muted-foreground">
+                · <strong>Egyesítés</strong>: új aláírások hozzáadódnak, az
+                azonos azonosítójúak felülíródnak.
+                <br />· <strong>Felülírás</strong>: minden meglévő aláírás
+                törlődik, csak a fájlból érkezők maradnak.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel>Mégse</AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => pendingImport && runImport(pendingImport.payload, "replace")}
+            >
+              Felülírás
+            </Button>
+            <AlertDialogAction
+              onClick={() => pendingImport && runImport(pendingImport.payload, "merge")}
+            >
+              Egyesítés
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
