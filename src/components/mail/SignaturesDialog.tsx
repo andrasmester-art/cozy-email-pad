@@ -33,6 +33,12 @@ export function SignaturesDialog({ open, onClose }: Props) {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [defaults, setDefaults] = useState<Record<string, string | null>>({});
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [pendingImport, setPendingImport] = useState<{
+    payload: unknown;
+    fileName: string;
+    count: number;
+  } | null>(null);
 
   const reload = () => {
     const sigs = listSignatures();
