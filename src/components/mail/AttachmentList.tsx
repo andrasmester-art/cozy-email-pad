@@ -59,7 +59,7 @@ function base64ToBytes(b64: string): Uint8Array {
 function makeBlobUrl(att: MailAttachment): string | null {
   if (!att.data) return null;
   try {
-    const blob = new Blob([base64ToBytes(att.data)], { type: att.contentType || "application/octet-stream" });
+    const blob = new Blob([base64ToBytes(att.data).buffer as ArrayBuffer], { type: att.contentType || "application/octet-stream" });
     return URL.createObjectURL(blob);
   } catch {
     return null;
