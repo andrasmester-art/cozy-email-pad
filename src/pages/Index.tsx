@@ -484,6 +484,20 @@ const Index = () => {
           onLoadMore={loadOlder}
           loadingMore={loadingMore}
           exhausted={exhausted}
+          width={listWidth}
+        />
+
+        {/* Húzható válaszfal a levéllista és az üzenet-nézet között.
+            - Húzás: bal/jobb mozgatással átméretezi a listát (260–720 px).
+            - Dupla kattintás: visszaáll a 340 px alapértékre. */}
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Levéllista szélességének átméretezése"
+          title="Húzd a szélesség beállításához (dupla kattintás: alapérték)"
+          onPointerDown={startResize}
+          onDoubleClick={resetListWidth}
+          className="w-1 shrink-0 cursor-col-resize bg-border hover:bg-primary/40 active:bg-primary/60 transition-colors"
         />
 
         <div className="flex-1 flex flex-col min-w-0 relative">
