@@ -168,6 +168,11 @@ export const mailAPI = {
       if (isElectron) return (window as any).mailAPI.imap.listMailboxes(accountId);
       return ["INBOX", "Sent", "Drafts", "Archive", "Spam", "Trash"];
     },
+    async testConnection(params: { accountId: string; timeoutMs?: number }): Promise<{ ok: true }> {
+      if (isElectron) return (window as any).mailAPI.imap.testConnection(params);
+      await new Promise((r) => setTimeout(r, 500));
+      return { ok: true };
+    },
     async fetch(params: { accountId: string; mailbox?: string; limit?: number }): Promise<MailMessage[]> {
       if (isElectron) return (window as any).mailAPI.imap.fetch(params);
       const accounts = await mailAPI.accounts.list();

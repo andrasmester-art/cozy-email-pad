@@ -65,12 +65,14 @@ ipcMain.handle("accounts:save", (_e, account) => {
   if (idx >= 0) accounts[idx] = { ...accounts[idx], ...stored };
   else accounts.push(stored);
   saveAccounts(accounts);
+  mailboxResolveCache.delete(account.id);
   return { ok: true };
 });
 
 ipcMain.handle("accounts:delete", (_e, id) => {
   const accounts = loadAccounts().filter((a) => a.id !== id);
   saveAccounts(accounts);
+  mailboxResolveCache.delete(id);
   try { cache.wipeAccount(id); } catch { /* ignore */ }
   return { ok: true };
 });
@@ -109,6 +111,39 @@ function imapConfigFor(account) {
 function openInbox(imap, mailbox) {
   return new Promise((resolve, reject) => {
     imap.openBox(mailbox || "INBOX", true, (err, box) => (err ? reject(err) : resolve(box)));
+  });
+}
+
+function verifyImapConnection(account, { timeoutMs = 12000 } = {}) {
+  const imap = imapConfigFor(account);
+  return new Promise((resolve, reject) => {
+    let settled = false;
+
+    const finish = (err, result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try {
+        if (imap.state !== "disconnected") imap.end();
+      } catch {
+        /* ignore close errors */
+      }
+      if (err) reject(err);
+      else resolve(result);
+    };
+
+    const timer = setTimeout(() => {
+      finish(new Error(`Időtúllépés (${Math.ceil(timeoutMs / 1000)}s) — az IMAP szerver nem válaszol.`));
+    }, timeoutMs);
+
+    imap.once("ready", () => finish(null, { ok: true }));
+    imap.once("error", (err) => finish(err));
+
+    try {
+      imap.connect();
+    } catch (err) {
+      finish(err);
+    }
   });
 }
 
@@ -166,6 +201,13 @@ ipcMain.handle("imap:listMailboxes", async (_e, accountId) => {
     imap.once("error", reject);
     imap.connect();
   });
+});
+
+ipcMain.handle("imap:testConnection", async (_e, { accountId, timeoutMs = 12000 } = {}) => {
+  const account = loadAccounts().find((a) => a.id === accountId);
+  if (!account) throw new Error("Account not found");
+  await verifyImapConnection(account, { timeoutMs });
+  return { ok: true };
 });
 
 // Resolve the actual mailbox names (Inbox / Sent / Drafts) for an account.

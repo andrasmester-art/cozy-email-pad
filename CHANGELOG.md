@@ -9,6 +9,12 @@ A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 - A Titan átirányítás teljesen eltávolítva. A Hostinger / Hoating.eu presetek visszaálltak az eredeti `imap.hostinger.com` / `smtp.hostinger.com` szerverekre.
 - A korábban bevezetett automatikus host-normalizálás (`normalizeAccountHosts`) eltávolítva — a mentett fiók host értékei érintetlenül maradnak.
 
+## [1.1.5] – 2026-04-29
+
+### Javítás
+- A „Kapcsolat ellenőrzése” gomb többé nem teljes `INBOX` szinkront indít, hanem gyors IMAP bejelentkezés-tesztet futtat.
+- Az ellenőrzés emiatt nem akad el 25 másodperces timeouttal olyan szervereken sem, ahol a mailbox megnyitás vagy mappa-felderítés lassú.
+
 ## [1.1.2] – 2026-04-29
 
 ### Javítás
