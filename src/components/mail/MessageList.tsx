@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNowStrict } from "date-fns";
 import { hu } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
-import { Search, RefreshCw } from "lucide-react";
+import { Search, RefreshCw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useMemo, useRef, useEffect } from "react";
 
@@ -142,12 +142,17 @@ function ScrollList({
             })}
           </ul>
           {!searching && (
-            <div className="p-3 text-center text-xs text-muted-foreground">
-              {loadingMore
-                ? "Régebbi levelek betöltése…"
-                : exhausted
-                  ? "Nincs több régebbi levél"
-                  : "Görgess lejjebb régebbi levelekért"}
+            <div className="p-4 flex items-center justify-center gap-2 text-xs text-muted-foreground border-t border-border/60">
+              {loadingMore ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <span className="font-medium">Régebbi levelek betöltése…</span>
+                </>
+              ) : exhausted ? (
+                <span>Nincs több régebbi levél</span>
+              ) : (
+                <span>Görgess lejjebb régebbi levelekért</span>
+              )}
             </div>
           )}
         </>

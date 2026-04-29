@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.10.3] – 2026-04-29
+
+### Változás
+- **Lazy-load visszajelzés**: amikor a lista aljára görgetsz és a régebbi leveleket tölti, mostantól egy jól látható **forgó spinner** és „Régebbi levelek betöltése…" felirat jelenik meg a lista alján, így egyértelmű, hogy folyamatban van a letöltés. Ha kifogytak a régebbi levelek, a „Nincs több régebbi levél" üzenet látszik.
+
 ## [1.10.2] – 2026-04-29
 
 ### Javítás
