@@ -260,7 +260,7 @@ async function resolveAccountMailboxes(account) {
   const result = await new Promise((resolve, reject) => {
     imap.once("ready", async () => {
       try {
-        const raw = await getBoxesAsync(imap);
+        const raw = await getBoxesAsync(imap, { timeoutMs: 12000 });
         imap.end();
         const flat = flattenBoxes(raw);
         const inbox = pickMailbox(flat, "\\Inbox", ["INBOX", "Inbox"]) || "INBOX";
@@ -327,7 +327,11 @@ async function syncMailbox(account, mailbox, { batchSize = 200 } = {}) {
   return new Promise((resolve, reject) => {
     imap.once("ready", async () => {
       try {
-        const box = await openMailbox(imap, mailbox);
+        const box = await withTimeout(
+          () => openMailbox(imap, mailbox),
+          12000,
+          `Időtúllépés (12s) — a(z) ${mailbox} mappa megnyitása túl sokáig tart.`,
+        );
         const meta = cache.getMeta(account.id, mailbox) || { last_uid: 0, uidvalidity: null };
 
         // UIDVALIDITY changed → wipe cache for this mailbox and start fresh.
@@ -409,7 +413,17 @@ ipcMain.handle("imap:sync", async (_e, { accountId, mailbox = "INBOX", limit = 2
       /* fall back to "INBOX" */
     }
   }
-  const added = await syncMailbox(account, realMailbox);
+  let added;
+  try {
+    added = await syncMailbox(account, realMailbox);
+  } catch (error) {
+    if (realMailbox !== mailbox && isMailboxNotFoundError(error)) {
+      realMailbox = mailbox;
+      added = await syncMailbox(account, realMailbox);
+    } else {
+      throw error;
+    }
+  }
   return {
     added,
     messages: cache.listMessages(account.id, realMailbox, limit),
