@@ -38,6 +38,17 @@ function htmlToText(html: string) {
   return tmp.textContent || "";
 }
 
+// Human-friendly relative timestamp for the draft-status panel.
+function formatRelativeTime(ts: number | null): string {
+  if (!ts) return "—";
+  const diff = Math.max(0, Date.now() - ts);
+  if (diff < 5_000) return "épp most";
+  if (diff < 60_000) return `${Math.floor(diff / 1000)} mp-e`;
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} perce`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} órája`;
+  return new Date(ts).toLocaleString("hu-HU");
+}
+
 export function Composer({ open, onClose, accounts, defaultAccountId, initial, mode = "new" }: Props) {
   const titleIdle = mode === "reply" ? "Válasz" : mode === "forward" ? "Továbbítás" : "Új levél";
   const resolveInitialAccount = () => {
