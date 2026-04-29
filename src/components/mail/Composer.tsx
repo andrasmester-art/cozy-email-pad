@@ -74,7 +74,9 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
   const [pendingDraft, setPendingDraft] = useState<Draft | null>(null); // shown as a banner on open
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   const [savedTick, setSavedTick] = useState(0); // forces relative-time refresh
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const skipAutoSaveRef = useRef(false); // suppress autosave while we (re)hydrate fields
+  const savedFlashRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const handler = (e: Event) => setDelay((e as CustomEvent<number>).detail);
@@ -179,12 +181,25 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
       const draft = {
         accountId, to, cc, bcc, showCc, subject, body, updatedAt: now,
       };
-      if (isDraftMeaningful(draft)) {
-        saveDraft(draft);
-        setLastSavedAt(now);
-      } else {
-        clearDraft();
-        setLastSavedAt(null);
+      try {
+        if (isDraftMeaningful(draft)) {
+          setSaveStatus("saving");
+          saveDraft(draft);
+          setLastSavedAt(now);
+          setSaveStatus("saved");
+          // Reset the "Mentve" flash back to the persistent timestamp label after 2s.
+          if (savedFlashRef.current) clearTimeout(savedFlashRef.current);
+          savedFlashRef.current = setTimeout(() => setSaveStatus("idle"), 2000);
+        } else {
+          clearDraft();
+          setLastSavedAt(null);
+          setSaveStatus("idle");
+        }
+      } catch (e: any) {
+        setSaveStatus("error");
+        toast.error("Piszkozat mentése sikertelen", {
+          description: String(e?.message || e),
+        });
       }
     }, 400);
     return () => clearTimeout(t);
@@ -392,17 +407,30 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
           </div>
         )}
 
-        {/* Persistent draft-status strip showing the last autosave timestamp. */}
+        {/* Persistent draft-status strip showing the autosave state and last timestamp. */}
         {!pendingDraft && (
           <div
-            className="px-4 py-1.5 text-[11px] text-muted-foreground bg-surface-elevated/60 border-b border-border flex items-center gap-1.5"
+            className={`px-4 py-1.5 text-[11px] border-b border-border bg-surface-elevated/60 flex items-center gap-1.5 ${
+              saveStatus === "error" ? "text-destructive" : "text-muted-foreground"
+            }`}
             data-tick={savedTick}
+            aria-live="polite"
           >
-            <Save className="h-3 w-3 opacity-70" />
+            {saveStatus === "saving" ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Save className={`h-3 w-3 ${saveStatus === "saved" ? "text-primary" : "opacity-70"}`} />
+            )}
             <span>
-              {lastSavedAt
-                ? `Piszkozat mentve · ${formatRelativeTime(lastSavedAt)}`
-                : "Még nincs mentett piszkozat"}
+              {saveStatus === "saving"
+                ? "Mentés…"
+                : saveStatus === "error"
+                  ? "Mentés sikertelen"
+                  : saveStatus === "saved"
+                    ? "Mentve"
+                    : lastSavedAt
+                      ? `Piszkozat mentve · ${formatRelativeTime(lastSavedAt)}`
+                      : "Még nincs mentett piszkozat"}
             </span>
           </div>
         )}
