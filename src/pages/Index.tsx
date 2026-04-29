@@ -261,6 +261,14 @@ const Index = () => {
         initial={composerInitial}
         mode={composerMode}
       />
+      <AccountWizard
+        open={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        onComplete={(prefilled) => {
+          setEditingAccount(prefilled);
+          setAccountDlgOpen(true);
+        }}
+      />
       <AccountDialog
         open={accountDlgOpen}
         onClose={() => { setAccountDlgOpen(false); setEditingAccount(null); }}
