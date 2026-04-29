@@ -34,6 +34,7 @@ const Index = () => {
   const [composerInitial, setComposerInitial] = useState<{ to?: string; cc?: string; bcc?: string; subject?: string; body?: string } | undefined>();
   const [composerMode, setComposerMode] = useState<"new" | "reply" | "forward">("new");
   const [accountDlgOpen, setAccountDlgOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [signaturesOpen, setSignaturesOpen] = useState(false);
