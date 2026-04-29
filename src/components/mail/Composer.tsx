@@ -195,10 +195,42 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
               <SelectTrigger className="h-8 flex-1"><SelectValue placeholder="Válassz fiókot" /></SelectTrigger>
               <SelectContent>
                 {accounts.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>{a.label} ({a.user})</SelectItem>
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.label} ({a.user}){defaultId === a.id ? " — alapértelmezett" : ""}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              title={
+                !accountId
+                  ? "Válassz fiókot"
+                  : defaultId === accountId
+                    ? "Alapértelmezett fiók eltávolítása"
+                    : "Beállítás alapértelmezett fiókként"
+              }
+              disabled={!accountId}
+              onClick={() => {
+                if (defaultId === accountId) {
+                  setDefaultAccountId(null);
+                  setDefaultId(null);
+                  toast.info("Alapértelmezett fiók törölve");
+                } else {
+                  setDefaultAccountId(accountId);
+                  setDefaultId(accountId);
+                  const acc = accounts.find((a) => a.id === accountId);
+                  toast.success("Alapértelmezett fiók beállítva", {
+                    description: acc ? `${acc.label} (${acc.user})` : undefined,
+                  });
+                }
+              }}
+            >
+              <Star className={`h-4 w-4 ${defaultId === accountId ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+            </Button>
           </div>
           <div className="flex items-center gap-2">
             <Label className="w-14 text-xs text-muted-foreground">Címzett</Label>
