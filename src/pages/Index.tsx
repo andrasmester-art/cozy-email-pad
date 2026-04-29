@@ -7,6 +7,10 @@ import { Composer } from "@/components/mail/Composer";
 import { AccountDialog } from "@/components/mail/AccountDialog";
 import { TemplatesDialog } from "@/components/mail/TemplatesDialog";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { PenSquare, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
