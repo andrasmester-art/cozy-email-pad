@@ -70,6 +70,12 @@ fi
 echo ""
 echo -e "${BLUE}[3/4]${NC} Mac app build (kb. 30-60 mp)…"
 
+# package.json "main" mező biztosítása (Electron entry point)
+if ! grep -q '"main"' package.json; then
+  echo -e "${YELLOW}→ package.json kiegészítése (main: electron/main.cjs)…${NC}"
+  node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));p.main='electron/main.cjs';fs.writeFileSync('package.json',JSON.stringify(p,null,2));"
+fi
+
 # Vite build
 npx vite build
 
