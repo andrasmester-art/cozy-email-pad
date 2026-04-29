@@ -254,6 +254,15 @@ ipcMain.handle("imap:testConnection", async (_e, { accountId, timeoutMs = 12000 
 // Resolve the actual mailbox names (Inbox / Sent / Drafts) for an account.
 // Caches the result on the account object once per process run.
 const mailboxResolveCache = new Map(); // accountId -> { inbox, sent, drafts }
+function getResolvedMailboxName(accountId, mailbox) {
+  const resolved = mailboxResolveCache.get(accountId);
+  if (!resolved) return mailbox;
+  if (mailbox === "INBOX") return resolved.inbox || mailbox;
+  if (mailbox === "Sent") return resolved.sent || mailbox;
+  if (mailbox === "Drafts") return resolved.drafts || mailbox;
+  return mailbox;
+}
+
 async function resolveAccountMailboxes(account) {
   if (mailboxResolveCache.has(account.id)) return mailboxResolveCache.get(account.id);
   const imap = imapConfigFor(account);
@@ -395,7 +404,8 @@ async function syncMailbox(account, mailbox, { batchSize = 200 } = {}) {
 
 // imap:fetch — return cached messages immediately (no network call).
 ipcMain.handle("imap:fetch", async (_e, { accountId, mailbox = "INBOX", limit = 200 }) => {
-  return cache.listMessages(accountId, mailbox, limit);
+  const resolvedMailbox = getResolvedMailboxName(accountId, mailbox);
+  return cache.listMessages(accountId, resolvedMailbox, limit);
 });
 
 // imap:sync — pull only new messages from the server into the cache.
@@ -461,9 +471,10 @@ ipcMain.handle("imap:syncAll", async (_e, { accountId }) => {
 });
 
 ipcMain.handle("imap:cacheInfo", async (_e, { accountId, mailbox = "INBOX" }) => {
+  const resolvedMailbox = getResolvedMailboxName(accountId, mailbox);
   return {
-    meta: cache.getMeta(accountId, mailbox),
-    count: cache.countMessages(accountId, mailbox),
+    meta: cache.getMeta(accountId, resolvedMailbox),
+    count: cache.countMessages(accountId, resolvedMailbox),
   };
 });
 
