@@ -501,8 +501,8 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
           <RichTextEditor value={body} onChange={setBody} placeholder="Írd ide az üzeneted…" className="h-full" />
         </div>
 
-        <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-surface-elevated">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-t border-border bg-surface-elevated">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm">
@@ -563,7 +563,7 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
               <Trash2 className="h-4 w-4 mr-1.5" /> Piszkozat törlése
             </Button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0 ml-auto">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Clock className="h-3.5 w-3.5" />
               <span>Visszavonási idő</span>
