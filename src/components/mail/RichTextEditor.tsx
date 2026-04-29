@@ -178,7 +178,45 @@ function Toolbar({ editor }: { editor: Editor | null }) {
       ><CodeSquare className="h-4 w-4" /></ToolbarBtn>
       <ToolbarBtn title="Vízszintes vonal" onClick={() => editor.chain().focus().setHorizontalRule().run()}><Minus className="h-4 w-4" /></ToolbarBtn>
       <Separator orientation="vertical" className="h-5 mx-1" />
-      <ToolbarBtn title="Link" active={editor.isActive("link")} onClick={setLink}><LinkIcon className="h-4 w-4" /></ToolbarBtn>
+      <Popover open={linkOpen} onOpenChange={setLinkOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            title="Link"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={openLinkEditor}
+            className={cn("h-8 w-8 p-0", editor.isActive("link") && "bg-accent text-accent-foreground")}
+          >
+            <LinkIcon className="h-4 w-4" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-80 p-3" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-muted-foreground">Link URL</label>
+            <Input
+              autoFocus
+              value={linkUrl}
+              onChange={(e) => setLinkUrl(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); applyLink(); }
+                if (e.key === "Escape") { e.preventDefault(); setLinkOpen(false); }
+              }}
+              placeholder="https://example.com"
+            />
+            <div className="flex justify-between gap-2 pt-1">
+              {editor.isActive("link") ? (
+                <Button type="button" variant="ghost" size="sm" onClick={removeLink}>Eltávolítás</Button>
+              ) : <span />}
+              <div className="flex gap-2 ml-auto">
+                <Button type="button" variant="outline" size="sm" onClick={() => setLinkOpen(false)}>Mégse</Button>
+                <Button type="button" size="sm" onClick={applyLink}>Beszúrás</Button>
+              </div>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
       <ToolbarBtn title="Kép beszúrása" onClick={insertImage}><ImageIcon className="h-4 w-4" /></ToolbarBtn>
     </div>
   );
