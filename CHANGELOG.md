@@ -3,6 +3,12 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.1.6] – 2026-04-29
+
+### Javítás
+- A háttérszinkron most már külön timeouttal védi a lassú mappa-megnyitást és mappalista-lekérést, így nem akad be néma kapcsolódási hibába.
+- A szerver által visszaadott valódi mappaneveket (`INBOX.Sent`, stb.) a cache-ben is helyesen visszaolvassuk, ezért a Hostinger/cPanel fiókoknál újra megjelennek a levelek.
+
 ## [1.1.4] – 2026-04-29
 
 ### Változás
