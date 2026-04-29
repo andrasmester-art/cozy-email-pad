@@ -46,7 +46,7 @@ const Index = () => {
     const id = deletingAccount.id;
     await mailAPI.accounts.delete(id);
     clearRetryFor(id);
-    const list = await mailAPI.accounts.list();
+    const list = sortByOrder(await mailAPI.accounts.list());
     setAccounts(list);
     if (activeAccountId === id) {
       setActiveAccountId(list[0]?.id ?? null);
@@ -57,10 +57,44 @@ const Index = () => {
     setDeletingAccount(null);
   };
 
+  // Account ordering — saved in localStorage so a user-defined order persists.
+  const ORDER_KEY = "mailwise.accountOrder";
+  const sortByOrder = (list: Account[]): Account[] => {
+    try {
+      const order: string[] = JSON.parse(localStorage.getItem(ORDER_KEY) || "[]");
+      if (!Array.isArray(order) || order.length === 0) return list;
+      const idx = new Map(order.map((id, i) => [id, i]));
+      return [...list].sort((a, b) => {
+        const ia = idx.has(a.id) ? (idx.get(a.id) as number) : Number.MAX_SAFE_INTEGER;
+        const ib = idx.has(b.id) ? (idx.get(b.id) as number) : Number.MAX_SAFE_INTEGER;
+        return ia - ib;
+      });
+    } catch {
+      return list;
+    }
+  };
+  const saveOrder = (list: Account[]) => {
+    try { localStorage.setItem(ORDER_KEY, JSON.stringify(list.map((a) => a.id))); } catch { /* ignore */ }
+  };
+
+  const reorderAccounts = (fromId: string, toId: string) => {
+    setAccounts((prev) => {
+      const from = prev.findIndex((a) => a.id === fromId);
+      const to = prev.findIndex((a) => a.id === toId);
+      if (from < 0 || to < 0 || from === to) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      saveOrder(next);
+      return next;
+    });
+  };
+
   // Initial load
   useEffect(() => {
     (async () => {
-      const list = await mailAPI.accounts.list();
+      const raw = await mailAPI.accounts.list();
+      const list = sortByOrder(raw);
       setAccounts(list);
       if (list.length > 0) setActiveAccountId(list[0].id);
       else if (!mailAPI.isElectron) {
@@ -278,6 +312,7 @@ const Index = () => {
           onOpenTemplates={() => setTemplatesOpen(true)}
           onOpenSignatures={() => setSignaturesOpen(true)}
           onOpenUpdater={() => setUpdaterOpen(true)}
+          onReorderAccounts={reorderAccounts}
           onOpenSettings={() => {
             const current = accounts.find((x) => x.id === activeAccountId) || null;
             setEditingAccount(current);
@@ -320,7 +355,7 @@ const Index = () => {
         onClose={() => { setAccountDlgOpen(false); setEditingAccount(null); }}
         initial={editingAccount}
         onSaved={async () => {
-          const list = await mailAPI.accounts.list();
+          const list = sortByOrder(await mailAPI.accounts.list());
           setAccounts(list);
         }}
       />

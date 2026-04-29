@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.6.0] – 2026-04-29
+
+### Új
+- Fiókok sorrendje **drag & drop**-pal módosítható az oldalsávban: vidd a kurzort egy fiók fölé, fogd meg a bal oldalon megjelenő fogantyút (vagy magát a sort) és húzd a kívánt pozícióba. A sorrend a böngésző tárolójában (localStorage) menti, így újraindítás után is megmarad.
+
 ## [1.5.0] – 2026-04-29
 
 ### Változás
