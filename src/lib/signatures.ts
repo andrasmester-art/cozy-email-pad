@@ -104,3 +104,109 @@ export function applySignatureToBody(body: string, sig: Signature | null): strin
   const sep = stripped && stripped !== "<p></p>" ? "<p><br></p>" : "";
   return `${stripped}${sep}${wrapSignature(sig.body)}`;
 }
+
+// ---------------------------------------------------------------------------
+// Export / Import
+// ---------------------------------------------------------------------------
+
+export const SIGNATURES_EXPORT_VERSION = 1;
+
+export type SignaturesExport = {
+  version: number;
+  exportedAt: number;
+  signatures: Signature[];
+};
+
+/** Build a JSON-serialisable bundle of all signatures. */
+export function exportSignatures(): SignaturesExport {
+  return {
+    version: SIGNATURES_EXPORT_VERSION,
+    exportedAt: Date.now(),
+    signatures: readSigs(),
+  };
+}
+
+/** Trigger a browser download with the current signatures bundle. */
+export function downloadSignaturesJson(filename = "mepodmail-signatures.json") {
+  const data = exportSignatures();
+  const blob = new Blob([JSON.stringify(data, null, 2)], {
+    type: "application/json",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Revoke after a tick so the click can resolve in all browsers.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export type ImportMode = "merge" | "replace";
+
+export type ImportResult = {
+  imported: number;
+  updated: number;
+  skipped: number;
+  total: number;
+};
+
+/**
+ * Validate a parsed JSON object and import its signatures.
+ * - "merge" (default): keep existing, add new ones, update by id collision.
+ * - "replace": discard all existing signatures and use only the imported ones.
+ *
+ * Bodies are sanitised through saveSignature → sanitizeEmailHtml so untrusted
+ * HTML cannot be injected via the import file.
+ */
+export function importSignatures(
+  payload: unknown,
+  mode: ImportMode = "merge",
+): ImportResult {
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Érvénytelen fájl: nem JSON objektum.");
+  }
+  const obj = payload as Partial<SignaturesExport>;
+  if (!Array.isArray(obj.signatures)) {
+    throw new Error("Érvénytelen fájl: hiányzik a 'signatures' tömb.");
+  }
+
+  // Normalise + validate each entry.
+  const incoming: Signature[] = [];
+  for (const raw of obj.signatures) {
+    if (!raw || typeof raw !== "object") continue;
+    const s = raw as Partial<Signature>;
+    if (typeof s.name !== "string" || typeof s.body !== "string") continue;
+    incoming.push({
+      id: typeof s.id === "string" && s.id.trim() ? s.id : `sig-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name: s.name.slice(0, 200),
+      body: s.body, // sanitisation happens inside saveSignature()
+      updatedAt: typeof s.updatedAt === "number" ? s.updatedAt : Date.now(),
+    });
+  }
+
+  if (incoming.length === 0) {
+    return { imported: 0, updated: 0, skipped: 0, total: 0 };
+  }
+
+  if (mode === "replace") {
+    writeSigs([]);
+  }
+
+  const before = new Map(readSigs().map((s) => [s.id, s]));
+  let imported = 0;
+  let updated = 0;
+  for (const sig of incoming) {
+    if (before.has(sig.id)) updated += 1;
+    else imported += 1;
+    saveSignature(sig); // sanitises + writes + dispatches event
+  }
+
+  return {
+    imported,
+    updated,
+    skipped: (obj.signatures.length || 0) - incoming.length,
+    total: incoming.length,
+  };
+}
