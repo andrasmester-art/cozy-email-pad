@@ -23,6 +23,7 @@ const Index = () => {
   const [messages, setMessages] = useState<MailMessage[]>([]);
   const [selected, setSelected] = useState<MailMessage | null>(null);
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerInitial, setComposerInitial] = useState<{ to?: string; subject?: string; body?: string } | undefined>();
@@ -90,6 +91,49 @@ const Index = () => {
 
   useEffect(() => { loadMessages(); }, [loadMessages]);
 
+  // Manual sync across ALL accounts: fetches INBOX + Sent for each so the
+  // status indicator + the visible mailbox both refresh in one go.
+  const syncAll = useCallback(async () => {
+    if (syncing) return;
+    if (accounts.length === 0) {
+      toast.info("Nincs fiók a szinkronizáláshoz");
+      return;
+    }
+    setSyncing(true);
+    const t = toast.loading(`Szinkronizálás (${accounts.length} fiók)…`);
+    let okCount = 0;
+    let failCount = 0;
+    await Promise.all(
+      accounts.map(async (a) => {
+        try {
+          // Pull both inbox and sent so "ki és be" egyaránt frissül
+          await mailAPI.imap.fetch({ accountId: a.id, mailbox: "INBOX", limit: 50 });
+          try {
+            await mailAPI.imap.fetch({ accountId: a.id, mailbox: "Sent", limit: 50 });
+          } catch { /* Sent folder may not exist on every server */ }
+          setAccountStatus(a.id, { lastChecked: Date.now(), ok: true });
+          okCount++;
+        } catch (e: any) {
+          setAccountStatus(a.id, {
+            lastChecked: Date.now(),
+            ok: false,
+            error: String(e?.message || e),
+          });
+          failCount++;
+        }
+      }),
+    );
+    // Refresh the currently visible mailbox so new messages show up
+    await loadMessages();
+    setSyncing(false);
+    toast.dismiss(t);
+    if (failCount === 0) {
+      toast.success(`Szinkronizálva — ${okCount} fiók`);
+    } else {
+      toast.warning(`Szinkronizálás kész — ${okCount} sikeres, ${failCount} hiba`);
+    }
+  }, [accounts, syncing, loadMessages]);
+
   const handleReply = (m: MailMessage) => {
     setComposerInitial({
       to: m.from,
@@ -123,6 +167,8 @@ const Index = () => {
           onEditAccount={(a) => { setEditingAccount(a); setAccountDlgOpen(true); }}
           onDeleteAccount={(a) => setDeletingAccount(a)}
           onCompose={openCompose}
+          onSyncAll={syncAll}
+          syncing={syncing}
           onOpenTemplates={() => setTemplatesOpen(true)}
           onOpenSignatures={() => setSignaturesOpen(true)}
           onOpenSettings={() => {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Account } from "@/lib/mailBridge";
 import { cn } from "@/lib/utils";
-import { Inbox, Send, FileText, Archive, Trash2, AlertOctagon, Plus, Settings, FileCode2, Pencil, X, AlertCircle, CheckCircle2, Circle, PenSquare, FileSignature } from "lucide-react";
+import { Inbox, Send, FileText, Archive, Trash2, AlertOctagon, Plus, Settings, FileCode2, Pencil, X, AlertCircle, CheckCircle2, Circle, PenSquare, FileSignature, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getAllAccountStatuses, formatRelative, type AccountStatus } from "@/lib/accountStatus";
@@ -16,6 +16,8 @@ type Props = {
   onEditAccount: (a: Account) => void;
   onDeleteAccount: (a: Account) => void;
   onCompose: () => void;
+  onSyncAll: () => void;
+  syncing?: boolean;
   onOpenTemplates: () => void;
   onOpenSignatures: () => void;
   onOpenSettings: () => void;
@@ -34,7 +36,7 @@ const COLORS = ["bg-primary", "bg-success", "bg-warning", "bg-destructive", "bg-
 
 export function Sidebar({
   accounts, activeAccountId, activeMailbox,
-  onSelectAccount, onSelectMailbox, onAddAccount, onEditAccount, onDeleteAccount, onCompose, onOpenTemplates, onOpenSignatures, onOpenSettings,
+  onSelectAccount, onSelectMailbox, onAddAccount, onEditAccount, onDeleteAccount, onCompose, onSyncAll, syncing, onOpenTemplates, onOpenSignatures, onOpenSettings,
 }: Props) {
   const [statuses, setStatuses] = useState<Record<string, AccountStatus>>(() => getAllAccountStatuses());
 
@@ -54,9 +56,20 @@ export function Sidebar({
     <aside className="w-60 shrink-0 bg-gradient-sidebar border-r border-sidebar-border flex flex-col h-full">
       <div className="mac-titlebar shrink-0" />
 
-      <div className="px-3 pb-3">
+      <div className="px-3 pb-2 space-y-1.5">
         <Button onClick={onCompose} className="w-full bg-gradient-primary shadow-mac-md">
           <PenSquare className="h-4 w-4 mr-1.5" /> Új levél
+        </Button>
+        <Button
+          onClick={onSyncAll}
+          variant="outline"
+          size="sm"
+          disabled={syncing}
+          className="w-full"
+          title="Minden fiók szinkronizálása (bejövő és elküldött)"
+        >
+          <RefreshCw className={cn("h-4 w-4 mr-1.5", syncing && "animate-spin")} />
+          {syncing ? "Szinkronizálás…" : "Szinkronizálás"}
         </Button>
       </div>
 
