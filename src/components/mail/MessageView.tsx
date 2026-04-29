@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { EmailHtmlFrame } from "./EmailHtmlFrame";
 import { exportEmailToPdf } from "@/lib/exportPdf";
+import { AttachmentList } from "./AttachmentList";
 import { toast } from "sonner";
 
 type Props = {
@@ -109,20 +110,25 @@ export function MessageView({ message, onReply, onReplyAll, onForward, onToggleF
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-8 py-6">
-        {message.bodyLoaded === false && !message.html && !message.text ? (
-          <div className="text-sm text-muted-foreground italic">
-            Levél tartalmának betöltése…
-          </div>
-        ) : message.html ? (
-          // A levél HTML-jét izolált iframe-be tesszük, hogy a benne lévő
-          // `<style>` blokkok és inline szabályok ne ütközzenek a Tailwind
-          // reset / `prose` stílusokkal — különben a komplexebb levelek
-          // (HTML kampányok, számlák, hírlevelek) „puszta szövegként"
-          // jelennek meg.
-          <EmailHtmlFrame html={message.html} />
-        ) : (
-          <pre className="whitespace-pre-wrap font-sans text-sm">{message.text}</pre>
+      <div className="flex-1 overflow-y-auto">
+        <div className="px-8 py-6">
+          {message.bodyLoaded === false && !message.html && !message.text ? (
+            <div className="text-sm text-muted-foreground italic">
+              Levél tartalmának betöltése…
+            </div>
+          ) : message.html ? (
+            // A levél HTML-jét izolált iframe-be tesszük, hogy a benne lévő
+            // `<style>` blokkok és inline szabályok ne ütközzenek a Tailwind
+            // reset / `prose` stílusokkal — különben a komplexebb levelek
+            // (HTML kampányok, számlák, hírlevelek) „puszta szövegként"
+            // jelennek meg.
+            <EmailHtmlFrame html={message.html} />
+          ) : (
+            <pre className="whitespace-pre-wrap font-sans text-sm">{message.text}</pre>
+          )}
+        </div>
+        {message.attachments && message.attachments.length > 0 && (
+          <AttachmentList attachments={message.attachments} />
         )}
       </div>
     </div>
