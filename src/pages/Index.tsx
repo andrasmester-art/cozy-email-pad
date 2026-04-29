@@ -199,11 +199,16 @@ const Index = () => {
     const api = (window as any).mailAPI;
     if (!api?.events?.onAutoSync) return;
     const off = api.events.onAutoSync(async (payload: { accountId: string; mailbox: string; added: number }) => {
-      if (!payload?.added) return;
-      const acc = accounts.find((a) => a.id === payload.accountId);
-      const accLabel = acc?.label || acc?.from || acc?.user;
-      const label = accLabel ? ` (${accLabel})` : "";
-      toast.success(`${payload.added} új levél${label}`);
+      if (!payload) return;
+      // Toast csak új levélnél; a flag-frissítés (added=0) csendes.
+      if (payload.added > 0) {
+        const acc = accounts.find((a) => a.id === payload.accountId);
+        const accLabel = acc?.label || acc?.from || acc?.user;
+        const label = accLabel ? ` (${accLabel})` : "";
+        toast.success(`${payload.added} új levél${label}`);
+      }
+      // Ha az érintett fiók/mappa van nyitva, mindig frissítsük a listát
+      // (új levél VAGY visszaszinkronizált flag-változás miatt is).
       if (payload.accountId === activeAccountId && payload.mailbox === activeMailbox) {
         try {
           const fresh = await mailAPI.imap.fetch({

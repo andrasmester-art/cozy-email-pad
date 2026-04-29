@@ -3,6 +3,17 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.14.0] – 2026-04-29
+
+### Új
+- **Kétirányú flag-szinkron**: a csillag (`\Flagged`) és olvasott (`\Seen`) állapot mostantól **mindkét irányba** szinkronizálódik a szerverrel. Ha más kliensben (Mail.app, Gmail web, mobil) megjelölsz vagy elolvasol egy levelet, a változás a következő szinkronnál (5 percenkénti auto-poll vagy manuális frissítés) automatikusan megjelenik a Cozy-ban is.
+- A háttér-szinkron a kiválasztott mappa cache-elt UID-jainak teljes flag-listáját lekéri egy gyors `UID FETCH FLAGS` hívással (body nélkül, így nem lassul a sync), és csak a ténylegesen változott üzeneteket frissíti a cache-ben.
+- A nyitott mappa listája csendben (toast nélkül) is frissül, ha csak flag-változás történt — így a csillag/olvasott állapot azonnal naprakész.
+
+### Változás
+- Új `fetchFlagsByUidRange` (main process) és `applyFlagUpdates` (cache modul) helperek.
+- Az auto-sync event mostantól minden lefutáskor szól a renderernek (`added=0` esetén csendes UI-frissítés flag-szinkronhoz).
+
 ## [1.13.0] – 2026-04-29
 
 ### Új

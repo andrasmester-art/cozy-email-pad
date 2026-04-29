@@ -124,6 +124,24 @@ function updateMessageFlags(state, uid, patch) {
   return { ...state, messages: next, updatedAt: Date.now() };
 }
 
+// Több UID flag-jeit frissíti egy menetben. updates: Map<uid, { flagged?, seen? }>.
+// Visszaadja az új state-et + a ténylegesen módosult UID-okat.
+function applyFlagUpdates(state, updates) {
+  let changed = 0;
+  const next = state.messages.map((m) => {
+    if (m.uid == null) return m;
+    const upd = updates.get(m.uid);
+    if (!upd) return m;
+    const newFlagged = typeof upd.flagged === "boolean" ? upd.flagged : !!m.flagged;
+    const newSeen = typeof upd.seen === "boolean" ? upd.seen : (m.seen !== false);
+    if ((!!m.flagged) === newFlagged && (m.seen !== false) === newSeen) return m;
+    changed++;
+    return { ...m, flagged: newFlagged, seen: newSeen };
+  });
+  if (changed === 0) return { state, changed: 0 };
+  return { state: { ...state, messages: next, updatedAt: Date.now() }, changed };
+}
+
 module.exports = {
   MAX_PER_MAILBOX,
   INITIAL_PAGE_SIZE,
@@ -132,6 +150,7 @@ module.exports = {
   write,
   mergeNewMessages,
   updateMessageFlags,
+  applyFlagUpdates,
   reset,
   purgeAccount,
 };
