@@ -181,12 +181,25 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
       const draft = {
         accountId, to, cc, bcc, showCc, subject, body, updatedAt: now,
       };
-      if (isDraftMeaningful(draft)) {
-        saveDraft(draft);
-        setLastSavedAt(now);
-      } else {
-        clearDraft();
-        setLastSavedAt(null);
+      try {
+        if (isDraftMeaningful(draft)) {
+          setSaveStatus("saving");
+          saveDraft(draft);
+          setLastSavedAt(now);
+          setSaveStatus("saved");
+          // Reset the "Mentve" flash back to the persistent timestamp label after 2s.
+          if (savedFlashRef.current) clearTimeout(savedFlashRef.current);
+          savedFlashRef.current = setTimeout(() => setSaveStatus("idle"), 2000);
+        } else {
+          clearDraft();
+          setLastSavedAt(null);
+          setSaveStatus("idle");
+        }
+      } catch (e: any) {
+        setSaveStatus("error");
+        toast.error("Piszkozat mentése sikertelen", {
+          description: String(e?.message || e),
+        });
       }
     }, 400);
     return () => clearTimeout(t);
