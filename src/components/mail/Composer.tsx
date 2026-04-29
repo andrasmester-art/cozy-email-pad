@@ -10,10 +10,14 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { X, Send, FileCode2, Save, Clock, Star, Loader2 } from "lucide-react";
+import { X, Send, FileCode2, Save, Clock, Star, Loader2, FileSignature } from "lucide-react";
 import { toast } from "sonner";
 import { getSendDelay, setSendDelay, SEND_DELAY_OPTIONS, formatDelay } from "@/lib/sendDelay";
 import { getDefaultAccountId, setDefaultAccountId } from "@/lib/defaultAccount";
+import {
+  listSignatures, getDefaultSignatureId, getSignature, applySignatureToBody,
+  type Signature,
+} from "@/lib/signatures";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -51,11 +55,17 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
   const [saveTplOpen, setSaveTplOpen] = useState(false);
   const [tplName, setTplName] = useState("");
   const [delay, setDelay] = useState<number>(getSendDelay());
+  const [signatures, setSignatures] = useState<Signature[]>(() => listSignatures());
 
   useEffect(() => {
     const handler = (e: Event) => setDelay((e as CustomEvent<number>).detail);
     window.addEventListener("sendDelayChanged", handler);
-    return () => window.removeEventListener("sendDelayChanged", handler);
+    const sigHandler = () => setSignatures(listSignatures());
+    window.addEventListener("signaturesChanged", sigHandler);
+    return () => {
+      window.removeEventListener("sendDelayChanged", handler);
+      window.removeEventListener("signaturesChanged", sigHandler);
+    };
   }, []);
 
   useEffect(() => {
@@ -69,14 +79,28 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
       setDefaultId(saved);
       setTo(initial?.to || "");
       setSubject(initial?.subject || "");
-      setBody(initial?.body || "");
+      // Apply default signature for the initial account on open
+      const sig = getSignature(initId ? getDefaultSignatureId(initId) : null);
+      setBody(applySignatureToBody(initial?.body || "", sig));
       setCc(""); setBcc(""); setShowCc(false);
     }
   }, [open, defaultAccountId, accounts, initial?.to, initial?.subject, initial?.body]);
 
+  // Swap default signature whenever the account changes (after the dialog is open)
+  useEffect(() => {
+    if (!open || !accountId) return;
+    const sig = getSignature(getDefaultSignatureId(accountId));
+    setBody((prev) => applySignatureToBody(prev, sig));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId]);
+
   const applyTemplate = (tpl: EmailTemplate) => {
     if (!subject) setSubject(tpl.subject);
     setBody((prev) => (prev && prev !== "<p></p>" ? prev + tpl.body : tpl.body));
+  };
+
+  const applySignature = (sig: Signature | null) => {
+    setBody((prev) => applySignatureToBody(prev, sig));
   };
 
   // Pending-send state for the undo countdown UI
@@ -318,6 +342,31 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
                     {t.name}
                   </DropdownMenuItem>
                 ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <FileSignature className="h-4 w-4 mr-1.5" /> Aláírás
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {signatures.length === 0 && (
+                  <DropdownMenuItem disabled>Nincs aláírás</DropdownMenuItem>
+                )}
+                {signatures.map((s) => {
+                  const isAccountDefault = !!accountId && getDefaultSignatureId(accountId) === s.id;
+                  return (
+                    <DropdownMenuItem key={s.id} onClick={() => applySignature(s)}>
+                      {s.name}{isAccountDefault ? " — alapértelmezett" : ""}
+                    </DropdownMenuItem>
+                  );
+                })}
+                {signatures.length > 0 && (
+                  <DropdownMenuItem onClick={() => applySignature(null)}>
+                    — Aláírás nélkül —
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
             <Button variant="outline" size="sm" onClick={() => setSaveTplOpen(true)}>

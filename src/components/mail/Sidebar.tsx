@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Account } from "@/lib/mailBridge";
 import { cn } from "@/lib/utils";
-import { Inbox, Send, FileText, Archive, Trash2, AlertOctagon, Plus, Settings, FileCode2, Pencil, X, AlertCircle, CheckCircle2, Circle, PenSquare } from "lucide-react";
+import { Inbox, Send, FileText, Archive, Trash2, AlertOctagon, Plus, Settings, FileCode2, Pencil, X, AlertCircle, CheckCircle2, Circle, PenSquare, FileSignature } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getAllAccountStatuses, formatRelative, type AccountStatus } from "@/lib/accountStatus";
@@ -17,6 +17,7 @@ type Props = {
   onDeleteAccount: (a: Account) => void;
   onCompose: () => void;
   onOpenTemplates: () => void;
+  onOpenSignatures: () => void;
   onOpenSettings: () => void;
 };
 
@@ -33,7 +34,7 @@ const COLORS = ["bg-primary", "bg-success", "bg-warning", "bg-destructive", "bg-
 
 export function Sidebar({
   accounts, activeAccountId, activeMailbox,
-  onSelectAccount, onSelectMailbox, onAddAccount, onEditAccount, onDeleteAccount, onCompose, onOpenTemplates, onOpenSettings,
+  onSelectAccount, onSelectMailbox, onAddAccount, onEditAccount, onDeleteAccount, onCompose, onOpenTemplates, onOpenSignatures, onOpenSettings,
 }: Props) {
   const [statuses, setStatuses] = useState<Record<string, AccountStatus>>(() => getAllAccountStatuses());
 
@@ -171,6 +172,9 @@ export function Sidebar({
       <div className="mt-auto p-3 border-t border-sidebar-border space-y-1">
         <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={onOpenTemplates}>
           <FileCode2 className="h-4 w-4" /> Sablonok
+        </Button>
+        <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={onOpenSignatures}>
+          <FileSignature className="h-4 w-4" /> Aláírások
         </Button>
         <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={onOpenSettings}>
           <Settings className="h-4 w-4" /> Beállítások
