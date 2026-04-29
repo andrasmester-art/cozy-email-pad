@@ -3,6 +3,14 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.22.0] – 2026-04-29
+
+### Új
+- **Sötét mód.** A Sidebar alján új „Téma" gomb jelent meg, ahol választhatsz a **Világos**, **Sötét** és **Rendszer szerint** opciók közül.
+- A „Rendszer szerint" mód automatikusan követi az operációs rendszer beállítását (macOS automatikus est, Windows téma-váltás), és élőben átáll, ha közben módosítod azt.
+- A választott téma a tárolóban megmarad, és már a betöltés *előtt* alkalmazódik, így nem villan be a világos háttér indításkor.
+- A natív űrlap-elemek (input, scrollbar) is sötét sémára váltanak (`color-scheme` állítása), így a beviteli mezők és görgetősávok is illeszkednek a témához.
+
 ## [1.21.0] – 2026-04-29
 
 ### Új
