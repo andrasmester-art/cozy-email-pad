@@ -33,7 +33,13 @@ function htmlToText(html: string) {
 }
 
 export function Composer({ open, onClose, accounts, defaultAccountId, initial }: Props) {
-  const [accountId, setAccountId] = useState<string>(defaultAccountId || accounts[0]?.id || "");
+  const resolveInitialAccount = () => {
+    const saved = getDefaultAccountId();
+    if (saved && accounts.some((a) => a.id === saved)) return saved;
+    return defaultAccountId || accounts[0]?.id || "";
+  };
+  const [accountId, setAccountId] = useState<string>(resolveInitialAccount());
+  const [defaultId, setDefaultId] = useState<string | null>(getDefaultAccountId());
   const [to, setTo] = useState(initial?.to || "");
   const [cc, setCc] = useState("");
   const [bcc, setBcc] = useState("");
