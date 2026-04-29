@@ -280,7 +280,6 @@ export function SignaturesDialog({ open, onClose }: Props) {
                     </div>
                   </div>
                 </div>
-                </div>
               </>
             ) : (
               <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
