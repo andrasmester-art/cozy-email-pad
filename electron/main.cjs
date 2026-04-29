@@ -256,37 +256,55 @@ async function syncMailbox(account, logicalMailbox) {
       return { added: 0, total: 0, mailbox: logicalMailbox };
     }
 
-    let range;
+    // Lekérdezzük a szervertől a tényleges UID listát — így nem ragadunk be
+    // egy hibás lastUid miatt, és UIDVALIDITY-rejtett változásokat is észrevesszük.
+    const uidSearch = (criteria) => new Promise((resolve, reject) => {
+      imap.search(criteria, (err, results) => (err ? reject(err) : resolve(results || [])));
+    });
+
+    let uidsToFetch = [];
     if (state.lastUid > 0) {
-      // Csak az újak: lastUid+1 felett.
-      range = `${state.lastUid + 1}:*`;
-    } else {
-      // Üres cache → csak a legutolsó INITIAL_PAGE_SIZE darab.
-      const total = box.messages.total;
-      const limit = cache.INITIAL_PAGE_SIZE;
-      const startSeq = Math.max(1, total - limit + 1);
-      const uids = await new Promise((resolve, reject) => {
-        const out = [];
-        const f = imap.seq.fetch(`${startSeq}:${total}`, { bodies: "" });
-        f.on("message", (msg) => {
-          msg.once("attributes", (a) => { if (a?.uid) out.push(a.uid); });
-        });
-        f.once("error", reject);
-        f.once("end", () => resolve(out));
-      });
-      if (!uids.length) {
-        cache.write(userDataDir(), account.id, logicalMailbox, { ...state, updatedAt: Date.now() });
-        return { added: 0, total: box.messages.total, mailbox: logicalMailbox };
+      // Kérdezzük meg a szervert: melyek a tényleg új UID-ok?
+      try {
+        const newer = await uidSearch([["UID", `${state.lastUid + 1}:*`]]);
+        uidsToFetch = newer.filter((u) => u > state.lastUid);
+      } catch {
+        uidsToFetch = [];
       }
-      const minUid = Math.min(...uids);
-      const maxUid = Math.max(...uids);
-      range = `${minUid}:${maxUid}`;
+
+      // Biztonsági ellenőrzés: ha a szerver legnagyobb UID-ja kisebb, mint a
+      // cached lastUid, valami félrement (UIDVALIDITY váltás amit nem jeleztek,
+      // mailbox visszaállítás stb.) → reseteljük a cache-t és újra szinkronizálunk.
+      if (uidsToFetch.length === 0) {
+        try {
+          const all = await uidSearch(["ALL"]);
+          const serverMax = all.length ? Math.max(...all) : 0;
+          if (serverMax > 0 && serverMax < state.lastUid) {
+            // Cache invalid → reset, és töltsük le a legutóbbi INITIAL_PAGE_SIZE darabot
+            state = cache.reset(uidvalidity);
+          }
+        } catch { /* ignore */ }
+      }
     }
 
-    const fetched = await fetchByUidRange(imap, range);
-    const newOnly = state.lastUid > 0
-      ? fetched.filter((m) => m.uid > state.lastUid)
-      : fetched;
+    if (state.lastUid === 0) {
+      // Üres cache (vagy reset után) → a legutolsó INITIAL_PAGE_SIZE UID
+      let allUids = [];
+      try { allUids = await uidSearch(["ALL"]); } catch { allUids = []; }
+      allUids.sort((a, b) => a - b);
+      uidsToFetch = allUids.slice(-cache.INITIAL_PAGE_SIZE);
+    }
+
+    if (uidsToFetch.length === 0) {
+      cache.write(userDataDir(), account.id, logicalMailbox, { ...state, updatedAt: Date.now() });
+      return { added: 0, total: box.messages.total, mailbox: logicalMailbox };
+    }
+
+    const minUid = Math.min(...uidsToFetch);
+    const maxUid = Math.max(...uidsToFetch);
+    const fetched = await fetchByUidRange(imap, `${minUid}:${maxUid}`);
+    const wanted = new Set(uidsToFetch);
+    const newOnly = fetched.filter((m) => wanted.has(m.uid) && m.uid > (state.lastUid || 0));
     const next = cache.mergeNewMessages(state, newOnly);
     cache.write(userDataDir(), account.id, logicalMailbox, next);
     return { added: newOnly.length, total: box.messages.total, mailbox: logicalMailbox };
