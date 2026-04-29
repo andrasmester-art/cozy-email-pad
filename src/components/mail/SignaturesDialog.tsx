@@ -89,7 +89,7 @@ export function SignaturesDialog({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-5xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSignature className="h-4 w-4" /> Email aláírások
