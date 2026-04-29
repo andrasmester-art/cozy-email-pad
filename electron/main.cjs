@@ -323,23 +323,60 @@ async function loadOlder(account, logicalMailbox, pageSize) {
     }
     const upper = state.oldestUid - 1;
     if (upper < 1) return { added: 0, mailbox: logicalMailbox, exhausted: true };
-    const limit = pageSize || cache.PAGE_SIZE;
-    const lower = Math.max(1, upper - limit + 1);
-    const range = `${lower}:${upper}`;
-    const fetched = await fetchByUidRange(imap, range);
-    if (!fetched.length) {
-      // Nincs több ebben a tartományban — jelöljük kimerítettnek
+
+    // Kérdezzük meg a szervert, mely UID-ok léteznek 1..upper között.
+    // (UID-ok nem összefüggőek — a törölt levelek hézagokat hagynak, ezért
+    // egy egyszerű `lower:upper` range gyakran üres halmazt vagy hibát ad.)
+    const uidSearch = (criteria) => new Promise((resolve, reject) => {
+      imap.search(criteria, (err, results) => (err ? reject(err) : resolve(results || [])));
+    });
+
+    let olderUids = [];
+    try {
+      olderUids = await uidSearch([["UID", `1:${upper}`]]);
+    } catch {
+      olderUids = [];
+    }
+    olderUids = olderUids.filter((u) => u >= 1 && u <= upper).sort((a, b) => a - b);
+
+    if (!olderUids.length) {
+      // Tényleg nincs több régebbi → jelöljük kimerítettnek.
       const next = { ...state, oldestUid: 1, updatedAt: Date.now() };
       cache.write(userDataDir(), account.id, logicalMailbox, next);
       return { added: 0, mailbox: logicalMailbox, exhausted: true };
     }
-    const next = cache.mergeNewMessages(state, fetched);
-    // mergeNewMessages frissíti az oldestUid-ot a betöltöttek minimumára
+
+    const limit = pageSize || cache.PAGE_SIZE;
+    // A legfrissebb N régebbi UID (a tetejéről).
+    const pageUids = olderUids.slice(-limit);
+    const minUid = Math.min(...pageUids);
+    const maxUid = Math.max(...pageUids);
+
+    const fetched = await fetchByUidRange(imap, `${minUid}:${maxUid}`);
+    const wanted = new Set(pageUids);
+    const filtered = fetched.filter((m) => wanted.has(m.uid));
+
+    // Ha a fetch valamiért semmit nem adott vissza (parse hibák), akkor is
+    // léptessük az oldestUid-ot a kért tartomány alá, hogy a következő
+    // "régebbi" hívás tovább tudjon menni és ne ragadjunk ugyanott.
+    let next;
+    if (filtered.length === 0) {
+      next = { ...state, oldestUid: minUid, updatedAt: Date.now() };
+    } else {
+      next = cache.mergeNewMessages(state, filtered);
+      // Biztosítsuk, hogy az oldestUid mindenképp a kért sáv aljára álljon
+      // (mergeNewMessages a tényleg betöltött minimumra állítja).
+      if (next.oldestUid > minUid) next.oldestUid = minUid;
+    }
     cache.write(userDataDir(), account.id, logicalMailbox, next);
+
+    // Akkor kimerített, ha már az 1-es UID is benne volt a most letöltöttekben,
+    // VAGY az olderUids első eleme (a legrégebbi létező UID) most lett behúzva.
+    const exhausted = olderUids[0] >= minUid;
     return {
-      added: fetched.length,
+      added: filtered.length,
       mailbox: logicalMailbox,
-      exhausted: lower <= 1,
+      exhausted,
     };
   });
 }
