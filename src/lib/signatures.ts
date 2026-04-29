@@ -41,10 +41,13 @@ export function listSignatures(): Signature[] {
 }
 
 export function saveSignature(sig: Signature) {
+  // Sanitise the HTML body on save so untrusted/pasted content can never be
+  // persisted (and later injected into composed messages) in a dangerous form.
+  const safe: Signature = { ...sig, body: sanitizeEmailHtml(sig.body || "") };
   const all = readSigs();
-  const idx = all.findIndex((s) => s.id === sig.id);
-  if (idx >= 0) all[idx] = sig;
-  else all.push(sig);
+  const idx = all.findIndex((s) => s.id === safe.id);
+  if (idx >= 0) all[idx] = safe;
+  else all.push(safe);
   writeSigs(all);
 }
 
