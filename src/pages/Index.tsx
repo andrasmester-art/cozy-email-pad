@@ -120,6 +120,7 @@ const Index = () => {
           onAddAccount={() => { setEditingAccount(null); setAccountDlgOpen(true); }}
           onEditAccount={(a) => { setEditingAccount(a); setAccountDlgOpen(true); }}
           onDeleteAccount={(a) => setDeletingAccount(a)}
+          onCompose={openCompose}
           onOpenTemplates={() => setTemplatesOpen(true)}
           onOpenSettings={() => {
             const current = accounts.find((x) => x.id === activeAccountId) || null;
@@ -138,11 +139,6 @@ const Index = () => {
         />
 
         <div className="flex-1 flex flex-col min-w-0 relative">
-          <div className="absolute top-2 right-3 z-10">
-            <Button onClick={openCompose} className="bg-gradient-primary shadow-mac-md">
-              <PenSquare className="h-4 w-4 mr-1.5" /> Új levél
-            </Button>
-          </div>
           <MessageView message={selected} onReply={handleReply} />
         </div>
       </div>
