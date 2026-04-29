@@ -3,6 +3,16 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.18.0] – 2026-04-29
+
+### Új
+- **Kép méretezés és igazítás** a levélszerkesztőben. Beillesztett (vagy meglévő) képre kattintva egy lebegő eszköztár jelenik meg a kép fölött:
+  - **Méret**: S (200 px), M (400 px), L (640 px), 100% (teljes szélesség), Auto (eredeti).
+  - **Igazítás**: balra / középre / jobbra.
+  - **Törlés** gomb.
+  - A kijelölt képet kék keret jelzi.
+- A beállítások **inline style** és `data-align` attribútumként mentődnek, így a címzett oldalán Apple Mailben, Gmailben, Outlookban is helyesen jelennek meg — nem csak a saját szerkesztőben.
+
 ## [1.17.0] – 2026-04-29
 
 ### Változás
