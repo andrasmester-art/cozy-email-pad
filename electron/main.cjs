@@ -66,6 +66,7 @@ ipcMain.handle("accounts:save", (_e, account) => {
 ipcMain.handle("accounts:delete", (_e, id) => {
   const accounts = loadAccounts().filter((a) => a.id !== id);
   saveAccounts(accounts);
+  try { cache.wipeAccount(id); } catch { /* ignore */ }
   return { ok: true };
 });
 
