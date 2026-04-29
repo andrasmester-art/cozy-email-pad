@@ -78,9 +78,21 @@ function Toolbar({ editor }: { editor: Editor | null }) {
 export function RichTextEditor({ value, onChange, placeholder, className }: Props) {
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
-      Link.configure({ openOnClick: false, HTMLAttributes: { rel: "noopener noreferrer" } }),
-      Image,
+      // Tiptap v3 StarterKit már tartalmazza a Link-et és az Underline-t.
+      // A Link-et kikapcsoljuk a StarterKit-ben, hogy a saját, konfigurált
+      // példányunkat használhassuk (openOnClick: false, biztonságos rel),
+      // különben "Duplicate extension names" figyelmeztetést kapnánk és a
+      // setLink parancs ütközne.
+      StarterKit.configure({
+        heading: { levels: [1, 2, 3] },
+        link: false,
+      }),
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+        HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
+      }),
+      Image.configure({ inline: false, allowBase64: true }),
       Typography,
       Placeholder.configure({ placeholder: placeholder || "Írj ide…" }),
     ],
