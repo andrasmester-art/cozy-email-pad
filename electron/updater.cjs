@@ -135,6 +135,46 @@ function fetchRemoteVersion() {
   });
 }
 
+// Fetch the raw CHANGELOG.md from the default branch (best-effort).
+function fetchRemoteChangelog() {
+  return new Promise((resolve) => {
+    const opts = {
+      host: "raw.githubusercontent.com",
+      path: `/${REPO_OWNER}/${REPO_NAME}/${DEFAULT_BRANCH}/CHANGELOG.md`,
+      headers: { "User-Agent": "MEpodMail-Updater" },
+    };
+    https.get(opts, (res) => {
+      let body = "";
+      res.on("data", (c) => (body += c));
+      res.on("end", () => {
+        if (res.statusCode !== 200) return resolve(null);
+        resolve(body);
+      });
+    }).on("error", () => resolve(null));
+  });
+}
+
+// Parse a CHANGELOG.md into an array of { version, date, body } entries.
+// Recognises headings like "## [1.2.3] – 2026-04-29" or "## 1.2.3 - 2026-04-29".
+function parseChangelog(md) {
+  if (!md) return [];
+  const lines = md.split(/\r?\n/);
+  const entries = [];
+  let current = null;
+  const headingRe = /^##\s+\[?(\d+\.\d+\.\d+)\]?\s*[–-]?\s*(.*)$/;
+  for (const line of lines) {
+    const m = line.match(headingRe);
+    if (m) {
+      if (current) entries.push(current);
+      current = { version: m[1], date: (m[2] || "").trim(), body: "" };
+    } else if (current) {
+      current.body += line + "\n";
+    }
+  }
+  if (current) entries.push(current);
+  return entries.map((e) => ({ ...e, body: e.body.trim() }));
+}
+
 function readLocalSha(dir) {
   try {
     const head = fs.readFileSync(path.join(dir, ".git", "HEAD"), "utf-8").trim();
@@ -175,6 +215,7 @@ ipcMain.handle("updater:info", async () => {
   let remote = null;
   let remoteError = null;
   let remoteVersion = null;
+  let changelog = [];
   try {
     remote = await fetchLatestSha();
   } catch (e) {
@@ -183,9 +224,21 @@ ipcMain.handle("updater:info", async () => {
   try {
     remoteVersion = await fetchRemoteVersion();
   } catch { /* non-fatal */ }
+  try {
+    const md = await fetchRemoteChangelog();
+    changelog = parseChangelog(md);
+  } catch { /* non-fatal */ }
 
   const versionCmp = compareVersions(localVersion, remoteVersion);
   const upToDateByVersion = remoteVersion ? versionCmp >= 0 : null;
+
+  // Release notes between local and remote: entries with version > localVersion
+  // and version <= remoteVersion. If localVersion is unknown, return all.
+  const releaseNotes = changelog.filter((e) => {
+    if (remoteVersion && compareVersions(e.version, remoteVersion) > 0) return false;
+    if (localVersion && compareVersions(e.version, localVersion) <= 0) return false;
+    return true;
+  });
 
   return {
     appRoot: root,
@@ -204,6 +257,7 @@ ipcMain.handle("updater:info", async () => {
       ? upToDateByVersion
       : !!(local && remote?.sha && local === remote.sha),
     versionDelta: remoteVersion ? -versionCmp : 0, // 1 = új elérhető, 0 = naprakész, -1 = előrébb vagy
+    releaseNotes,
   };
 });
 

@@ -239,6 +239,12 @@ export const mailAPI = {
   },
 };
 
+export type ReleaseNote = {
+  version: string;
+  date: string;
+  body: string;
+};
+
 export type UpdaterInfo = {
   appRoot: string;
   writable: boolean;
@@ -254,6 +260,7 @@ export type UpdaterInfo = {
   branch: string;
   upToDate: boolean;
   versionDelta?: number; // 1 = update available, 0 = up to date
+  releaseNotes?: ReleaseNote[];
 };
 
 function defaultTemplates(): EmailTemplate[] {

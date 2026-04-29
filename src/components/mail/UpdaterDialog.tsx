@@ -4,7 +4,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, RefreshCw, CheckCircle2, AlertCircle, ExternalLink, Loader2 } from "lucide-react";
+import { Download, RefreshCw, CheckCircle2, AlertCircle, ExternalLink, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { mailAPI, type UpdaterInfo } from "@/lib/mailBridge";
 
@@ -78,7 +78,7 @@ export function UpdaterDialog({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && !applying && onClose()}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Download className="h-4 w-4" /> Alkalmazás frissítése
@@ -162,6 +162,33 @@ export function UpdaterDialog({ open, onClose }: Props) {
               </Badge>
             )}
           </div>
+
+          {/* Release notes between installed and available version */}
+          {info?.releaseNotes && info.releaseNotes.length > 0 && (
+            <div className="rounded-md border border-border bg-surface p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <span className="text-sm font-semibold">
+                  Változások ({info.releaseNotes.length} új verzió)
+                </span>
+              </div>
+              <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+                {info.releaseNotes.map((note) => (
+                  <div key={note.version} className="border-l-2 border-primary/40 pl-3">
+                    <div className="flex items-baseline gap-2 mb-1">
+                      <span className="text-sm font-mono font-semibold">v{note.version}</span>
+                      {note.date && (
+                        <span className="text-xs text-muted-foreground">{note.date}</span>
+                      )}
+                    </div>
+                    <pre className="text-xs whitespace-pre-wrap font-sans text-muted-foreground leading-relaxed">
+                      {note.body}
+                    </pre>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {info?.remoteError && (
             <div className="text-xs text-destructive bg-destructive/10 border border-destructive/30 rounded p-2">
