@@ -155,6 +155,8 @@ const MessagePage = () => {
               onReply={handleReply}
               onReplyAll={handleReplyAll}
               onForward={handleForward}
+              onToggleFlag={toggleFlag}
+              onToggleSeen={toggleSeen}
             />
             {mailbox.toLowerCase().includes("draft") && (
               <div className="border-t border-border px-3 py-2 flex justify-end">
