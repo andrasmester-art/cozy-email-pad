@@ -1,7 +1,9 @@
 // Bridge between the React app and the Electron main process.
-// Az IMAP/SMTP hálózati logika el lett távolítva (1.2.0). A `mailAPI.imap`
-// és `mailAPI.smtp` továbbra is létezik no-op formában, hogy a UI ne törjön —
-// minden hívás üres adatot vagy "nem támogatott" hibát ad vissza.
+// Egyszerűsített, minimalista IMAP/SMTP API (1.3.0):
+//   - imap.test(accountId)               → bejelentkezés-ellenőrzés
+//   - imap.fetch({ accountId, mailbox }) → INBOX utolsó N levele
+//   - smtp.send(payload)                 → levél kiküldés
+// Más mappa (Sent / Drafts / Archive) jelenleg üres listát ad vissza.
 
 export type Account = {
   id: string;
@@ -58,11 +60,32 @@ const LS = {
   },
 };
 
-const NOT_SUPPORTED = "Az e-mail küldés és fogadás el lett távolítva ebből a verzióból.";
+const demoMessages = (label: string): MailMessage[] => [
+  {
+    seqno: 2,
+    from: "Lovable <hello@lovable.dev>",
+    to: label,
+    subject: "Üdv a saját email kliensedben! ✉️",
+    date: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+    text: "Ez egy demó üzenet a böngésző előnézethez. A natív Mac appban valódi IMAP fiókok jelennek meg.",
+    html: "<p>Ez egy <em>demó üzenet</em> a böngésző előnézethez.</p>",
+    snippet: "Ez egy demó üzenet a böngésző előnézethez…",
+  },
+  {
+    seqno: 1,
+    from: "Anna <anna@example.com>",
+    to: label,
+    subject: "Re: Heti egyeztetés",
+    date: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString(),
+    text: "Csütörtök 10:00 jó? Küldök naptármeghívót.",
+    html: "<p>Csütörtök <strong>10:00</strong> jó?</p>",
+    snippet: "Csütörtök 10:00 jó?",
+  },
+];
 
 export const mailAPI = {
   isElectron: !!isElectron,
-  platform: isElectron ? "Electron (Mac native)" : "Browser preview",
+  platform: isElectron ? "Electron (Mac native)" : "Browser preview (demo mode)",
 
   accounts: {
     async list(): Promise<Account[]> {
@@ -109,27 +132,30 @@ export const mailAPI = {
     },
   },
 
-  // No-op IMAP/SMTP implementation. Kept so the existing UI code doesn't crash.
   imap: {
     async listMailboxes(_accountId: string): Promise<string[]> {
       return ["INBOX", "Sent", "Drafts", "Archive", "Spam", "Trash"];
     },
-    async testConnection(_params: { accountId: string; timeoutMs?: number }): Promise<{ ok: true }> {
-      throw new Error(NOT_SUPPORTED);
+    async test(accountId: string): Promise<{ ok: true }> {
+      if (isElectron) return (window as any).mailAPI.imap.test({ accountId });
+      await new Promise((r) => setTimeout(r, 400));
+      return { ok: true };
     },
-    async fetch(_params: { accountId: string; mailbox?: string; limit?: number }): Promise<MailMessage[]> {
-      return [];
-    },
-    async sync(_params: { accountId: string; mailbox?: string; limit?: number }): Promise<{ added: number; messages: MailMessage[] }> {
-      return { added: 0, messages: [] };
-    },
-    async syncAll(_params: { accountId: string }): Promise<Record<string, number | { error: string }>> {
-      return {};
+    async fetch(params: { accountId: string; mailbox?: string; limit?: number }): Promise<MailMessage[]> {
+      const { accountId, mailbox = "INBOX", limit = 30 } = params;
+      if (isElectron) {
+        // Csak az INBOX-ot kérdezzük le élőben — a többi mappa egyelőre nem támogatott.
+        if (mailbox !== "INBOX") return [];
+        return (window as any).mailAPI.imap.listInbox({ accountId, limit });
+      }
+      const accounts = await mailAPI.accounts.list();
+      const acc = accounts.find((a) => a.id === accountId);
+      return mailbox === "INBOX" ? demoMessages(acc?.label || "demo@local") : [];
     },
   },
 
   smtp: {
-    async send(_params: {
+    async send(params: {
       accountId: string;
       to: string;
       cc?: string;
@@ -138,7 +164,10 @@ export const mailAPI = {
       html: string;
       text: string;
     }) {
-      throw new Error(NOT_SUPPORTED);
+      if (isElectron) return (window as any).mailAPI.smtp.send(params);
+      console.info("[demo] sendMail", params);
+      await new Promise((r) => setTimeout(r, 600));
+      return { ok: true, messageId: `demo-${Date.now()}` };
     },
   },
 
@@ -210,7 +239,7 @@ function defaultTemplates(): EmailTemplate[] {
       id: "tpl-meeting",
       name: "Megbeszélés egyeztetés",
       subject: "Egyeztetés időpontja",
-      body: "<p>Szia!</p><p>Az alábbi időpontok közül melyik felelne meg neked?</p><ul><li>Hétfő 10:00</li><li>Kedd 14:00</li></ul><p>Üdv</p>",
+      body: "<p>Szia!</p><p>Mikor lenne jó? Hétfő 10:00 / Kedd 14:00 / Szerda 9:00.</p><p>Üdv</p>",
       updatedAt: Date.now(),
     },
   ];

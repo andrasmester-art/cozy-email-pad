@@ -12,7 +12,13 @@ contextBridge.exposeInMainWorld("mailAPI", {
     save: (tpl) => ipcRenderer.invoke("templates:save", tpl),
     delete: (id) => ipcRenderer.invoke("templates:delete", id),
   },
-  // IMAP / SMTP support has been removed in 1.2.0.
+  imap: {
+    test: (params) => ipcRenderer.invoke("imap:test", params),
+    listInbox: (params) => ipcRenderer.invoke("imap:listInbox", params),
+  },
+  smtp: {
+    send: (params) => ipcRenderer.invoke("smtp:send", params),
+  },
   updater: {
     info: () => ipcRenderer.invoke("updater:info"),
     apply: () => ipcRenderer.invoke("updater:apply"),

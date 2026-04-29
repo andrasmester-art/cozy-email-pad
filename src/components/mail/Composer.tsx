@@ -247,9 +247,65 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
   }, []);
 
   const handleSend = async () => {
-    toast.error("Küldés kikapcsolva", {
-      description: "Az SMTP funkció el lett távolítva ebből a verzióból.",
-    });
+    if (sending || pending) return;
+    if (!accountId) return toast.error("Válassz fiókot");
+    if (!to.trim()) return toast.error("Adj meg címzettet");
+
+    const payload = {
+      accountId, to, cc: cc || undefined, bcc: bcc || undefined,
+      subject, html: body, text: htmlToText(body),
+    };
+
+    // Azonnali küldés — nincs késleltetés.
+    if (delay === 0) {
+      setSending(true);
+      try {
+        await mailAPI.smtp.send(payload);
+        clearDraft();
+        toast.success("Levél elküldve");
+        onClose();
+      } catch (e: any) {
+        toast.error("Küldés sikertelen", { description: String(e?.message || e) });
+      } finally {
+        setSending(false);
+      }
+      return;
+    }
+
+    // Késleltetett küldés "Visszavonás" lehetőséggel.
+    let cancelled = false;
+    let remaining = delay;
+    const cancel = () => {
+      if (cancelled) return;
+      cancelled = true;
+      clearInterval(tick);
+      clearTimeout(timer);
+      setPending(null);
+      toast.info("Küldés visszavonva");
+    };
+    setPending({ remaining, total: delay, cancel });
+    const tick = setInterval(() => {
+      remaining -= 1;
+      if (cancelled) return;
+      if (remaining > 0) setPending({ remaining, total: delay, cancel });
+      else clearInterval(tick);
+    }, 1000);
+    const timer = setTimeout(async () => {
+      clearInterval(tick);
+      if (cancelled) return;
+      setPending(null);
+      setSending(true);
+      try {
+        await mailAPI.smtp.send(payload);
+        clearDraft();
+        toast.success("Levél elküldve");
+        onClose();
+      } catch (e: any) {
+        toast.error("Küldés sikertelen", { description: String(e?.message || e) });
+      } finally {
+        setSending(false);
+      }
+    }, delay * 1000);
   };
 
   const saveAsTemplate = async () => {

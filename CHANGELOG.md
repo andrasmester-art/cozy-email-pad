@@ -3,6 +3,23 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.3.0] – 2026-04-29
+
+### Új
+- Visszakerült egy minimalista IMAP/SMTP réteg az Electron mainbe:
+  - `imap:test` — gyors bejelentkezés-ellenőrzés (15s timeout).
+  - `imap:listInbox` — az INBOX utolsó N levelét hozza le, parsolva (30s timeout).
+  - `smtp:send` — `nodemailer`-rel küld.
+- Minden IMAP munkamenet kemény teljes-deadline-nal fut (`withImap`), így a renderer soha nem tud befagyni.
+- A „Kapcsolat ellenőrzése" gomb visszakerült a fiók szerkesztőbe.
+- A „Szinkronizálás" gomb újra használható: minden fiókon újrahúzza az INBOX-ot.
+
+### Változás
+- Szándékosan nincs cache, nincs UID-alapú inkrementális szinkron, nincs background sync, nincs auto-retry, nincs mailbox-felderítés. Minden hívás egyszer fut le és véget ér.
+- Egyelőre csak az INBOX mappa él valós szervernél; a Sent / Drafts / Archive üres listát ad.
+- A Gmail továbbra is sima IMAP/SMTP-vel csatlakozik, app-specifikus jelszóval (Google OAuth nincs).
+
+
 ## [1.2.0] – 2026-04-29
 
 ### Változás
