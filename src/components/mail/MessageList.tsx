@@ -5,7 +5,7 @@ import { hu } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
 import { Search, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 
 type Props = {
   messages: MailMessage[];
@@ -14,6 +14,9 @@ type Props = {
   loading: boolean;
   onRefresh: () => void;
   mailbox: string;
+  onLoadMore?: () => void;
+  loadingMore?: boolean;
+  exhausted?: boolean;
 };
 
 function senderName(from: string) {
@@ -21,7 +24,7 @@ function senderName(from: string) {
   return (m ? m[1] : from).trim() || from;
 }
 
-export function MessageList({ messages, selectedSeqno, onSelect, loading, onRefresh, mailbox }: Props) {
+export function MessageList({ messages, selectedSeqno, onSelect, loading, onRefresh, mailbox, onLoadMore, loadingMore, exhausted }: Props) {
   const [q, setQ] = useState("");
   const filtered = useMemo(() => {
     if (!q.trim()) return messages;
@@ -58,17 +61,62 @@ export function MessageList({ messages, selectedSeqno, onSelect, loading, onRefr
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        {loading && messages.length === 0 ? (
-          <div className="p-6 text-center text-sm text-muted-foreground">Betöltés…</div>
-        ) : filtered.length === 0 ? (
-          <div className="p-6 text-center text-sm text-muted-foreground">Nincs üzenet</div>
-        ) : (
+      <ScrollList
+        loading={loading}
+        messages={messages}
+        filtered={filtered}
+        selectedSeqno={selectedSeqno}
+        onSelect={onSelect}
+        onLoadMore={onLoadMore}
+        loadingMore={loadingMore}
+        exhausted={exhausted}
+        searching={!!q.trim()}
+      />
+    </div>
+  );
+}
+
+function ScrollList({
+  loading, messages, filtered, selectedSeqno, onSelect, onLoadMore, loadingMore, exhausted, searching,
+}: {
+  loading: boolean;
+  messages: MailMessage[];
+  filtered: MailMessage[];
+  selectedSeqno: number | null;
+  onSelect: (m: MailMessage) => void;
+  onLoadMore?: () => void;
+  loadingMore?: boolean;
+  exhausted?: boolean;
+  searching: boolean;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !onLoadMore || searching) return;
+    const onScroll = () => {
+      if (loadingMore || exhausted) return;
+      // 200px-en belül az aljához → következő oldal
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 200) {
+        onLoadMore();
+      }
+    };
+    el.addEventListener("scroll", onScroll);
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [onLoadMore, loadingMore, exhausted, searching]);
+
+  return (
+    <div ref={ref} className="flex-1 overflow-y-auto">
+      {loading && messages.length === 0 ? (
+        <div className="p-6 text-center text-sm text-muted-foreground">Betöltés…</div>
+      ) : filtered.length === 0 ? (
+        <div className="p-6 text-center text-sm text-muted-foreground">Nincs üzenet</div>
+      ) : (
+        <>
           <ul>
             {filtered.map((m) => {
               const active = selectedSeqno === m.seqno;
               return (
-                <li key={m.seqno}>
+                <li key={m.seqno + ":" + (m.uid ?? "")}>
                   <button
                     onClick={() => onSelect(m)}
                     className={cn(
@@ -93,8 +141,17 @@ export function MessageList({ messages, selectedSeqno, onSelect, loading, onRefr
               );
             })}
           </ul>
-        )}
-      </div>
+          {!searching && (
+            <div className="p-3 text-center text-xs text-muted-foreground">
+              {loadingMore
+                ? "Régebbi levelek betöltése…"
+                : exhausted
+                  ? "Nincs több régebbi levél"
+                  : "Görgess lejjebb régebbi levelekért"}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
