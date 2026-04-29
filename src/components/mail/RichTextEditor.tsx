@@ -4,7 +4,7 @@ import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import Typography from "@tiptap/extension-typography";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
@@ -13,8 +13,57 @@ import {
   Bold, Italic, Strikethrough, Code, List, ListOrdered, Quote,
   Heading1, Heading2, Heading3, Link as LinkIcon, Image as ImageIcon,
   Undo2, Redo2, Minus, CodeSquare,
+  AlignLeft, AlignCenter, AlignRight, Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// ---------------------------------------------------------------------------
+// Bővített kép extension: width (pl. "320px" / "50%") + igazítás
+// (`data-align="left|center|right"`). Inline style-okat írunk ki, mert az
+// email-kliensek (Apple Mail, Gmail, Outlook) megbízhatóan csak ezt értik —
+// CSS osztályok többségét stripelik. A renderHTML függvény gondoskodik róla,
+// hogy a `<img>` köré (igazításnál) egy block-szintű `<p style="text-align">`
+// kerüljön, így az igazítás a küldött levélben is látszik.
+const ResizableImage = Image.extend({
+  // Block-szintű kép, hogy a paragrafus text-align öröklődjön rá.
+  inline: false,
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      width: {
+        default: null,
+        parseHTML: (el) => {
+          const style = el.getAttribute("style") || "";
+          const m = style.match(/width:\s*([^;]+)/i);
+          return (m && m[1].trim()) || el.getAttribute("width") || null;
+        },
+        renderHTML: (attrs) => {
+          if (!attrs.width) return {};
+          // A width-et stílusban adjuk vissza — height: auto megőrzi az
+          // arányt minden klienseknél.
+          return { style: `width: ${attrs.width}; height: auto; max-width: 100%;` };
+        },
+      },
+      align: {
+        default: "left",
+        parseHTML: (el) => el.getAttribute("data-align") || "left",
+        renderHTML: (attrs) => {
+          const a = attrs.align || "left";
+          // A data-attr-t megtartjuk, hogy a sanitizer ne dobja el (ezt a
+          // sanitizeHtml allowlist explicit megengedi). A vizuális
+          // igazítást a szerkesztőben CSS-szel oldjuk meg (lásd index.css /
+          // alábbi inline class), levélben pedig a wrapper text-align-je
+          // gondoskodik róla — lásd alább a setImageAlign helpert, ami a
+          // szülő paragrafusra teszi rá.
+          return {
+            "data-align": a,
+            class: `mw-img mw-img-${a}`,
+          };
+        },
+      },
+    };
+  },
+});
 
 type Props = {
   value: string;
