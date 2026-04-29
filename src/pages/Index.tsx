@@ -27,6 +27,22 @@ const Index = () => {
   const [accountDlgOpen, setAccountDlgOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState<Account | null>(null);
+
+  const confirmDeleteAccount = async () => {
+    if (!deletingAccount) return;
+    const id = deletingAccount.id;
+    await mailAPI.accounts.delete(id);
+    const list = await mailAPI.accounts.list();
+    setAccounts(list);
+    if (activeAccountId === id) {
+      setActiveAccountId(list[0]?.id ?? null);
+      setMessages([]);
+      setSelected(null);
+    }
+    toast.success("Fiók törölve", { description: deletingAccount.label });
+    setDeletingAccount(null);
+  };
 
   // Initial load
   useEffect(() => {
