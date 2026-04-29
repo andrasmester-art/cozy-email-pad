@@ -99,6 +99,69 @@ export function SignaturesDialog({ open, onClose }: Props) {
     setDefaults((d) => ({ ...d, [accountId]: value }));
   };
 
+  const handleExport = () => {
+    if (signatures.length === 0) {
+      toast.info("Nincs exportálható aláírás.");
+      return;
+    }
+    const stamp = new Date().toISOString().slice(0, 10);
+    downloadSignaturesJson(`mepodmail-signatures-${stamp}.json`);
+    toast.success(`Exportálva — ${signatures.length} aláírás`);
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFilePicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-importing the same file later
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("A fájl túl nagy (max. 5 MB).");
+      return;
+    }
+    try {
+      const text = await file.text();
+      const payload = JSON.parse(text);
+      const incoming = Array.isArray((payload as any)?.signatures)
+        ? (payload as any).signatures.length
+        : 0;
+      if (incoming === 0) {
+        toast.error("A fájl nem tartalmaz aláírásokat.");
+        return;
+      }
+      // If there are existing signatures, ask whether to merge or replace.
+      if (signatures.length > 0) {
+        setPendingImport({ payload, fileName: file.name, count: incoming });
+      } else {
+        runImport(payload, "merge");
+      }
+    } catch (err: any) {
+      toast.error("Hibás JSON fájl", {
+        description: String(err?.message || err),
+      });
+    }
+  };
+
+  const runImport = (payload: unknown, mode: ImportMode) => {
+    try {
+      const res = importSignatures(payload, mode);
+      reload();
+      toast.success("Importálás kész", {
+        description: `${res.imported} új, ${res.updated} frissítve${
+          res.skipped ? `, ${res.skipped} kihagyva` : ""
+        }.`,
+      });
+    } catch (err: any) {
+      toast.error("Importálás sikertelen", {
+        description: String(err?.message || err),
+      });
+    } finally {
+      setPendingImport(null);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-5xl">
