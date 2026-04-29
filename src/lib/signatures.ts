@@ -1,5 +1,6 @@
 // Email signatures with per-account defaults.
 // All data stored in localStorage so it works in both Electron and browser preview.
+import { sanitizeEmailHtml } from "./sanitizeHtml";
 
 export type Signature = {
   id: string;
@@ -40,10 +41,13 @@ export function listSignatures(): Signature[] {
 }
 
 export function saveSignature(sig: Signature) {
+  // Sanitise the HTML body on save so untrusted/pasted content can never be
+  // persisted (and later injected into composed messages) in a dangerous form.
+  const safe: Signature = { ...sig, body: sanitizeEmailHtml(sig.body || "") };
   const all = readSigs();
-  const idx = all.findIndex((s) => s.id === sig.id);
-  if (idx >= 0) all[idx] = sig;
-  else all.push(sig);
+  const idx = all.findIndex((s) => s.id === safe.id);
+  if (idx >= 0) all[idx] = safe;
+  else all.push(safe);
   writeSigs(all);
 }
 
@@ -79,7 +83,10 @@ export function getSignature(id: string | null | undefined): Signature | null {
 export const SIGNATURE_MARKER = "data-mwsig";
 
 export function wrapSignature(html: string): string {
-  return `<div ${SIGNATURE_MARKER}="1">${html}</div>`;
+  // Defensive: also sanitise at insertion time, so legacy unsanitised entries
+  // already in localStorage are cleaned before being merged into a draft.
+  const safe = sanitizeEmailHtml(html || "");
+  return `<div ${SIGNATURE_MARKER}="1">${safe}</div>`;
 }
 
 export function stripSignature(body: string): string {
