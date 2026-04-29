@@ -161,5 +161,14 @@
   .ProseMirror pre code { @apply bg-transparent p-0; }
   .ProseMirror a { @apply text-primary underline underline-offset-2; }
   .ProseMirror img { @apply max-w-full rounded-md my-2; }
+  /* Kép-igazítás: a width inline style-ban van, csak a margók kellenek.
+     A kijelölt képet halvány keret jelzi, hogy lássa a felhasználó, melyik
+     képhez tartozik a lebegő eszköztár. */
+  .ProseMirror img.mw-img-left   { display: block; margin-left: 0; margin-right: auto; }
+  .ProseMirror img.mw-img-center { display: block; margin-left: auto; margin-right: auto; }
+  .ProseMirror img.mw-img-right  { display: block; margin-left: auto; margin-right: 0; }
+  .ProseMirror img.ProseMirror-selectednode {
+    @apply outline outline-2 outline-primary outline-offset-2;
+  }
   .ProseMirror hr { @apply my-4 border-border; }
 }
