@@ -517,6 +517,7 @@ ipcMain.handle("imap:appendDraft", async (_e, { accountId, to, cc, bcc, subject,
 });
 
 // ---- Window ----
+let mainWindow = null;
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
@@ -531,12 +532,50 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
+  mainWindow = win;
+  win.on("closed", () => { if (mainWindow === win) mainWindow = null; });
   const devUrl = process.env.ELECTRON_DEV_URL;
   if (devUrl) win.loadURL(devUrl);
   else win.loadFile(path.join(__dirname, "..", "dist", "index.html"));
 }
 
-app.whenReady().then(createWindow);
+// ---- Automatikus háttér-szinkron (polling) ----
+// 5 percenként végigmegy minden mentett fiók INBOX-án; ha érkezett új levél,
+// értesíti a renderert, hogy frissítse a listát.
+const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+let autoSyncRunning = false;
+
+async function runAutoSync() {
+  if (autoSyncRunning) return;
+  autoSyncRunning = true;
+  try {
+    const accounts = loadAccounts();
+    for (const account of accounts) {
+      try {
+        const r = await syncMailbox(account, "INBOX");
+        if (r && r.added > 0 && mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("mail:auto-synced", {
+            accountId: account.id,
+            mailbox: "INBOX",
+            added: r.added,
+          });
+        }
+      } catch (e) {
+        // Egy fiók hibája ne állítsa meg a többit.
+        console.error("[auto-sync] hiba:", account.id, e?.message || e);
+      }
+    }
+  } finally {
+    autoSyncRunning = false;
+  }
+}
+
+app.whenReady().then(() => {
+  createWindow();
+  // Első futás 30 mp múlva, hogy az UI nyugodtan betöltsön; utána 5 percenként.
+  setTimeout(runAutoSync, 30 * 1000);
+  setInterval(runAutoSync, AUTO_SYNC_INTERVAL_MS);
+});
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });

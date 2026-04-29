@@ -26,6 +26,13 @@ contextBridge.exposeInMainWorld("mailAPI", {
   smtp: {
     send: (params) => ipcRenderer.invoke("smtp:send", params),
   },
+  events: {
+    onAutoSync: (cb) => {
+      const handler = (_e, payload) => cb(payload);
+      ipcRenderer.on("mail:auto-synced", handler);
+      return () => ipcRenderer.removeListener("mail:auto-synced", handler);
+    },
+  },
   updater: {
     info: () => ipcRenderer.invoke("updater:info"),
     apply: () => ipcRenderer.invoke("updater:apply"),

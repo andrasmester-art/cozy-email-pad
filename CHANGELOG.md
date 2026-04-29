@@ -3,6 +3,13 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.11.0] – 2026-04-29
+
+### Új
+- **Automatikus IMAP szinkron a háttérben**: az alkalmazás mostantól **5 percenként** magától lekéri minden mentett fiók **INBOX**-át, így az új levelek manuális frissítés nélkül is megjelennek. Az első automatikus futás az indulás után 30 másodperccel történik, hogy ne lassítsa az UI betöltését.
+- **Új levél értesítés**: ha az automatikus szinkron új levelet talál, diszkrét toast jelenik meg (`"N új levél (fiók címke)"`). Ha pont az érintett fiók/mappa van nyitva, a lista azonnal frissül a háttérben — nem kell semmit klikkelni.
+- A háttér-szinkron egyszerre csak egyszer fut (mutex), így nem ütközik a manuális „Szinkronizálás" gombbal vagy a fiókváltáskori auto-frissítéssel.
+
 ## [1.10.4] – 2026-04-29
 
 ### Javítás
