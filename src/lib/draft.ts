@@ -1,5 +1,6 @@
 // Persists the currently-edited (unsent) composer draft to localStorage so
 // it survives reloads, accidental closes, or app restarts.
+import { normalizeAddressField } from "./emailAddress";
 
 const KEY = "mw.composer.draft.v1";
 
@@ -28,7 +29,15 @@ export function loadDraft(): Draft | null {
 
 export function saveDraft(d: Draft) {
   try {
-    localStorage.setItem(KEY, JSON.stringify(d));
+    // Persist a normalised copy of the recipient fields so reopening the draft
+    // yields the same canonical form (deduped, lowercased domains, "Name <addr>").
+    const normalised: Draft = {
+      ...d,
+      to: normalizeAddressField(d.to || ""),
+      cc: normalizeAddressField(d.cc || ""),
+      bcc: normalizeAddressField(d.bcc || ""),
+    };
+    localStorage.setItem(KEY, JSON.stringify(normalised));
   } catch {
     // ignore quota errors
   }
