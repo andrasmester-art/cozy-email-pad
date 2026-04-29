@@ -11,6 +11,7 @@ import { Composer } from "@/components/mail/Composer";
 import { AccountDialog } from "@/components/mail/AccountDialog";
 import { TemplatesDialog } from "@/components/mail/TemplatesDialog";
 import { SignaturesDialog } from "@/components/mail/SignaturesDialog";
+import { UpdaterDialog } from "@/components/mail/UpdaterDialog";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
