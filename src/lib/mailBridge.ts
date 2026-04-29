@@ -42,6 +42,8 @@ export type MailMessage = {
   text: string;
   html: string;
   snippet: string;
+  flagged?: boolean;
+  seen?: boolean;
 };
 
 const isElectron = typeof window !== "undefined" && (window as any).mailAPI?.isElectron;
