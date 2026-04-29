@@ -178,7 +178,7 @@ const Index = () => {
       to: primary,
       subject: m.subject.startsWith("Re:") ? m.subject : `Re: ${m.subject}`,
       body: quoteBody(m),
-      ...(others.length ? { cc: others.join(", ") } as any : {}),
+      cc: others.length ? others.join(", ") : undefined,
     });
     setComposerMode("reply");
     setComposerOpen(true);
