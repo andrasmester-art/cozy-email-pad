@@ -58,8 +58,16 @@ function Toolbar({ editor }: { editor: Editor | null }) {
   };
   return (
     <div className="flex flex-wrap items-center gap-0.5 border-b border-border px-2 py-1.5 bg-surface-elevated rounded-t-md">
-      <ToolbarBtn title="Visszavonás" onClick={() => editor.chain().focus().undo().run()}><Undo2 className="h-4 w-4" /></ToolbarBtn>
-      <ToolbarBtn title="Újra" onClick={() => editor.chain().focus().redo().run()}><Redo2 className="h-4 w-4" /></ToolbarBtn>
+      <ToolbarBtn
+        title="Visszavonás (⌘Z)"
+        disabled={!editor.can().chain().focus().undo().run()}
+        onClick={() => editor.chain().focus().undo().run()}
+      ><Undo2 className="h-4 w-4" /></ToolbarBtn>
+      <ToolbarBtn
+        title="Újra (⌘⇧Z)"
+        disabled={!editor.can().chain().focus().redo().run()}
+        onClick={() => editor.chain().focus().redo().run()}
+      ><Redo2 className="h-4 w-4" /></ToolbarBtn>
       <Separator orientation="vertical" className="h-5 mx-1" />
       <ToolbarBtn title="H1" active={editor.isActive("heading", { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}><Heading1 className="h-4 w-4" /></ToolbarBtn>
       <ToolbarBtn title="H2" active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}><Heading2 className="h-4 w-4" /></ToolbarBtn>
