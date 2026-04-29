@@ -328,7 +328,7 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Prop
         autolink: true,
         HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
       }),
-      Image.configure({ inline: false, allowBase64: true }),
+      ResizableImage.configure({ allowBase64: true }),
       Typography,
       Placeholder.configure({ placeholder: placeholder || "Írj ide…" }),
     ],
