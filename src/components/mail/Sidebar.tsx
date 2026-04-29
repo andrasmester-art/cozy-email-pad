@@ -16,6 +16,8 @@ type Props = {
   onEditAccount: (a: Account) => void;
   onDeleteAccount: (a: Account) => void;
   onCompose: () => void;
+  onSyncAll: () => void;
+  syncing?: boolean;
   onOpenTemplates: () => void;
   onOpenSignatures: () => void;
   onOpenSettings: () => void;
