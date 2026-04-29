@@ -344,6 +344,31 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <FileSignature className="h-4 w-4 mr-1.5" /> Aláírás
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {signatures.length === 0 && (
+                  <DropdownMenuItem disabled>Nincs aláírás</DropdownMenuItem>
+                )}
+                {signatures.map((s) => {
+                  const isAccountDefault = !!accountId && getDefaultSignatureId(accountId) === s.id;
+                  return (
+                    <DropdownMenuItem key={s.id} onClick={() => applySignature(s)}>
+                      {s.name}{isAccountDefault ? " — alapértelmezett" : ""}
+                    </DropdownMenuItem>
+                  );
+                })}
+                {signatures.length > 0 && (
+                  <DropdownMenuItem onClick={() => applySignature(null)}>
+                    — Aláírás nélkül —
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button variant="outline" size="sm" onClick={() => setSaveTplOpen(true)}>
               <Save className="h-4 w-4 mr-1.5" /> Mentés sablonként
             </Button>
