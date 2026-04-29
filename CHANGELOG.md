@@ -3,6 +3,22 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.24.0] – 2026-04-29
+
+### Új
+- **Csatolmány-lista a levél nézet alján.** Minden levélhez tartozó (nem-inline) csatolmány külön kártyán jelenik meg típus-ikonnal, fájlnévvel, MIME-típussal és mérettel.
+- **Külön „Letöltés" gomb minden csatolmányhoz** — egy kattintással menthető a fájl, függetlenül attól, hogy van-e előnézet.
+- **Beépített előnézet** a támogatott típusokhoz, modális ablakban:
+  - **Képek** (JPG, PNG, WebP, GIF, SVG…) — méretarányosan, a teljes ablakra igazítva.
+  - **PDF** — natív böngésző-PDF-megjelenítővel (zoom, lapozás, keresés a böngészőből).
+  - **Szöveg / JSON / CSV** — formázott, görgethető, monospace nézet UTF-8 dekódolással.
+- Az előnézet ablakban szintén elérhető a **Letöltés** gomb, így nem kell bezárni a csatolmányhoz tartozó letöltéshez.
+- A nem-támogatott típusoknál (pl. ZIP, DOCX, audio) az ikon és a Letöltés gomb akkor is megjelenik — az előnézet gomb ilyenkor el van rejtve.
+
+### Technikai
+- Új `MailAttachment` típus a `mailBridge.ts`-ben (`filename`, `contentType`, `size`, base64 `data`, opcionális `cid` / `inline` jelzés). A natív/Electron oldal töltheti ki a body-val együtt; a UI azonnal feldolgozza, amint az adatmező megjelenik.
+- A bináris adatból Blob URL képződik, amit a komponens unmountkor `URL.revokeObjectURL`-lal felszabadít — nincs memória-szivárgás hosszú listáknál sem.
+
 ## [1.23.0] – 2026-04-29
 
 ### Új
