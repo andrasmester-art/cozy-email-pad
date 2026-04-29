@@ -1,6 +1,6 @@
 import { Account } from "@/lib/mailBridge";
 import { cn } from "@/lib/utils";
-import { Inbox, Send, FileText, Archive, Trash2, AlertOctagon, Plus, Settings, FileCode2, Pencil } from "lucide-react";
+import { Inbox, Send, FileText, Archive, Trash2, AlertOctagon, Plus, Settings, FileCode2, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type Props = {
@@ -11,6 +11,7 @@ type Props = {
   onSelectMailbox: (mb: string) => void;
   onAddAccount: () => void;
   onEditAccount: (a: Account) => void;
+  onDeleteAccount: (a: Account) => void;
   onOpenTemplates: () => void;
   onOpenSettings: () => void;
 };
@@ -28,7 +29,7 @@ const COLORS = ["bg-primary", "bg-success", "bg-warning", "bg-destructive", "bg-
 
 export function Sidebar({
   accounts, activeAccountId, activeMailbox,
-  onSelectAccount, onSelectMailbox, onAddAccount, onEditAccount, onOpenTemplates, onOpenSettings,
+  onSelectAccount, onSelectMailbox, onAddAccount, onEditAccount, onDeleteAccount, onOpenTemplates, onOpenSettings,
 }: Props) {
   return (
     <aside className="w-60 shrink-0 bg-gradient-sidebar border-r border-sidebar-border flex flex-col h-full">
@@ -67,6 +68,13 @@ export function Sidebar({
                 title="Fiók szerkesztése"
               >
                 <Pencil className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onDeleteAccount(a); }}
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 hover:text-destructive"
+                title="Fiók törlése"
+              >
+                <X className="h-3.5 w-3.5" />
               </button>
             </div>
           ))}
