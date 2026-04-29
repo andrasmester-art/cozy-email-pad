@@ -28,7 +28,7 @@ const COLORS = ["bg-primary", "bg-success", "bg-warning", "bg-destructive", "bg-
 
 export function Sidebar({
   accounts, activeAccountId, activeMailbox,
-  onSelectAccount, onSelectMailbox, onAddAccount, onOpenTemplates, onOpenSettings,
+  onSelectAccount, onSelectMailbox, onAddAccount, onEditAccount, onOpenTemplates, onOpenSettings,
 }: Props) {
   return (
     <aside className="w-60 shrink-0 bg-gradient-sidebar border-r border-sidebar-border flex flex-col h-full">
@@ -45,19 +45,30 @@ export function Sidebar({
             </div>
           )}
           {accounts.map((a, i) => (
-            <button
+            <div
               key={a.id}
-              onClick={() => onSelectAccount(a.id)}
               className={cn(
-                "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors",
+                "group w-full flex items-center gap-2 pl-2 pr-1 py-1.5 rounded-md text-sm transition-colors",
                 activeAccountId === a.id
                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
                   : "hover:bg-sidebar-accent/60 text-sidebar-foreground",
               )}
             >
-              <span className={cn("w-2 h-2 rounded-full", COLORS[i % COLORS.length])} />
-              <span className="truncate flex-1 text-left">{a.label}</span>
-            </button>
+              <button
+                onClick={() => onSelectAccount(a.id)}
+                className="flex items-center gap-2 flex-1 min-w-0 text-left"
+              >
+                <span className={cn("w-2 h-2 rounded-full shrink-0", COLORS[i % COLORS.length])} />
+                <span className="truncate">{a.label}</span>
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onEditAccount(a); }}
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-background/50"
+                title="Fiók szerkesztése"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            </div>
           ))}
           <Button
             variant="ghost"
