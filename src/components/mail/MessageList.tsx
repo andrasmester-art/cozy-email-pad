@@ -3,9 +3,40 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNowStrict } from "date-fns";
 import { hu } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
-import { Search, RefreshCw, Loader2, Star, Mail } from "lucide-react";
+import { Search, RefreshCw, Loader2, Star, Mail, Rows3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenuLabel, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { useState, useMemo, useRef, useEffect } from "react";
+
+// A levéllista sortávolsága (sűrűsége). A választás localStorage-ben
+// perzisztálódik, hogy újraindításkor is ugyanúgy nézzen ki.
+export type ListDensity = "compact" | "comfortable" | "relaxed";
+const DENSITY_KEY = "mw.layout.listDensity";
+function readDensity(): ListDensity {
+  try {
+    const v = localStorage.getItem(DENSITY_KEY);
+    if (v === "compact" || v === "comfortable" || v === "relaxed") return v;
+  } catch {}
+  return "comfortable";
+}
+function writeDensity(d: ListDensity) {
+  try { localStorage.setItem(DENSITY_KEY, d); } catch {}
+}
+// Az egyes sűrűségi módok Tailwind-stílusai: a függőleges padding és a
+// belső sorok közti rés állítja a tényleges „sortávolságot".
+const DENSITY_STYLES: Record<ListDensity, { padding: string; gap: string }> = {
+  compact:     { padding: "py-1.5", gap: "mt-0" },
+  comfortable: { padding: "py-3",   gap: "mt-0.5" },
+  relaxed:     { padding: "py-4",   gap: "mt-1" },
+};
+const DENSITY_LABEL: Record<ListDensity, string> = {
+  compact: "Tömör",
+  comfortable: "Kényelmes",
+  relaxed: "Tágas",
+};
 
 type Props = {
   messages: MailMessage[];
