@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { CheckCircle2, AlertCircle, Circle, RefreshCw } from "lucide-react";
+import { CheckCircle2, AlertCircle, Circle, RefreshCw, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getAccountStatus, setAccountStatus, formatRelative, formatCountdown, type AccountStatus } from "@/lib/accountStatus";
 
@@ -31,6 +31,7 @@ export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
   const [a, setA] = useState<Account>(() => initial || blank());
   const [status, setStatus] = useState<AccountStatus | null>(null);
   const [testing, setTesting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -167,12 +168,24 @@ export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
           </div>
           <div>
             <Label className="text-xs">Jelszó</Label>
-            <Input
-              type="password"
-              value={a.password || ""}
-              onChange={(e) => update({ password: e.target.value })}
-              placeholder={initial ? "Mentett jelszó megtartása" : "••••••••"}
-            />
+            <div className="relative">
+              <Input
+                type={showPassword ? "text" : "password"}
+                value={a.password || ""}
+                onChange={(e) => update({ password: e.target.value })}
+                placeholder={initial ? "Mentett jelszó megtartása" : "••••••••"}
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label={showPassword ? "Jelszó elrejtése" : "Jelszó megjelenítése"}
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
 
           <div>

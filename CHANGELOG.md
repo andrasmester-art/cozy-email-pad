@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.1.0] – 2026-04-29
+
+### Új
+- Jelszó megjelenítés gomb (szem ikon) a fiók varázsló jelszó mezőjében — gépelés közben ellenőrizhető a beírt jelszó.
+
 ## [1.0.2] – 2026-04-29
 
 ### Új
