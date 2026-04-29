@@ -10,8 +10,9 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { X, Send, FileCode2, Save } from "lucide-react";
+import { X, Send, FileCode2, Save, Clock } from "lucide-react";
 import { toast } from "sonner";
+import { getSendDelay, setSendDelay, SEND_DELAY_OPTIONS, formatDelay } from "@/lib/sendDelay";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -42,6 +43,13 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
   const [sending, setSending] = useState(false);
   const [saveTplOpen, setSaveTplOpen] = useState(false);
   const [tplName, setTplName] = useState("");
+  const [delay, setDelay] = useState<number>(getSendDelay());
+
+  useEffect(() => {
+    const handler = (e: Event) => setDelay((e as CustomEvent<number>).detail);
+    window.addEventListener("sendDelayChanged", handler);
+    return () => window.removeEventListener("sendDelayChanged", handler);
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -62,19 +70,82 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
   const handleSend = async () => {
     if (!accountId) return toast.error("Válassz fiókot");
     if (!to.trim()) return toast.error("Adj meg címzettet");
-    setSending(true);
-    try {
-      await mailAPI.smtp.send({
-        accountId, to, cc: cc || undefined, bcc: bcc || undefined,
-        subject, html: body, text: htmlToText(body),
-      });
-      toast.success("Levél elküldve");
-      onClose();
-    } catch (e: any) {
-      toast.error("Küldés sikertelen", { description: String(e?.message || e) });
-    } finally {
-      setSending(false);
+
+    const payload = {
+      accountId, to, cc: cc || undefined, bcc: bcc || undefined,
+      subject, html: body, text: htmlToText(body),
+    };
+
+    // No delay → send immediately
+    if (delay === 0) {
+      setSending(true);
+      try {
+        await mailAPI.smtp.send(payload);
+        toast.success("Levél elküldve");
+        onClose();
+      } catch (e: any) {
+        toast.error("Küldés sikertelen", { description: String(e?.message || e) });
+      } finally {
+        setSending(false);
+      }
+      return;
     }
+
+    // Delayed send with undo
+    onClose();
+    let cancelled = false;
+    let remaining = delay;
+    const toastId = toast(`Küldés ${remaining} mp múlva…`, {
+      duration: delay * 1000 + 500,
+      action: {
+        label: "Visszavonás",
+        onClick: () => {
+          cancelled = true;
+          clearInterval(tick);
+          clearTimeout(timer);
+          toast.dismiss(toastId);
+          toast.info("Küldés visszavonva", {
+            description: `Tárgy: ${subject || "(nincs tárgy)"}`,
+          });
+        },
+      },
+    });
+
+    const tick = setInterval(() => {
+      remaining -= 1;
+      if (remaining > 0 && !cancelled) {
+        toast(`Küldés ${remaining} mp múlva…`, {
+          id: toastId,
+          duration: remaining * 1000 + 500,
+          action: {
+            label: "Visszavonás",
+            onClick: () => {
+              cancelled = true;
+              clearInterval(tick);
+              clearTimeout(timer);
+              toast.dismiss(toastId);
+              toast.info("Küldés visszavonva");
+            },
+          },
+        });
+      } else {
+        clearInterval(tick);
+      }
+    }, 1000);
+
+    const timer = setTimeout(async () => {
+      clearInterval(tick);
+      if (cancelled) return;
+      try {
+        await mailAPI.smtp.send(payload);
+        toast.success("Levél elküldve", { id: toastId });
+      } catch (e: any) {
+        toast.error("Küldés sikertelen", {
+          id: toastId,
+          description: String(e?.message || e),
+        });
+      }
+    }, delay * 1000);
   };
 
   const saveAsTemplate = async () => {
@@ -171,9 +242,30 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
               <Save className="h-4 w-4 mr-1.5" /> Mentés sablonként
             </Button>
           </div>
-          <Button onClick={handleSend} disabled={sending} className="bg-gradient-primary">
-            <Send className="h-4 w-4 mr-1.5" /> {sending ? "Küldés…" : "Küldés"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
+              <span>Visszavonási idő</span>
+            </div>
+            <Select
+              value={String(delay)}
+              onValueChange={(v) => { const n = parseInt(v, 10); setDelay(n); setSendDelay(n); }}
+            >
+              <SelectTrigger className="h-8 w-[110px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SEND_DELAY_OPTIONS.map((s) => (
+                  <SelectItem key={s} value={String(s)} className="text-xs">
+                    {formatDelay(s)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={handleSend} disabled={sending} className="bg-gradient-primary">
+              <Send className="h-4 w-4 mr-1.5" /> {sending ? "Küldés…" : "Küldés"}
+            </Button>
+          </div>
         </div>
       </div>
 
