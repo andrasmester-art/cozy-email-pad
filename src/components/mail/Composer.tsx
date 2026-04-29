@@ -73,19 +73,54 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
     if (open) {
       mailAPI.templates.list().then(setTemplates);
       const saved = getDefaultAccountId();
-      const initId = saved && accounts.some((a) => a.id === saved)
-        ? saved
-        : (defaultAccountId || accounts[0]?.id || "");
+      const hasInitial = !!(initial?.to || initial?.subject || initial?.body);
+      const draft = !hasInitial ? loadDraft() : null;
+      const useDraft = draft && isDraftMeaningful(draft);
+
+      const initId = useDraft && draft && accounts.some((a) => a.id === draft.accountId)
+        ? draft!.accountId
+        : (saved && accounts.some((a) => a.id === saved)
+          ? saved
+          : (defaultAccountId || accounts[0]?.id || ""));
       setAccountId(initId);
       setDefaultId(saved);
-      setTo(initial?.to || "");
-      setSubject(initial?.subject || "");
-      // Apply default signature for the initial account on open
-      const sig = getSignature(initId ? getDefaultSignatureId(initId) : null);
-      setBody(applySignatureToBody(initial?.body || "", sig));
-      setCc(""); setBcc(""); setShowCc(false);
+
+      if (useDraft && draft) {
+        setTo(draft.to || "");
+        setCc(draft.cc || "");
+        setBcc(draft.bcc || "");
+        setShowCc(!!draft.showCc || !!draft.cc || !!draft.bcc);
+        setSubject(draft.subject || "");
+        setBody(draft.body || "");
+        toast.info("Piszkozat visszaállítva", {
+          description: "Az utoljára szerkesztett levél folytatható.",
+        });
+      } else {
+        setTo(initial?.to || "");
+        setSubject(initial?.subject || "");
+        // Apply default signature for the initial account on open
+        const sig = getSignature(initId ? getDefaultSignatureId(initId) : null);
+        setBody(applySignatureToBody(initial?.body || "", sig));
+        setCc(""); setBcc(""); setShowCc(false);
+      }
     }
   }, [open, defaultAccountId, accounts, initial?.to, initial?.subject, initial?.body]);
+
+  // Auto-save draft whenever editable fields change while the composer is open.
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => {
+      const draft = {
+        accountId, to, cc, bcc, showCc, subject, body, updatedAt: Date.now(),
+      };
+      if (isDraftMeaningful(draft)) {
+        saveDraft(draft);
+      } else {
+        clearDraft();
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [open, accountId, to, cc, bcc, showCc, subject, body]);
 
   // Swap default signature whenever the account changes (after the dialog is open)
   useEffect(() => {
