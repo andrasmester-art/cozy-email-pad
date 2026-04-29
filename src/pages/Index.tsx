@@ -26,6 +26,8 @@ const Index = () => {
   const [messages, setMessages] = useState<MailMessage[]>([]);
   const [selected, setSelected] = useState<MailMessage | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [exhausted, setExhausted] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
   const [composerOpen, setComposerOpen] = useState(false);
@@ -82,12 +84,13 @@ const Index = () => {
   const loadMessages = useCallback(async () => {
     if (!activeAccountId) return;
     setSelected(null);
+    setExhausted(false);
     // 1) Cache azonnal — nincs spinner, nincs várakozás.
     try {
       const cached = await mailAPI.imap.fetch({
         accountId: activeAccountId,
         mailbox: activeMailbox,
-        limit: 1000,
+        limit: 5000,
       });
       setMessages(cached);
     } catch {
@@ -113,8 +116,27 @@ const Index = () => {
 
   useEffect(() => { loadMessages(); }, [loadMessages]);
 
-  // Fiókváltáskor: háttérben az összes mappát szinkronizáljuk, hogy a sidebaron
-  // történő mappaváltás már friss cache-ből rendereljen.
+  // Régebbi levelek lazy-load betöltése (görgetésre).
+  const loadOlder = useCallback(async () => {
+    if (!activeAccountId || loadingMore || exhausted) return;
+    setLoadingMore(true);
+    try {
+      const r = await mailAPI.cache.loadOlder({
+        accountId: activeAccountId,
+        mailbox: activeMailbox,
+        pageSize: 200,
+      });
+      setMessages(r.messages);
+      if (r.exhausted) setExhausted(true);
+    } catch (e: any) {
+      toast.error("Régebbi levelek betöltése sikertelen", { description: String(e?.message || e) });
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [activeAccountId, activeMailbox, loadingMore, exhausted]);
+
+  // Fiókváltáskor csak az INBOX-ot szinkronizáljuk háttérben — a többi
+  // mappa csak akkor töltődik, ha a felhasználó rákattint.
   useEffect(() => {
     if (!activeAccountId || !mailAPI.isElectron) return;
     let cancelled = false;
@@ -122,17 +144,15 @@ const Index = () => {
       try {
         await mailAPI.cache.syncAccount(activeAccountId);
         if (cancelled) return;
-        // Ha közben nem váltottunk, frissítsük az aktuális mappa nézetét.
         const fresh = await mailAPI.imap.fetch({
           accountId: activeAccountId,
           mailbox: activeMailbox,
-          limit: 1000,
+          limit: 5000,
         });
         if (!cancelled) setMessages((prev) => (fresh.length >= prev.length ? fresh : prev));
-      } catch { /* ignore — egyenkénti mappa-sync hibák már jeleztek */ }
+      } catch { /* ignore */ }
     })();
     return () => { cancelled = true; };
-    // szándékosan csak fiókváltásra fut
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeAccountId]);
 
@@ -272,6 +292,9 @@ const Index = () => {
           loading={loading}
           onRefresh={loadMessages}
           mailbox={activeMailbox}
+          onLoadMore={loadOlder}
+          loadingMore={loadingMore}
+          exhausted={exhausted}
         />
 
         <div className="flex-1 flex flex-col min-w-0 relative">

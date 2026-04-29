@@ -15,7 +15,9 @@
 const fs = require("fs");
 const path = require("path");
 
-const MAX_PER_MAILBOX = 1000;
+const MAX_PER_MAILBOX = 5000;
+const INITIAL_PAGE_SIZE = 200;
+const PAGE_SIZE = 200;
 
 function ensureDir(dir) {
   fs.mkdirSync(dir, { recursive: true });
@@ -38,7 +40,8 @@ function mailboxFile(userDataDir, accountId, mailbox) {
 }
 
 function emptyState() {
-  return { uidvalidity: null, lastUid: 0, updatedAt: 0, messages: [] };
+  // oldestUid: a legrégebbi UID, amit már lehúztunk; ennél kisebbeket lazy-load tölt
+  return { uidvalidity: null, lastUid: 0, oldestUid: 0, updatedAt: 0, messages: [] };
 }
 
 function read(userDataDir, accountId, mailbox) {
@@ -49,6 +52,7 @@ function read(userDataDir, accountId, mailbox) {
     return {
       uidvalidity: parsed.uidvalidity ?? null,
       lastUid: typeof parsed.lastUid === "number" ? parsed.lastUid : 0,
+      oldestUid: typeof parsed.oldestUid === "number" ? parsed.oldestUid : 0,
       updatedAt: typeof parsed.updatedAt === "number" ? parsed.updatedAt : 0,
       messages: Array.isArray(parsed.messages) ? parsed.messages : [],
     };
@@ -62,6 +66,7 @@ function write(userDataDir, accountId, mailbox, state) {
   const trimmed = {
     uidvalidity: state.uidvalidity ?? null,
     lastUid: state.lastUid || 0,
+    oldestUid: state.oldestUid || 0,
     updatedAt: state.updatedAt || Date.now(),
     messages: (state.messages || []).slice(0, MAX_PER_MAILBOX),
   };
@@ -81,10 +86,13 @@ function mergeNewMessages(state, newMessages) {
     const db = b.date ? new Date(b.date).getTime() : 0;
     return db - da;
   });
-  const maxUid = merged.reduce((m, x) => (x.uid > m ? x.uid : m), state.lastUid || 0);
+  const allUids = merged.map((m) => m.uid).filter((u) => typeof u === "number");
+  const maxUid = allUids.length ? Math.max(...allUids) : (state.lastUid || 0);
+  const minUid = allUids.length ? Math.min(...allUids) : (state.oldestUid || 0);
   return {
     ...state,
     lastUid: maxUid,
+    oldestUid: state.oldestUid && state.oldestUid > 0 ? Math.min(state.oldestUid, minUid) : minUid,
     updatedAt: Date.now(),
     messages: merged.slice(0, MAX_PER_MAILBOX),
   };
@@ -95,6 +103,7 @@ function reset(uidvalidity) {
   return {
     uidvalidity: uidvalidity ?? null,
     lastUid: 0,
+    oldestUid: 0,
     updatedAt: Date.now(),
     messages: [],
   };
@@ -108,6 +117,8 @@ function purgeAccount(userDataDir, accountId) {
 
 module.exports = {
   MAX_PER_MAILBOX,
+  INITIAL_PAGE_SIZE,
+  PAGE_SIZE,
   read,
   write,
   mergeNewMessages,

@@ -235,9 +235,9 @@ ipcMain.handle("cache:read", (_e, { accountId, mailbox }) => {
 });
 
 // Inkrementális szinkron egy mappához. Csak az új UID-okat húzza le, vagy
-// üres cache-nél az utolsó MAX_PER_MAILBOX-ot. UIDVALIDITY változás → reset.
+// üres cache-nél a legfrissebb INITIAL_PAGE_SIZE darabot. UIDVALIDITY változás → reset.
 async function syncMailbox(account, logicalMailbox) {
-  return withImap(account, 60000, async (imap) => {
+  return withImap(account, 120000, async (imap) => {
     const realName = await resolveMailbox(imap, logicalMailbox);
     if (!realName) return { added: 0, total: 0, mailbox: logicalMailbox, missing: true };
     const box = await openBox(imap, realName);
@@ -261,24 +261,18 @@ async function syncMailbox(account, logicalMailbox) {
       // Csak az újak: lastUid+1 felett.
       range = `${state.lastUid + 1}:*`;
     } else {
-      // Üres cache → utolsó N. UID-okat nem ismerjük, ezért seq -> uid lekérdezéssel.
+      // Üres cache → csak a legutolsó INITIAL_PAGE_SIZE darab.
       const total = box.messages.total;
-      const limit = cache.MAX_PER_MAILBOX;
+      const limit = cache.INITIAL_PAGE_SIZE;
       const startSeq = Math.max(1, total - limit + 1);
-      // Lekérjük az UID-okat a megadott seq tartományra
       const uids = await new Promise((resolve, reject) => {
-        imap.seq.search([["UID", `${startSeq}:${total}`]], (err, results) => {
-          if (err) {
-            // fallback: végigpörgetjük a seqno-t és csak attribute-okat húzunk
-            const out = [];
-            const f = imap.seq.fetch(`${startSeq}:${total}`, { bodies: "" });
-            f.on("message", (msg) => {
-              msg.once("attributes", (a) => { if (a?.uid) out.push(a.uid); });
-            });
-            f.once("error", reject);
-            f.once("end", () => resolve(out));
-          } else resolve(results || []);
+        const out = [];
+        const f = imap.seq.fetch(`${startSeq}:${total}`, { bodies: "" });
+        f.on("message", (msg) => {
+          msg.once("attributes", (a) => { if (a?.uid) out.push(a.uid); });
         });
+        f.once("error", reject);
+        f.once("end", () => resolve(out));
       });
       if (!uids.length) {
         cache.write(userDataDir(), account.id, logicalMailbox, { ...state, updatedAt: Date.now() });
@@ -290,13 +284,45 @@ async function syncMailbox(account, logicalMailbox) {
     }
 
     const fetched = await fetchByUidRange(imap, range);
-    // Ha lastUid alapú volt a query, dedupol a merge.
     const newOnly = state.lastUid > 0
       ? fetched.filter((m) => m.uid > state.lastUid)
       : fetched;
     const next = cache.mergeNewMessages(state, newOnly);
     cache.write(userDataDir(), account.id, logicalMailbox, next);
     return { added: newOnly.length, total: box.messages.total, mailbox: logicalMailbox };
+  });
+}
+
+// Lazy-load: a cache-nél régebbi leveleket tölti le (oldestUid alatt).
+async function loadOlder(account, logicalMailbox, pageSize) {
+  return withImap(account, 120000, async (imap) => {
+    const realName = await resolveMailbox(imap, logicalMailbox);
+    if (!realName) return { added: 0, mailbox: logicalMailbox, missing: true };
+    const box = await openBox(imap, realName);
+    let state = cache.read(userDataDir(), account.id, logicalMailbox);
+    if (!state.oldestUid || state.oldestUid <= 1) {
+      return { added: 0, mailbox: logicalMailbox, exhausted: true };
+    }
+    const upper = state.oldestUid - 1;
+    if (upper < 1) return { added: 0, mailbox: logicalMailbox, exhausted: true };
+    const limit = pageSize || cache.PAGE_SIZE;
+    const lower = Math.max(1, upper - limit + 1);
+    const range = `${lower}:${upper}`;
+    const fetched = await fetchByUidRange(imap, range);
+    if (!fetched.length) {
+      // Nincs több ebben a tartományban — jelöljük kimerítettnek
+      const next = { ...state, oldestUid: 1, updatedAt: Date.now() };
+      cache.write(userDataDir(), account.id, logicalMailbox, next);
+      return { added: 0, mailbox: logicalMailbox, exhausted: true };
+    }
+    const next = cache.mergeNewMessages(state, fetched);
+    // mergeNewMessages frissíti az oldestUid-ot a betöltöttek minimumára
+    cache.write(userDataDir(), account.id, logicalMailbox, next);
+    return {
+      added: fetched.length,
+      mailbox: logicalMailbox,
+      exhausted: lower <= 1,
+    };
   });
 }
 
@@ -309,19 +335,27 @@ ipcMain.handle("cache:syncMailbox", async (_e, { accountId, mailbox }) => {
   return { ...result, messages: state.messages, updatedAt: state.updatedAt };
 });
 
-// Egy fiók összes mappájának szinkronizálása. Sorban, hogy ne nyissunk
-// több párhuzamos IMAP kapcsolatot ugyanahhoz a szerverhez.
+// Lazy-load régebbi levelek (görgetésre).
+ipcMain.handle("cache:loadOlder", async (_e, { accountId, mailbox, pageSize }) => {
+  const account = loadAccounts().find((a) => a.id === accountId);
+  if (!account) throw new Error("A fiók nem található.");
+  const result = await loadOlder(account, mailbox, pageSize);
+  const state = cache.read(userDataDir(), accountId, mailbox);
+  return { ...result, messages: state.messages, updatedAt: state.updatedAt };
+});
+
+// Egy fiók szinkronizálása. Csak az INBOX-ot húzzuk inkrementálisan, hogy
+// fiókváltás ne akadjon meg a többi mappa miatt — azokat csak akkor szinkronizáljuk,
+// amikor a felhasználó rákattint.
 ipcMain.handle("cache:syncAccount", async (_e, { accountId }) => {
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("A fiók nem található.");
   const results = [];
-  for (const mb of SYNC_MAILBOXES) {
-    try {
-      const r = await syncMailbox(account, mb);
-      results.push({ mailbox: mb, ok: true, added: r.added, missing: !!r.missing });
-    } catch (e) {
-      results.push({ mailbox: mb, ok: false, error: String(e?.message || e) });
-    }
+  try {
+    const r = await syncMailbox(account, "INBOX");
+    results.push({ mailbox: "INBOX", ok: true, added: r.added, missing: !!r.missing });
+  } catch (e) {
+    results.push({ mailbox: "INBOX", ok: false, error: String(e?.message || e) });
   }
   return { ok: true, results };
 });
