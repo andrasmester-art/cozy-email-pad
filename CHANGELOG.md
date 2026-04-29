@@ -3,6 +3,12 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.19.3] – 2026-04-29
+
+### Javítás
+- **Dupla kattintással megnyitott levél most már akkor is betöltődik, ha még nincs a cache-ben.** Korábban az új ablak csak a lokális cache-ben keresett, és ha ott nem találta a levelet (frissen érkezett, másik mappa, vagy törölt-újrafutott szinkron után), azonnal „A levél nem található" üzenetet írt ki. Mostantól ilyenkor automatikusan letölti a levelet a szervertől UID alapján — header és body együtt érkezik egy `mail:fetchBody` hívással —, és normálisan megnyitja.
+- A `mail:fetchBody` IPC mostantól a fejléc-mezőket is visszaadja (`from`, `to`, `cc`, `subject`, `date`), nemcsak a body-t. Így a hívó akkor is fel tud építeni egy teljes nézetet, ha nincs előzetes header-cache.
+
 ## [1.19.2] – 2026-04-29
 
 ### Javítás
