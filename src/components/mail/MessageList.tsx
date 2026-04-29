@@ -81,7 +81,7 @@ export function MessageList({ messages, selectedSeqno, onSelect, onOpen, onToggl
 }
 
 function ScrollList({
-  loading, messages, filtered, selectedSeqno, onSelect, onOpen, onLoadMore, loadingMore, exhausted, searching,
+  loading, messages, filtered, selectedSeqno, onSelect, onOpen, onToggleFlag, onLoadMore, loadingMore, exhausted, searching,
 }: {
   loading: boolean;
   messages: MailMessage[];
@@ -89,6 +89,7 @@ function ScrollList({
   selectedSeqno: number | null;
   onSelect: (m: MailMessage) => void;
   onOpen?: (m: MailMessage) => void;
+  onToggleFlag?: (m: MailMessage) => void;
   onLoadMore?: () => void;
   loadingMore?: boolean;
   exhausted?: boolean;
