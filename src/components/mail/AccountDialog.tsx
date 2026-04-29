@@ -9,9 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { CheckCircle2, AlertCircle, Circle, RefreshCw, Eye, EyeOff } from "lucide-react";
+import { CheckCircle2, AlertCircle, Circle, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getAccountStatus, setAccountStatus, formatRelative, formatCountdown, type AccountStatus } from "@/lib/accountStatus";
+import { getAccountStatus, formatRelative, formatCountdown, type AccountStatus } from "@/lib/accountStatus";
 
 type Props = {
   open: boolean;
@@ -30,7 +30,7 @@ const PRESETS: Record<string, Partial<Account>> = {
 export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
   const [a, setA] = useState<Account>(() => initial || blank());
   const [status, setStatus] = useState<AccountStatus | null>(null);
-  const [testing, setTesting] = useState(false);
+  
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
@@ -65,28 +65,7 @@ export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
     onClose();
   };
 
-  const handleTest = async () => {
-    if (!a.label || !a.user || !a.imapHost) {
-      return toast.error("Hiányzó adatok", { description: "Add meg legalább a nevet, e-mailt és IMAP hostot." });
-    }
-    setTesting(true);
-    try {
-      await mailAPI.accounts.save(a);
-      await mailAPI.imap.testConnection({ accountId: a.id, timeoutMs: 12_000 });
-      const next: AccountStatus = { lastChecked: Date.now(), ok: true };
-      setAccountStatus(a.id, next);
-      setStatus(next);
-      toast.success("Sikeres kapcsolódás");
-    } catch (e: any) {
-      const msg = String(e?.message || e);
-      const next: AccountStatus = { lastChecked: Date.now(), ok: false, error: msg };
-      setAccountStatus(a.id, next);
-      setStatus(next);
-      toast.error("Kapcsolódás sikertelen", { description: msg });
-    } finally {
-      setTesting(false);
-    }
-  };
+  // A kapcsolat-ellenőrzés (IMAP teszt) el lett távolítva az 1.2.0-ban.
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -240,10 +219,6 @@ export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
         </div>
 
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" onClick={handleTest} disabled={testing} className="mr-auto">
-            <RefreshCw className={cn("h-4 w-4 mr-1.5", testing && "animate-spin")} />
-            {testing ? "Ellenőrzés…" : "Kapcsolat ellenőrzése"}
-          </Button>
           <Button variant="outline" onClick={onClose}>Mégse</Button>
           <Button onClick={handleSave}>Mentés</Button>
         </DialogFooter>

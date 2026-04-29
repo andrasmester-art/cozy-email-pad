@@ -3,6 +3,13 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.2.0] – 2026-04-29
+
+### Változás
+- A teljes IMAP és SMTP logika eltávolítva (`electron/main.cjs`, `electron/mailCache.cjs`, `electron/preload.cjs`).
+- A „Kapcsolat ellenőrzése" gomb, a háttér-szinkron, a manuális szinkronizálás és a levélküldés is no-op — minden hívás üres adatot vagy „nem támogatott" üzenetet ad vissza.
+- A frontend (fiókok, mappák, levélnézet, sablonok, aláírások, piszkozatok) megmarad, hogy később új backendre lehessen kötni.
+
 ## [1.1.6] – 2026-04-29
 
 ### Javítás
