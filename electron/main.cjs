@@ -258,6 +258,136 @@ function fetchFlagsByUidRange(imap, range) {
   });
 }
 
+// Gyors RFC822 header parser — csak a list-megjelenítéshez kellő mezőket bontja ki.
+// Lényegesen olcsóbb, mint a teljes simpleParser, és nem tölti le a body-t.
+function parseHeaderBlock(raw) {
+  // Folytatólagos sorok (CRLF + space/tab) összevonása.
+  const unfolded = String(raw || "").replace(/\r?\n[ \t]+/g, " ");
+  const lines = unfolded.split(/\r?\n/);
+  const headers = {};
+  for (const line of lines) {
+    const idx = line.indexOf(":");
+    if (idx <= 0) continue;
+    const key = line.slice(0, idx).trim().toLowerCase();
+    const val = line.slice(idx + 1).trim();
+    if (!headers[key]) headers[key] = val;
+  }
+  return headers;
+}
+
+// MIME encoded-word dekódolás (=?UTF-8?B?...?= és =?UTF-8?Q?...?=) — fejlécek
+// (Subject, From) gyakran tartalmaznak ilyet nem-ASCII karaktereknél.
+function decodeMimeWords(input) {
+  if (!input) return "";
+  return String(input).replace(
+    /=\?([^?]+)\?([BbQq])\?([^?]*)\?=/g,
+    (_, charset, enc, data) => {
+      try {
+        const cs = String(charset).toLowerCase();
+        if (enc.toUpperCase() === "B") {
+          return Buffer.from(data, "base64").toString(cs);
+        }
+        // Q-encoding: _ = space, =XX = hex byte
+        const bytes = [];
+        for (let i = 0; i < data.length; i++) {
+          const c = data[i];
+          if (c === "_") bytes.push(0x20);
+          else if (c === "=" && i + 2 < data.length) {
+            bytes.push(parseInt(data.substr(i + 1, 2), 16));
+            i += 2;
+          } else bytes.push(c.charCodeAt(0));
+        }
+        return Buffer.from(bytes).toString(cs);
+      } catch {
+        return data;
+      }
+    },
+  ).replace(/\?=\s+=\?[^?]+\?[BbQq]\?/g, ""); // szomszédos encoded-word szóköz eltüntetése
+}
+
+// Csak fejléceket tölt le (FROM, TO, SUBJECT, DATE) — nincs body, nincs struct.
+// A lista-megjelenítéshez ennyi elég; a teljes szöveg/HTML lazy-n töltődik le
+// a fetchBodyByUid hívásával, amikor a felhasználó megnyit egy levelet.
+function fetchHeadersByUidRange(imap, range) {
+  return new Promise((resolve, reject) => {
+    const out = [];
+    const f = imap.fetch(range, {
+      bodies: "HEADER.FIELDS (FROM TO SUBJECT DATE)",
+      struct: false,
+    });
+    f.on("message", (msg) => {
+      let raw = "";
+      let attrs = null;
+      msg.on("body", (stream) => {
+        stream.on("data", (chunk) => (raw += chunk.toString("utf8")));
+      });
+      msg.once("attributes", (a) => { attrs = a; });
+      msg.once("end", () => {
+        if (!attrs || typeof attrs.uid !== "number") return;
+        const h = parseHeaderBlock(raw);
+        const flags = Array.isArray(attrs.flags) ? attrs.flags : [];
+        let dateIso = null;
+        if (h.date) {
+          const d = new Date(h.date);
+          if (!Number.isNaN(d.getTime())) dateIso = d.toISOString();
+        }
+        out.push({
+          uid: attrs.uid,
+          from: decodeMimeWords(h.from || ""),
+          to: decodeMimeWords(h.to || ""),
+          subject: decodeMimeWords(h.subject || "(nincs tárgy)"),
+          date: dateIso,
+          text: "",
+          html: "",
+          snippet: "",
+          flagged: flags.includes("\\Flagged"),
+          seen: flags.includes("\\Seen"),
+          bodyLoaded: false,
+        });
+      });
+    });
+    f.once("error", reject);
+    f.once("end", () => resolve(out));
+  });
+}
+
+// Egyetlen levél teljes body-ját tölti le és parse-olja — lazy hívás a UI-ból
+// (MessageView/MessagePage), amikor a felhasználó megnyit egy levelet.
+function fetchBodyByUid(imap, uid) {
+  return new Promise((resolve, reject) => {
+    const f = imap.fetch(String(uid), { bodies: "", struct: true });
+    let raw = "";
+    let attrs = null;
+    let gotMessage = false;
+    f.on("message", (msg) => {
+      gotMessage = true;
+      msg.on("body", (stream) => {
+        stream.on("data", (chunk) => (raw += chunk.toString("utf8")));
+      });
+      msg.once("attributes", (a) => { attrs = a; });
+    });
+    f.once("error", reject);
+    f.once("end", async () => {
+      if (!gotMessage) return resolve(null);
+      try {
+        const parsed = await simpleParser(raw);
+        const flags = Array.isArray(attrs?.flags) ? attrs.flags : [];
+        resolve({
+          uid: attrs?.uid ?? Number(uid),
+          text: parsed.text || "",
+          html: parsed.html || "",
+          snippet: (parsed.text || "").slice(0, 140),
+          flagged: flags.includes("\\Flagged"),
+          seen: flags.includes("\\Seen"),
+          bodyLoaded: true,
+        });
+      } catch (err) {
+        reject(err);
+      }
+    });
+  });
+}
+
 // ---- IPC: IMAP ----
 ipcMain.handle("imap:test", async (_e, { accountId } = {}) => {
   const account = loadAccounts().find((a) => a.id === accountId);
