@@ -1,9 +1,11 @@
 import { MailMessage } from "@/lib/mailBridge";
 import { Button } from "@/components/ui/button";
-import { Reply, ReplyAll, Forward, Trash2, Archive, Star, Mail, MailOpen } from "lucide-react";
+import { Reply, ReplyAll, Forward, Trash2, Archive, Star, Mail, MailOpen, FileDown } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { EmailHtmlFrame } from "./EmailHtmlFrame";
+import { exportEmailToPdf } from "@/lib/exportPdf";
+import { toast } from "sonner";
 
 type Props = {
   message: MailMessage | null;
@@ -73,6 +75,21 @@ export function MessageView({ message, onReply, onReplyAll, onForward, onToggleF
             {seen ? <Mail className="h-4 w-4" /> : <MailOpen className="h-4 w-4" />}
           </Button>
         )}
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={async () => {
+            try {
+              await exportEmailToPdf(message);
+            } catch (e: any) {
+              toast.error("PDF mentése sikertelen", { description: String(e?.message || e) });
+            }
+          }}
+          className="text-muted-foreground"
+          title="Levél mentése PDF-ként (a megnyíló nyomtatási ablakban válaszd a „PDF-ként mentés" opciót)"
+        >
+          <FileDown className="h-4 w-4 mr-1.5" /> PDF
+        </Button>
         <Button size="sm" variant="ghost" className="text-muted-foreground"><Archive className="h-4 w-4" /></Button>
         <Button size="sm" variant="ghost" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
       </div>
