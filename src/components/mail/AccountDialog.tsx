@@ -124,6 +124,14 @@ export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
                   ? `Utolsó ellenőrzés: ${formatRelative(status.lastChecked)}`
                   : `${status.error || "Ismeretlen hiba"} · ${formatRelative(status.lastChecked)}`}
               </div>
+              {status && !status.ok && status.nextRetryAt && (
+                <div className="mt-1 font-medium">
+                  Automatikus újrapróbálkozás: {formatCountdown(status.nextRetryAt)}
+                  {typeof status.attempt === "number" && status.attempt > 0 && (
+                    <span className="opacity-70"> · {status.attempt}. próbálkozás után</span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
