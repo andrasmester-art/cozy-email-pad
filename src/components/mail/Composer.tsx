@@ -10,10 +10,14 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { X, Send, FileCode2, Save, Clock, Star, Loader2 } from "lucide-react";
+import { X, Send, FileCode2, Save, Clock, Star, Loader2, FileSignature } from "lucide-react";
 import { toast } from "sonner";
 import { getSendDelay, setSendDelay, SEND_DELAY_OPTIONS, formatDelay } from "@/lib/sendDelay";
 import { getDefaultAccountId, setDefaultAccountId } from "@/lib/defaultAccount";
+import {
+  listSignatures, getDefaultSignatureId, getSignature, applySignatureToBody,
+  type Signature,
+} from "@/lib/signatures";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
