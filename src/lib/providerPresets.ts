@@ -32,20 +32,43 @@ export type ProviderPreset = {
 
 export const PROVIDERS: ProviderPreset[] = [
   {
-    id: "hoating",
-    name: "Hoating.eu",
-    description: "Hoating.eu által üzemeltetett saját domain (cPanel alapú).",
-    domains: ["hoating.eu"],
-    hostPattern: (domain) => ({
-      imapHost: `mail.${domain}`,
+    id: "hostinger",
+    name: "Hostinger",
+    description:
+      "Hostinger Email / Titan Mail — minden domainnél a központi mail.hostinger.com hostot használja.",
+    domains: [
+      "hostinger.com",
+      // Sok Hostinger ügyfél saját domainen futtatja az email-jét, ezeket nem
+      // tudjuk előre felsorolni — viszont a "Hostinger" gomb mindig kiválasztható kézzel.
+    ],
+    settings: {
+      imapHost: "imap.hostinger.com",
       imapPort: 993,
       imapTls: true,
-      smtpHost: `mail.${domain}`,
+      smtpHost: "smtp.hostinger.com",
       smtpPort: 465,
       smtpSecure: true,
-    }),
+    },
     authUserHint: "email",
-    passwordHint: "A cPanel-ben a mailbox-hoz beállított jelszó (nem a tárhely admin jelszó).",
+    passwordHint:
+      "A Hostinger / hPanel-ben az e-mail fiókhoz beállított jelszót add meg (nem a Hostinger fiók bejelentkezési jelszót).",
+  },
+  {
+    id: "hoating",
+    name: "Hoating.eu",
+    description: "Hoating.eu — Hostinger infrastruktúrán fut.",
+    domains: ["hoating.eu"],
+    settings: {
+      imapHost: "imap.hostinger.com",
+      imapPort: 993,
+      imapTls: true,
+      smtpHost: "smtp.hostinger.com",
+      smtpPort: 465,
+      smtpSecure: true,
+    },
+    authUserHint: "email",
+    passwordHint:
+      "A Hostinger / hPanel-ben a mailbox-hoz beállított jelszó (nem a tárhely admin jelszó).",
   },
   {
     id: "gmail",
