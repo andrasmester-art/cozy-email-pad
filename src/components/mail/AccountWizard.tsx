@@ -201,8 +201,8 @@ export function AccountWizard({ open, onClose, onComplete }: Props) {
             </div>
 
             {provider.needsAppPassword && (
-              <div className="rounded-md border border-warning/30 bg-warning/10 p-3 text-xs text-warning-foreground">
-                <div className="font-medium mb-1">⚠️ App-specifikus jelszó szükséges</div>
+              <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-xs text-foreground">
+                <div className="font-medium mb-1 text-warning">⚠️ App-specifikus jelszó szükséges</div>
                 <div className="opacity-90">{provider.passwordHint}</div>
               </div>
             )}
