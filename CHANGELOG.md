@@ -3,6 +3,12 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.10.1] – 2026-04-29
+
+### Javítás
+- **Friss e-mailek nem töltődtek le** néhány mappában (pl. ahol egy korábbi szinkron miatt a cache-elt `lastUid` magasabb volt, mint a szerver legnagyobb UID-ja). A szinkron mostantól a szervertől **UID SEARCH**-csel kérdezi meg, mely UID-ok újak — így nem ragad be hibás cache-állapot esetén.
+- Ha a szerver legnagyobb UID-ja kisebb, mint a lokális `lastUid` (rejtett UIDVALIDITY váltás vagy mailbox visszaállítás), a cache automatikusan **resetel** és újratölti a legutóbbi 200 levelet.
+
 ## [1.10.0] – 2026-04-29
 
 ### Új
