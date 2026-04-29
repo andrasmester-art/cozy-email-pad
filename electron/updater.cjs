@@ -215,6 +215,7 @@ ipcMain.handle("updater:info", async () => {
   let remote = null;
   let remoteError = null;
   let remoteVersion = null;
+  let changelog = [];
   try {
     remote = await fetchLatestSha();
   } catch (e) {
@@ -223,9 +224,21 @@ ipcMain.handle("updater:info", async () => {
   try {
     remoteVersion = await fetchRemoteVersion();
   } catch { /* non-fatal */ }
+  try {
+    const md = await fetchRemoteChangelog();
+    changelog = parseChangelog(md);
+  } catch { /* non-fatal */ }
 
   const versionCmp = compareVersions(localVersion, remoteVersion);
   const upToDateByVersion = remoteVersion ? versionCmp >= 0 : null;
+
+  // Release notes between local and remote: entries with version > localVersion
+  // and version <= remoteVersion. If localVersion is unknown, return all.
+  const releaseNotes = changelog.filter((e) => {
+    if (remoteVersion && compareVersions(e.version, remoteVersion) > 0) return false;
+    if (localVersion && compareVersions(e.version, localVersion) <= 0) return false;
+    return true;
+  });
 
   return {
     appRoot: root,
@@ -244,6 +257,7 @@ ipcMain.handle("updater:info", async () => {
       ? upToDateByVersion
       : !!(local && remote?.sha && local === remote.sha),
     versionDelta: remoteVersion ? -versionCmp : 0, // 1 = új elérhető, 0 = naprakész, -1 = előrébb vagy
+    releaseNotes,
   };
 });
 
