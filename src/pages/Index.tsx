@@ -9,6 +9,7 @@ import { MessageList } from "@/components/mail/MessageList";
 import { MessageView } from "@/components/mail/MessageView";
 import { Composer } from "@/components/mail/Composer";
 import { AccountDialog } from "@/components/mail/AccountDialog";
+import { AccountWizard } from "@/components/mail/AccountWizard";
 import { TemplatesDialog } from "@/components/mail/TemplatesDialog";
 import { SignaturesDialog } from "@/components/mail/SignaturesDialog";
 import { UpdaterDialog } from "@/components/mail/UpdaterDialog";
@@ -33,6 +34,7 @@ const Index = () => {
   const [composerInitial, setComposerInitial] = useState<{ to?: string; cc?: string; bcc?: string; subject?: string; body?: string } | undefined>();
   const [composerMode, setComposerMode] = useState<"new" | "reply" | "forward">("new");
   const [accountDlgOpen, setAccountDlgOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [signaturesOpen, setSignaturesOpen] = useState(false);
@@ -216,7 +218,7 @@ const Index = () => {
           activeMailbox={activeMailbox}
           onSelectAccount={(id) => setActiveAccountId(id)}
           onSelectMailbox={setActiveMailbox}
-          onAddAccount={() => { setEditingAccount(null); setAccountDlgOpen(true); }}
+          onAddAccount={() => { setEditingAccount(null); setWizardOpen(true); }}
           onEditAccount={(a) => { setEditingAccount(a); setAccountDlgOpen(true); }}
           onDeleteAccount={(a) => setDeletingAccount(a)}
           onCompose={openCompose}
@@ -258,6 +260,14 @@ const Index = () => {
         defaultAccountId={activeAccountId}
         initial={composerInitial}
         mode={composerMode}
+      />
+      <AccountWizard
+        open={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        onComplete={(prefilled) => {
+          setEditingAccount(prefilled);
+          setAccountDlgOpen(true);
+        }}
       />
       <AccountDialog
         open={accountDlgOpen}
