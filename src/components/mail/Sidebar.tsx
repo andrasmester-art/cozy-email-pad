@@ -170,5 +170,6 @@ export function Sidebar({
         </Button>
       </div>
     </aside>
+    </TooltipProvider>
   );
 }
