@@ -214,6 +214,7 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
       setSending(true);
       try {
         await mailAPI.smtp.send(payload);
+        clearDraft();
         toast.success("Levél elküldve");
         onClose();
       } catch (e: any) {
