@@ -189,17 +189,6 @@ export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
             </div>
           </div>
 
-          <div>
-            <Label className="text-xs mb-1.5 block">Gyors beállítások</Label>
-            <div className="flex flex-wrap gap-2">
-              {Object.keys(PRESETS).map((name) => (
-                <Button key={name} variant="outline" size="sm" type="button" onClick={() => update(PRESETS[name])}>
-                  {name}
-                </Button>
-              ))}
-            </div>
-          </div>
-
           <Tabs defaultValue="imap">
             <TabsList className="w-full">
               <TabsTrigger value="imap" className="flex-1">IMAP (bejövő)</TabsTrigger>
