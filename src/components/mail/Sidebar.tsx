@@ -48,6 +48,14 @@ export function Sidebar({
   const [statuses, setStatuses] = useState<Record<string, AccountStatus>>(() => getAllAccountStatuses());
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [width, setWidth] = useState<number>(() => {
+    try {
+      const v = parseInt(localStorage.getItem(WIDTH_KEY) || "", 10);
+      if (!isNaN(v) && v >= MIN_WIDTH && v <= MAX_WIDTH) return v;
+    } catch { /* ignore */ }
+    return DEFAULT_WIDTH;
+  });
+  const resizingRef = useRef(false);
 
   useEffect(() => {
     const refresh = () => setStatuses(getAllAccountStatuses());
@@ -60,9 +68,41 @@ export function Sidebar({
     };
   }, []);
 
+  // Drag-to-resize a sidebar jobb széléről.
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!resizingRef.current) return;
+      const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, e.clientX));
+      setWidth(next);
+    };
+    const onUp = () => {
+      if (!resizingRef.current) return;
+      resizingRef.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      try { localStorage.setItem(WIDTH_KEY, String(Math.round(width))); } catch { /* ignore */ }
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [width]);
+
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    resizingRef.current = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  };
+
   return (
     <TooltipProvider delayDuration={200}>
-    <aside className="w-60 shrink-0 bg-gradient-sidebar border-r border-sidebar-border flex flex-col h-full">
+    <aside
+      className="shrink-0 bg-gradient-sidebar border-r border-sidebar-border flex flex-col h-full relative"
+      style={{ width: `${width}px` }}
+    >
       <div className="mac-titlebar shrink-0" />
 
       <div className="px-3 pb-2 space-y-1.5">
