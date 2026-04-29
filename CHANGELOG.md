@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.7.0] – 2026-04-29
+
+### Új
+- Az oldalsáv (fiókok + mappák) szélessége **átméretezhető**: vidd a kurzort a sáv jobb szélére, fogd meg a függőleges fogantyút és húzd jobbra/balra. Tartomány: 200–480 px. **Dupla kattintás** a fogantyún visszaállítja az alapértelmezett 240 px-et. A beállított szélesség elmentődik (localStorage), így újraindítás után is megmarad.
+
 ## [1.6.0] – 2026-04-29
 
 ### Új

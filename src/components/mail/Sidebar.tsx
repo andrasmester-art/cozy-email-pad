@@ -292,6 +292,16 @@ export function Sidebar({
           <Download className="h-4 w-4" /> App frissítése
         </Button>
       </div>
+      {/* Átméretező fogantyú a jobb szélen */}
+      <div
+        onMouseDown={startResize}
+        onDoubleClick={() => {
+          setWidth(DEFAULT_WIDTH);
+          try { localStorage.setItem(WIDTH_KEY, String(DEFAULT_WIDTH)); } catch { /* ignore */ }
+        }}
+        title="Húzd a szélesség módosításához (dupla kattintás: alaphelyzet)"
+        className="absolute top-0 right-0 h-full w-1.5 -mr-0.5 cursor-col-resize hover:bg-primary/40 active:bg-primary/60 transition-colors z-10"
+      />
     </aside>
     </TooltipProvider>
   );
