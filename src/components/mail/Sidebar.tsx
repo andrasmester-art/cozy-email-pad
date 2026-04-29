@@ -173,6 +173,9 @@ export function Sidebar({
         <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={onOpenTemplates}>
           <FileCode2 className="h-4 w-4" /> Sablonok
         </Button>
+        <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={onOpenSignatures}>
+          <FileSignature className="h-4 w-4" /> Aláírások
+        </Button>
         <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={onOpenSettings}>
           <Settings className="h-4 w-4" /> Beállítások
         </Button>
