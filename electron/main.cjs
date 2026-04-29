@@ -109,31 +109,89 @@ function openInbox(imap, mailbox) {
   });
 }
 
+// Walk the box tree and produce a flat list of { name, attribs, delimiter }.
+function flattenBoxes(boxes, prefix = "", delimiter = "/") {
+  const out = [];
+  for (const [name, val] of Object.entries(boxes || {})) {
+    const d = val.delimiter || delimiter;
+    const full = prefix ? `${prefix}${d}${name}` : name;
+    out.push({ name: full, attribs: val.attribs || [], delimiter: d });
+    if (val.children) out.push(...flattenBoxes(val.children, full, d));
+  }
+  return out;
+}
+
+// Pick the first mailbox that matches a SPECIAL-USE attribute (e.g. \Sent),
+// otherwise fall back to a list of common name patterns (case-insensitive).
+function pickMailbox(boxes, specialUse, namePatterns) {
+  const bySpecial = boxes.find((b) =>
+    (b.attribs || []).some((a) => String(a).toLowerCase() === specialUse.toLowerCase()),
+  );
+  if (bySpecial) return bySpecial.name;
+  const lowered = boxes.map((b) => ({ ...b, lower: b.name.toLowerCase() }));
+  for (const pat of namePatterns) {
+    const p = pat.toLowerCase();
+    const exact = lowered.find((b) => b.lower === p);
+    if (exact) return exact.name;
+    const ends = lowered.find((b) => b.lower.endsWith(`.${p}`) || b.lower.endsWith(`/${p}`));
+    if (ends) return ends.name;
+  }
+  return null;
+}
+
+function getBoxesAsync(imap) {
+  return new Promise((resolve, reject) => {
+    imap.getBoxes((err, boxes) => (err ? reject(err) : resolve(boxes)));
+  });
+}
+
 ipcMain.handle("imap:listMailboxes", async (_e, accountId) => {
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("Account not found");
   const imap = imapConfigFor(account);
   return new Promise((resolve, reject) => {
-    imap.once("ready", () => {
-      imap.getBoxes((err, boxes) => {
+    imap.once("ready", async () => {
+      try {
+        const boxes = await getBoxesAsync(imap);
         imap.end();
-        if (err) return reject(err);
-        const flatten = (obj, prefix = "") => {
-          const out = [];
-          for (const [name, val] of Object.entries(obj)) {
-            const full = prefix ? `${prefix}${val.delimiter || "/"}${name}` : name;
-            out.push(full);
-            if (val.children) out.push(...flatten(val.children, full));
-          }
-          return out;
-        };
-        resolve(flatten(boxes));
-      });
+        resolve(flattenBoxes(boxes).map((b) => b.name));
+      } catch (e) {
+        imap.end();
+        reject(e);
+      }
     });
     imap.once("error", reject);
     imap.connect();
   });
 });
+
+// Resolve the actual mailbox names (Inbox / Sent / Drafts) for an account.
+// Caches the result on the account object once per process run.
+const mailboxResolveCache = new Map(); // accountId -> { inbox, sent, drafts }
+async function resolveAccountMailboxes(account) {
+  if (mailboxResolveCache.has(account.id)) return mailboxResolveCache.get(account.id);
+  const imap = imapConfigFor(account);
+  const result = await new Promise((resolve, reject) => {
+    imap.once("ready", async () => {
+      try {
+        const raw = await getBoxesAsync(imap);
+        imap.end();
+        const flat = flattenBoxes(raw);
+        const inbox = pickMailbox(flat, "\\Inbox", ["INBOX", "Inbox"]) || "INBOX";
+        const sent = pickMailbox(flat, "\\Sent", ["Sent", "Sent Items", "Sent Messages", "Elküldött"]);
+        const drafts = pickMailbox(flat, "\\Drafts", ["Drafts", "Draft", "Piszkozatok"]);
+        resolve({ inbox, sent, drafts });
+      } catch (e) {
+        imap.end();
+        reject(e);
+      }
+    });
+    imap.once("error", reject);
+    imap.connect();
+  });
+  mailboxResolveCache.set(account.id, result);
+  return result;
+}
 
 // Open a mailbox in READ-ONLY mode and return the box object.
 function openMailbox(imap, mailbox) {
@@ -261,17 +319,31 @@ ipcMain.handle("imap:sync", async (_e, { accountId, mailbox = "INBOX", limit = 2
   };
 });
 
-// imap:syncAll — sync INBOX, Sent and Drafts for an account.
+// imap:syncAll — sync Inbox, Sent and Drafts for an account.
+// Uses the server's actual mailbox names (handles Hostinger's "INBOX.Sent" etc.).
 ipcMain.handle("imap:syncAll", async (_e, { accountId }) => {
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("Account not found");
-  const targets = ["INBOX", "Sent", "Drafts"];
+
+  let mailboxes;
+  try {
+    mailboxes = await resolveAccountMailboxes(account);
+  } catch (e) {
+    return { INBOX: { error: `Mappa felismerés sikertelen: ${e?.message || e}` } };
+  }
+
+  const targets = [
+    ["INBOX", mailboxes.inbox],
+    ["Sent", mailboxes.sent],
+    ["Drafts", mailboxes.drafts],
+  ].filter(([, real]) => !!real);
+
   const results = {};
-  for (const mb of targets) {
+  for (const [label, real] of targets) {
     try {
-      results[mb] = await syncMailbox(account, mb);
+      results[label] = await syncMailbox(account, real);
     } catch (e) {
-      results[mb] = { error: String(e?.message || e) };
+      results[label] = { error: String(e?.message || e) };
     }
   }
   return results;
