@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Account } from "@/lib/mailBridge";
 import { cn } from "@/lib/utils";
-import { Inbox, Send, FileText, Archive, Trash2, AlertOctagon, Plus, Settings, FileCode2, Pencil, X, AlertCircle, CheckCircle2, Circle, PenSquare, FileSignature, RefreshCw, Download } from "lucide-react";
+import { Inbox, Send, FileText, Archive, Trash2, AlertOctagon, Plus, Settings, FileCode2, Pencil, X, AlertCircle, CheckCircle2, Circle, PenSquare, FileSignature, RefreshCw, Download, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getAllAccountStatuses, formatRelative, formatCountdown, type AccountStatus } from "@/lib/accountStatus";
@@ -22,6 +22,7 @@ type Props = {
   onOpenSignatures: () => void;
   onOpenSettings: () => void;
   onOpenUpdater: () => void;
+  onReorderAccounts?: (fromId: string, toId: string) => void;
 };
 
 const MAILBOXES = [
@@ -37,9 +38,11 @@ const COLORS = ["bg-primary", "bg-success", "bg-warning", "bg-destructive", "bg-
 
 export function Sidebar({
   accounts, activeAccountId, activeMailbox,
-  onSelectAccount, onSelectMailbox, onAddAccount, onEditAccount, onDeleteAccount, onCompose, onSyncAll, syncing, onOpenTemplates, onOpenSignatures, onOpenSettings, onOpenUpdater,
+  onSelectAccount, onSelectMailbox, onAddAccount, onEditAccount, onDeleteAccount, onCompose, onSyncAll, syncing, onOpenTemplates, onOpenSignatures, onOpenSettings, onOpenUpdater, onReorderAccounts,
 }: Props) {
   const [statuses, setStatuses] = useState<Record<string, AccountStatus>>(() => getAllAccountStatuses());
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   useEffect(() => {
     const refresh = () => setStatuses(getAllAccountStatuses());
@@ -104,15 +107,56 @@ export function Sidebar({
               ? statusLabel
               : `${st.error || "Ismeretlen hiba"}${retryCountdown ? ` · újrapróbálkozás ${retryCountdown} múlva` : ""}`;
             return (
-              <div key={a.id} className="space-y-0.5">
+              <div
+                key={a.id}
+                className={cn(
+                  "space-y-0.5",
+                  dragOverId === a.id && dragId !== a.id && "ring-2 ring-primary/40 rounded-md",
+                  dragId === a.id && "opacity-50",
+                )}
+                draggable={!!onReorderAccounts}
+                onDragStart={(e) => {
+                  if (!onReorderAccounts) return;
+                  setDragId(a.id);
+                  e.dataTransfer.effectAllowed = "move";
+                  e.dataTransfer.setData("text/plain", a.id);
+                }}
+                onDragOver={(e) => {
+                  if (!onReorderAccounts || !dragId || dragId === a.id) return;
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  if (dragOverId !== a.id) setDragOverId(a.id);
+                }}
+                onDragLeave={() => {
+                  if (dragOverId === a.id) setDragOverId(null);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const fromId = dragId || e.dataTransfer.getData("text/plain");
+                  if (onReorderAccounts && fromId && fromId !== a.id) {
+                    onReorderAccounts(fromId, a.id);
+                  }
+                  setDragId(null);
+                  setDragOverId(null);
+                }}
+                onDragEnd={() => { setDragId(null); setDragOverId(null); }}
+              >
                 <div
                   className={cn(
-                    "group w-full flex items-center gap-2 pl-2 pr-1 py-1.5 rounded-md text-sm transition-colors",
+                    "group w-full flex items-center gap-1 pl-1 pr-1 py-1.5 rounded-md text-sm transition-colors",
                     activeAccountId === a.id
                       ? "bg-sidebar-accent text-sidebar-accent-foreground"
                       : "hover:bg-sidebar-accent/60 text-sidebar-foreground",
                   )}
                 >
+                  {onReorderAccounts && (
+                    <span
+                      className="cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-60 hover:opacity-100 transition-opacity p-0.5"
+                      title="Húzd a sorrend módosításához"
+                    >
+                      <GripVertical className="h-3.5 w-3.5" />
+                    </span>
+                  )}
                   <button
                     onClick={() => onSelectAccount(a.id)}
                     className="flex items-center gap-2 flex-1 min-w-0 text-left"
