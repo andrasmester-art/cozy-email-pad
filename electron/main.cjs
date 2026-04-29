@@ -7,6 +7,7 @@ const Imap = require("imap");
 const { simpleParser } = require("mailparser");
 const nodemailer = require("nodemailer");
 require("./updater.cjs");
+const cache = require("./mailCache.cjs");
 
 const userDataDir = () => app.getPath("userData");
 const storeFile = (name) => path.join(userDataDir(), `${name}.json`);
