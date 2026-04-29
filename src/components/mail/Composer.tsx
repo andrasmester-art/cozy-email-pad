@@ -16,6 +16,7 @@ import { getSendDelay, setSendDelay, SEND_DELAY_OPTIONS, formatDelay } from "@/l
 import { getDefaultAccountId, setDefaultAccountId } from "@/lib/defaultAccount";
 import {
   listSignatures, getDefaultSignatureId, getSignature, applySignatureToBody,
+  SIGNATURE_MARKER, QUOTE_MARKER,
   type Signature,
 } from "@/lib/signatures";
 import { loadDraft, saveDraft, clearDraft, isDraftMeaningful, type Draft } from "@/lib/draft";
