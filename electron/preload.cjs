@@ -45,3 +45,4 @@ contextBridge.exposeInMainWorld("mailAPI", {
   window: {
     openMessage: (params) => ipcRenderer.invoke("window:openMessage", params),
   },
+});
