@@ -84,6 +84,37 @@ export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
           </DialogDescription>
         </DialogHeader>
 
+        {initial && (
+          <div
+            className={cn(
+              "flex items-start gap-2 rounded-md border px-3 py-2 text-xs",
+              !status && "border-border bg-muted/40 text-muted-foreground",
+              status?.ok && "border-success/30 bg-success/10 text-success",
+              status && !status.ok && "border-destructive/30 bg-destructive/10 text-destructive",
+            )}
+          >
+            {!status ? (
+              <Circle className="h-4 w-4 mt-0.5 shrink-0" />
+            ) : status.ok ? (
+              <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+            ) : (
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="font-medium">
+                {!status ? "Még nem ellenőrzött" : status.ok ? "Kapcsolódva" : "Kapcsolódási hiba"}
+              </div>
+              <div className="opacity-80 break-words">
+                {!status
+                  ? "Kattints a Kapcsolat ellenőrzése gombra a teszteléshez."
+                  : status.ok
+                  ? `Utolsó ellenőrzés: ${formatRelative(status.lastChecked)}`
+                  : `${status.error || "Ismeretlen hiba"} · ${formatRelative(status.lastChecked)}`}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
