@@ -563,7 +563,7 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
               <Trash2 className="h-4 w-4 mr-1.5" /> Piszkozat törlése
             </Button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0 ml-auto">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Clock className="h-3.5 w-3.5" />
               <span>Visszavonási idő</span>
