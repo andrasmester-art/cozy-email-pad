@@ -19,14 +19,6 @@ type Props = {
   onSaved: (a: Account) => void;
   initial?: Account | null;
 };
-
-const PRESETS: Record<string, Partial<Account>> = {
-  Gmail: { imapHost: "imap.gmail.com", imapPort: 993, imapTls: true, smtpHost: "smtp.gmail.com", smtpPort: 465, smtpSecure: true },
-  iCloud: { imapHost: "imap.mail.me.com", imapPort: 993, imapTls: true, smtpHost: "smtp.mail.me.com", smtpPort: 587, smtpSecure: false },
-  Outlook: { imapHost: "outlook.office365.com", imapPort: 993, imapTls: true, smtpHost: "smtp.office365.com", smtpPort: 587, smtpSecure: false },
-  Yahoo: { imapHost: "imap.mail.yahoo.com", imapPort: 993, imapTls: true, smtpHost: "smtp.mail.yahoo.com", smtpPort: 465, smtpSecure: true },
-};
-
 export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
   const [a, setA] = useState<Account>(() => initial || blank());
   const [status, setStatus] = useState<AccountStatus | null>(null);

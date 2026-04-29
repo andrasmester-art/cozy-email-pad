@@ -3,6 +3,13 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.3.1] – 2026-04-29
+
+### Változás
+- A fiók-varázsló (`AccountWizard`) és a hozzá tartozó szolgáltató-presetek (`providerPresets.ts`) eltávolítva.
+- A fiók-szerkesztőből kikerültek a „Gyors beállítások" gombok (Gmail / iCloud / Outlook / Yahoo) — minden mezőt kézzel kell kitölteni.
+- Az „Új fiók" gomb most közvetlenül az üres fiók-szerkesztőt nyitja meg.
+
 ## [1.3.0] – 2026-04-29
 
 ### Új
