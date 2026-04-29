@@ -3,6 +3,12 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.1.4] – 2026-04-29
+
+### Változás
+- A Titan átirányítás teljesen eltávolítva. A Hostinger / Hoating.eu presetek visszaálltak az eredeti `imap.hostinger.com` / `smtp.hostinger.com` szerverekre.
+- A korábban bevezetett automatikus host-normalizálás (`normalizeAccountHosts`) eltávolítva — a mentett fiók host értékei érintetlenül maradnak.
+
 ## [1.1.2] – 2026-04-29
 
 ### Javítás
