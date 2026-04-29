@@ -1,9 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Account, MailMessage, mailAPI } from "@/lib/mailBridge";
 
-import {
-  startRetryScheduler, setKnownAccounts, markSuccess, markFailure, clearRetryFor,
-} from "@/lib/accountRetry";
+import { clearRetryFor } from "@/lib/accountRetry";
 import { Sidebar } from "@/components/mail/Sidebar";
 import { MessageList } from "@/components/mail/MessageList";
 import { MessageView } from "@/components/mail/MessageView";
@@ -28,7 +26,7 @@ const Index = () => {
   const [messages, setMessages] = useState<MailMessage[]>([]);
   const [selected, setSelected] = useState<MailMessage | null>(null);
   const [loading, setLoading] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  const [syncing] = useState(false);
 
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerInitial, setComposerInitial] = useState<{ to?: string; cc?: string; bcc?: string; subject?: string; body?: string } | undefined>();
@@ -79,86 +77,23 @@ const Index = () => {
     })();
   }, []);
 
-  // Auto-retry: keep the scheduler in sync with the current account list.
-  useEffect(() => {
-    setKnownAccounts(accounts);
-    startRetryScheduler();
-  }, [accounts]);
-  // Load from local cache (instant, no network).
+  // Az IMAP/SMTP réteg el lett távolítva — nincs valódi levélbetöltés.
   const loadMessages = useCallback(async () => {
     if (!activeAccountId) return;
     setLoading(true);
     setSelected(null);
-    try {
-      const msgs = await mailAPI.imap.fetch({ accountId: activeAccountId, mailbox: activeMailbox, limit: 200 });
-      setMessages(msgs);
-    } catch (e: any) {
-      toast.error("Levelek betöltése sikertelen", { description: String(e?.message || e) });
-      setMessages([]);
-    } finally {
-      setLoading(false);
-    }
+    setMessages([]);
+    setLoading(false);
   }, [activeAccountId, activeMailbox]);
 
   useEffect(() => { loadMessages(); }, [loadMessages]);
 
-  // Auto-sync the active mailbox in the background each time the user
-  // switches account/mailbox — pulls only NEW messages (UID > last_uid).
-  useEffect(() => {
-    if (!activeAccountId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await mailAPI.imap.sync({ accountId: activeAccountId, mailbox: activeMailbox, limit: 200 });
-        if (cancelled) return;
-        if (res.added > 0) {
-          setMessages(res.messages);
-          toast.success(`${res.added} új üzenet`);
-        }
-        markSuccess(activeAccountId);
-      } catch (e: any) {
-        if (!cancelled) markFailure(activeAccountId, String(e?.message || e));
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [activeAccountId, activeMailbox]);
-
-  // Manual full sync: pulls only NEW messages for INBOX, Sent, Drafts on every account.
+  // Manual sync no longer does anything — the e-mail backend has been removed.
   const syncAll = useCallback(async () => {
-    if (syncing) return;
-    if (accounts.length === 0) {
-      toast.info("Nincs fiók a szinkronizáláshoz");
-      return;
-    }
-    setSyncing(true);
-    const t = toast.loading(`Szinkronizálás (${accounts.length} fiók)…`);
-    let okCount = 0;
-    let failCount = 0;
-    let totalNew = 0;
-    await Promise.all(
-      accounts.map(async (a) => {
-        try {
-          const res = await mailAPI.imap.syncAll({ accountId: a.id });
-          for (const v of Object.values(res)) {
-            if (typeof v === "number") totalNew += v;
-          }
-          markSuccess(a.id);
-          okCount++;
-        } catch (e: any) {
-          markFailure(a.id, String(e?.message || e));
-          failCount++;
-        }
-      }),
-    );
-    await loadMessages();
-    setSyncing(false);
-    toast.dismiss(t);
-    if (failCount === 0) {
-      toast.success(`Szinkronizálva — ${okCount} fiók, ${totalNew} új üzenet`);
-    } else {
-      toast.warning(`${okCount} sikeres, ${failCount} hiba — ${totalNew} új üzenet`);
-    }
-  }, [accounts, syncing, loadMessages]);
+    toast.info("E-mail szinkronizálás kikapcsolva", {
+      description: "Az IMAP/SMTP funkció el lett távolítva ebből a verzióból.",
+    });
+  }, []);
 
   const quoteBody = (m: MailMessage) =>
     `<p></p><blockquote><p><em>${m.from} írta:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`;
