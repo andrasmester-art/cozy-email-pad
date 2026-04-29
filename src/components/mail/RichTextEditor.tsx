@@ -306,6 +306,130 @@ function Toolbar({ editor }: { editor: Editor | null }) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Lebegő kép-eszköztár: csak akkor jelenik meg, ha a kijelölés egy képen
+// van. Méretezés (kis/közepes/nagy/teljes szélesség), igazítás és törlés.
+// A pozíciót a kiválasztott `<img>` `getBoundingClientRect()` alapján a
+// szülő (relative) konténerhez képest számoljuk — így scrollolásnál és
+// resize-nál is helyén marad.
+function ImageBubbleMenu({
+  editor,
+  containerRef,
+}: {
+  editor: Editor;
+  containerRef: React.RefObject<HTMLDivElement>;
+}) {
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  const isImage = editor.isActive("image");
+  const currentWidth = (editor.getAttributes("image").width as string) || "";
+  const currentAlign = (editor.getAttributes("image").align as string) || "left";
+
+  useLayoutEffect(() => {
+    if (!isImage || !containerRef.current) {
+      setPos(null);
+      return;
+    }
+    const update = () => {
+      const { state, view } = editor;
+      const { from } = state.selection;
+      const dom = view.nodeDOM(from) as HTMLElement | null;
+      const img = dom?.tagName === "IMG" ? (dom as HTMLImageElement) : (dom?.querySelector?.("img") as HTMLImageElement | null);
+      if (!img || !containerRef.current) { setPos(null); return; }
+      const cRect = containerRef.current.getBoundingClientRect();
+      const iRect = img.getBoundingClientRect();
+      // A toolbar a kép FELETT — ha nem fér ki, a kép alá ugrik.
+      const wantTop = iRect.top - cRect.top - 44;
+      const top = wantTop < 4 ? iRect.bottom - cRect.top + 8 : wantTop;
+      const left = Math.max(8, iRect.left - cRect.left);
+      setPos({ top, left });
+    };
+    update();
+    const scroller = containerRef.current.querySelector(".overflow-auto") || window;
+    scroller.addEventListener("scroll", update, { passive: true } as any);
+    window.addEventListener("resize", update);
+    return () => {
+      scroller.removeEventListener("scroll", update as any);
+      window.removeEventListener("resize", update);
+    };
+  }, [isImage, editor, containerRef, currentWidth, currentAlign]);
+
+  if (!isImage || !pos) return null;
+
+  const setWidth = (w: string | null) => {
+    editor.chain().focus().updateAttributes("image", { width: w }).run();
+  };
+  const setAlign = (a: "left" | "center" | "right") => {
+    // Az igazítást két szinten alkalmazzuk:
+    //  1) a `data-align` attribútumon (perzisztens, exporthoz),
+    //  2) a szülő paragrafus `text-align`-jén (vizuálisan és az emailben is
+    //     megfelelő — az img block-szintű, így a parent text-align mozgatja).
+    editor
+      .chain()
+      .focus()
+      .updateAttributes("image", { align: a })
+      .updateAttributes("paragraph", { textAlign: a } as any) // ártalmatlan, ha nincs textAlign attr
+      .run();
+    // Fallback: kézzel állítjuk a szülő `<p>` text-align stílusát, mert
+    // alap StarterKit paragraph-on nincs textAlign extension. Ez biztos
+    // megoldás, és a sanitizer az inline style-t engedi.
+    requestAnimationFrame(() => {
+      const { state, view } = editor;
+      const { from } = state.selection;
+      const dom = view.nodeDOM(from) as HTMLElement | null;
+      const img = dom?.tagName === "IMG" ? dom : (dom?.querySelector?.("img") as HTMLElement | null);
+      const p = img?.closest("p, div");
+      if (p instanceof HTMLElement) p.style.textAlign = a;
+    });
+  };
+  const removeImage = () => editor.chain().focus().deleteSelection().run();
+
+  const Btn = ({
+    active, onClick, title, children,
+  }: { active?: boolean; onClick: () => void; title: string; children: React.ReactNode }) => (
+    <button
+      type="button"
+      title={title}
+      onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onClick}
+      className={cn(
+        "h-7 px-2 text-xs rounded inline-flex items-center gap-1 hover:bg-accent",
+        active && "bg-accent text-accent-foreground",
+      )}
+    >{children}</button>
+  );
+
+  return (
+    <div
+      style={{ top: pos.top, left: pos.left }}
+      className="absolute z-20 flex items-center gap-1 rounded-md border border-border bg-popover shadow-md px-1.5 py-1"
+      // A kattintás ne mozdítsa el az ProseMirror szelekciót.
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      <Btn title="Kicsi (200 px)" active={currentWidth === "200px"} onClick={() => setWidth("200px")}>S</Btn>
+      <Btn title="Közepes (400 px)" active={currentWidth === "400px"} onClick={() => setWidth("400px")}>M</Btn>
+      <Btn title="Nagy (640 px)" active={currentWidth === "640px"} onClick={() => setWidth("640px")}>L</Btn>
+      <Btn title="Teljes szélesség" active={currentWidth === "100%"} onClick={() => setWidth("100%")}>100%</Btn>
+      <Btn title="Eredeti méret" active={!currentWidth} onClick={() => setWidth(null)}>Auto</Btn>
+      <Separator orientation="vertical" className="h-5 mx-1" />
+      <Btn title="Balra" active={currentAlign === "left"} onClick={() => setAlign("left")}>
+        <AlignLeft className="h-3.5 w-3.5" />
+      </Btn>
+      <Btn title="Középre" active={currentAlign === "center"} onClick={() => setAlign("center")}>
+        <AlignCenter className="h-3.5 w-3.5" />
+      </Btn>
+      <Btn title="Jobbra" active={currentAlign === "right"} onClick={() => setAlign("right")}>
+        <AlignRight className="h-3.5 w-3.5" />
+      </Btn>
+      <Separator orientation="vertical" className="h-5 mx-1" />
+      <Btn title="Kép törlése" onClick={removeImage}>
+        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+      </Btn>
+    </div>
+  );
+}
+
 export function RichTextEditor({ value, onChange, placeholder, className }: Props) {
   // A legutóbb kibocsátott (saját) HTML — így meg tudjuk különböztetni a
   // belső (gépelés/formázás) és külső (parent által szándékosan adott)
