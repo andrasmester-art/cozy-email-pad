@@ -1,13 +1,16 @@
 import { MailMessage } from "@/lib/mailBridge";
 import { Button } from "@/components/ui/button";
-import { Reply, ReplyAll, Forward, Trash2, Archive } from "lucide-react";
+import { Reply, ReplyAll, Forward, Trash2, Archive, Star, Mail, MailOpen } from "lucide-react";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 type Props = {
   message: MailMessage | null;
   onReply: (m: MailMessage) => void;
   onReplyAll?: (m: MailMessage) => void;
   onForward?: (m: MailMessage) => void;
+  onToggleFlag?: (m: MailMessage) => void;
+  onToggleSeen?: (m: MailMessage) => void;
 };
 
 export function MessageView({ message, onReply, onReplyAll, onForward }: Props) {
