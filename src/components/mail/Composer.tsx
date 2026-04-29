@@ -18,6 +18,7 @@ import {
   listSignatures, getDefaultSignatureId, getSignature, applySignatureToBody,
   type Signature,
 } from "@/lib/signatures";
+import { loadDraft, saveDraft, clearDraft, isDraftMeaningful } from "@/lib/draft";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
