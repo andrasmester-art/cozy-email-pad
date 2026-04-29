@@ -32,6 +32,22 @@ export type EmailTemplate = {
   updatedAt: number;
 };
 
+// Egy levélhez tartozó csatolmány. A `data` base64-kódolt bináris tartalom
+// (a natív/Electron oldal tölti ki, miután a body-val együtt letöltötte).
+// Az `inline` jelzi a HTML-be ágyazott (cid:…) képeket, amelyeket nem
+// szoktunk külön „letöltés" listában mutatni.
+export type MailAttachment = {
+  filename: string;
+  contentType: string; // pl. "image/png", "application/pdf", "text/plain"
+  size: number; // byte
+  /** Base64-kódolt tartalom. Lehet undefined, ha még nem töltődött le a body. */
+  data?: string;
+  /** A HTML-ben hivatkozott Content-ID (cid:…), ha inline-ágyazott. */
+  cid?: string;
+  /** True, ha inline (a HTML-be ágyazott) — pl. embedded kép. */
+  inline?: boolean;
+};
+
 export type MailMessage = {
   seqno: number;
   uid?: string;
@@ -45,6 +61,7 @@ export type MailMessage = {
   flagged?: boolean;
   seen?: boolean;
   bodyLoaded?: boolean;
+  attachments?: MailAttachment[];
 };
 
 const isElectron = typeof window !== "undefined" && (window as any).mailAPI?.isElectron;
