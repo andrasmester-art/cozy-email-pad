@@ -77,23 +77,54 @@ const Index = () => {
     })();
   }, []);
 
-  // Az IMAP/SMTP réteg el lett távolítva — nincs valódi levélbetöltés.
+  // Levelek betöltése: jelenleg csak az INBOX él, a többi mappa üres listát ad.
   const loadMessages = useCallback(async () => {
     if (!activeAccountId) return;
     setLoading(true);
     setSelected(null);
-    setMessages([]);
-    setLoading(false);
+    try {
+      const msgs = await mailAPI.imap.fetch({
+        accountId: activeAccountId,
+        mailbox: activeMailbox,
+        limit: 30,
+      });
+      setMessages(msgs);
+    } catch (e: any) {
+      toast.error("Levelek betöltése sikertelen", { description: String(e?.message || e) });
+      setMessages([]);
+    } finally {
+      setLoading(false);
+    }
   }, [activeAccountId, activeMailbox]);
 
   useEffect(() => { loadMessages(); }, [loadMessages]);
 
-  // Manual sync no longer does anything — the e-mail backend has been removed.
+  // "Szinkronizálás" gomb: minden fiókra újrahúzzuk az INBOX-ot.
   const syncAll = useCallback(async () => {
-    toast.info("E-mail szinkronizálás kikapcsolva", {
-      description: "Az IMAP/SMTP funkció el lett távolítva ebből a verzióból.",
-    });
-  }, []);
+    if (syncing || accounts.length === 0) {
+      if (accounts.length === 0) toast.info("Nincs fiók a szinkronizáláshoz");
+      return;
+    }
+    setSyncing(true);
+    const t = toast.loading(`Frissítés (${accounts.length} fiók)…`);
+    let okCount = 0;
+    let failCount = 0;
+    await Promise.all(
+      accounts.map(async (a) => {
+        try {
+          await mailAPI.imap.fetch({ accountId: a.id, mailbox: "INBOX", limit: 30 });
+          okCount++;
+        } catch {
+          failCount++;
+        }
+      }),
+    );
+    await loadMessages();
+    setSyncing(false);
+    toast.dismiss(t);
+    if (failCount === 0) toast.success(`Frissítve — ${okCount} fiók`);
+    else toast.warning(`${okCount} sikeres, ${failCount} hiba`);
+  }, [accounts, syncing, loadMessages]);
 
   const quoteBody = (m: MailMessage) =>
     `<p></p><blockquote><p><em>${m.from} írta:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`;
