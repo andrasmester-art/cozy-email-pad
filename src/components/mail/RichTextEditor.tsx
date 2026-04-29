@@ -45,6 +45,38 @@ const ToolbarBtn = ({
 
 function Toolbar({ editor }: { editor: Editor | null }) {
   if (!editor) return null;
+  const toggleBulletListSafely = () => {
+    if (editor.isActive("bulletList")) {
+      editor.chain().focus().toggleBulletList().run();
+      return;
+    }
+    if (editor.isActive("orderedList") && editor.chain().focus().toggleOrderedList().toggleBulletList().run()) {
+      return;
+    }
+    if (editor.chain().focus().toggleBulletList().run()) {
+      return;
+    }
+    if (editor.chain().focus().liftListItem("listItem").toggleBulletList().run()) {
+      return;
+    }
+    editor.chain().focus().clearNodes().toggleBulletList().run();
+  };
+  const toggleOrderedListSafely = () => {
+    if (editor.isActive("orderedList")) {
+      editor.chain().focus().toggleOrderedList().run();
+      return;
+    }
+    if (editor.isActive("bulletList") && editor.chain().focus().toggleBulletList().toggleOrderedList().run()) {
+      return;
+    }
+    if (editor.chain().focus().toggleOrderedList().run()) {
+      return;
+    }
+    if (editor.chain().focus().liftListItem("listItem").toggleOrderedList().run()) {
+      return;
+    }
+    editor.chain().focus().clearNodes().toggleOrderedList().run();
+  };
   const setLink = () => {
     const prev = editor.getAttributes("link").href;
     const url = window.prompt("URL", prev || "https://");
@@ -87,24 +119,12 @@ function Toolbar({ editor }: { editor: Editor | null }) {
       <ToolbarBtn
         title="Felsorolás"
         active={editor.isActive("bulletList")}
-        onClick={() => {
-          if (editor.isActive("bulletList")) {
-            editor.chain().focus().toggleBulletList().run();
-          } else if (!editor.chain().focus().toggleBulletList().run()) {
-            editor.chain().focus().clearNodes().toggleBulletList().run();
-          }
-        }}
+        onClick={toggleBulletListSafely}
       ><List className="h-4 w-4" /></ToolbarBtn>
       <ToolbarBtn
         title="Számozott lista"
         active={editor.isActive("orderedList")}
-        onClick={() => {
-          if (editor.isActive("orderedList")) {
-            editor.chain().focus().toggleOrderedList().run();
-          } else if (!editor.chain().focus().toggleOrderedList().run()) {
-            editor.chain().focus().clearNodes().toggleOrderedList().run();
-          }
-        }}
+        onClick={toggleOrderedListSafely}
       ><ListOrdered className="h-4 w-4" /></ToolbarBtn>
       <ToolbarBtn
         title="Idézet"
