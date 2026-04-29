@@ -344,8 +344,28 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
                 ))}
               </SelectContent>
             </Select>
-            <Button onClick={handleSend} disabled={sending} className="bg-gradient-primary">
-              <Send className="h-4 w-4 mr-1.5" /> {sending ? "Küldés…" : "Küldés"}
+            <Button
+              onClick={handleSend}
+              disabled={sending || !!pending}
+              aria-busy={sending || !!pending}
+              className="bg-gradient-primary min-w-[120px]"
+            >
+              {pending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  Küldés {pending.remaining} mp
+                </>
+              ) : sending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  Küldés…
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4 mr-1.5" />
+                  Küldés
+                </>
+              )}
             </Button>
           </div>
         </div>
