@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Account, MailMessage, mailAPI } from "@/lib/mailBridge";
+import { setAccountStatus, clearAccountStatus } from "@/lib/accountStatus";
 import { Sidebar } from "@/components/mail/Sidebar";
 import { MessageList } from "@/components/mail/MessageList";
 import { MessageView } from "@/components/mail/MessageView";
@@ -33,6 +34,7 @@ const Index = () => {
     if (!deletingAccount) return;
     const id = deletingAccount.id;
     await mailAPI.accounts.delete(id);
+    clearAccountStatus(id);
     const list = await mailAPI.accounts.list();
     setAccounts(list);
     if (activeAccountId === id) {
@@ -73,8 +75,11 @@ const Index = () => {
     try {
       const msgs = await mailAPI.imap.fetch({ accountId: activeAccountId, mailbox: activeMailbox, limit: 50 });
       setMessages(msgs);
+      setAccountStatus(activeAccountId, { lastChecked: Date.now(), ok: true });
     } catch (e: any) {
-      toast.error("Levelek betöltése sikertelen", { description: String(e?.message || e) });
+      const msg = String(e?.message || e);
+      setAccountStatus(activeAccountId, { lastChecked: Date.now(), ok: false, error: msg });
+      toast.error("Levelek betöltése sikertelen", { description: msg });
       setMessages([]);
     } finally {
       setLoading(false);

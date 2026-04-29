@@ -9,6 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { CheckCircle2, AlertCircle, Circle, RefreshCw } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { getAccountStatus, setAccountStatus, formatRelative, type AccountStatus } from "@/lib/accountStatus";
 
 type Props = {
   open: boolean;
@@ -26,9 +29,14 @@ const PRESETS: Record<string, Partial<Account>> = {
 
 export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
   const [a, setA] = useState<Account>(() => initial || blank());
+  const [status, setStatus] = useState<AccountStatus | null>(null);
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
-    if (open) setA(initial || blank());
+    if (open) {
+      setA(initial || blank());
+      setStatus(initial ? getAccountStatus(initial.id) : null);
+    }
   }, [open, initial]);
 
   const update = (patch: Partial<Account>) => setA((prev) => ({ ...prev, ...patch }));
@@ -43,6 +51,29 @@ export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
     onClose();
   };
 
+  const handleTest = async () => {
+    if (!a.label || !a.user || !a.imapHost) {
+      return toast.error("Hiányzó adatok", { description: "Add meg legalább a nevet, e-mailt és IMAP hostot." });
+    }
+    setTesting(true);
+    try {
+      await mailAPI.accounts.save(a);
+      await mailAPI.imap.fetch({ accountId: a.id, mailbox: "INBOX", limit: 1 });
+      const next: AccountStatus = { lastChecked: Date.now(), ok: true };
+      setAccountStatus(a.id, next);
+      setStatus(next);
+      toast.success("Sikeres kapcsolódás");
+    } catch (e: any) {
+      const msg = String(e?.message || e);
+      const next: AccountStatus = { lastChecked: Date.now(), ok: false, error: msg };
+      setAccountStatus(a.id, next);
+      setStatus(next);
+      toast.error("Kapcsolódás sikertelen", { description: msg });
+    } finally {
+      setTesting(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg">
@@ -52,6 +83,37 @@ export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
             Add meg a fiók adatait. A jelszavakat a Mac app a Keychainben titkosítva tárolja.
           </DialogDescription>
         </DialogHeader>
+
+        {initial && (
+          <div
+            className={cn(
+              "flex items-start gap-2 rounded-md border px-3 py-2 text-xs",
+              !status && "border-border bg-muted/40 text-muted-foreground",
+              status?.ok && "border-success/30 bg-success/10 text-success",
+              status && !status.ok && "border-destructive/30 bg-destructive/10 text-destructive",
+            )}
+          >
+            {!status ? (
+              <Circle className="h-4 w-4 mt-0.5 shrink-0" />
+            ) : status.ok ? (
+              <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+            ) : (
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="font-medium">
+                {!status ? "Még nem ellenőrzött" : status.ok ? "Kapcsolódva" : "Kapcsolódási hiba"}
+              </div>
+              <div className="opacity-80 break-words">
+                {!status
+                  ? "Kattints a Kapcsolat ellenőrzése gombra a teszteléshez."
+                  : status.ok
+                  ? `Utolsó ellenőrzés: ${formatRelative(status.lastChecked)}`
+                  : `${status.error || "Ismeretlen hiba"} · ${formatRelative(status.lastChecked)}`}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
@@ -120,7 +182,11 @@ export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
           </Tabs>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button variant="outline" onClick={handleTest} disabled={testing} className="mr-auto">
+            <RefreshCw className={cn("h-4 w-4 mr-1.5", testing && "animate-spin")} />
+            {testing ? "Ellenőrzés…" : "Kapcsolat ellenőrzése"}
+          </Button>
           <Button variant="outline" onClick={onClose}>Mégse</Button>
           <Button onClick={handleSave}>Mentés</Button>
         </DialogFooter>
