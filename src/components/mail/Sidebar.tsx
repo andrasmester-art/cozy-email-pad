@@ -17,6 +17,7 @@ type Props = {
   onDeleteAccount: (a: Account) => void;
   onCompose: () => void;
   onOpenTemplates: () => void;
+  onOpenSignatures: () => void;
   onOpenSettings: () => void;
 };
 
