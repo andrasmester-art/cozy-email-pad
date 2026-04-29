@@ -36,6 +36,7 @@ const Index = () => {
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [signaturesOpen, setSignaturesOpen] = useState(false);
+  const [updaterOpen, setUpdaterOpen] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState<Account | null>(null);
 
   const confirmDeleteAccount = async () => {
