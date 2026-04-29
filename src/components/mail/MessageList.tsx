@@ -194,7 +194,7 @@ function ScrollList({
       {loading && messages.length === 0 ? (
         <div className="p-6 text-center text-sm text-muted-foreground">Betöltés…</div>
       ) : filtered.length === 0 ? (
-        <div className="p-6 text-center text-sm text-muted-foreground">Nincs üzenet</div>
+        <div className="p-6 text-center text-sm text-muted-foreground">{emptyHint || "Nincs üzenet"}</div>
       ) : (
         <>
           <ul>
