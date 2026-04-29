@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.16.4] – 2026-04-29
+
+### Javítás
+- **Link beszúrása a levélszerkesztőben most már működik.** A korábbi `window.prompt`-os megoldás Electron alatt nem volt megbízható (sokszor azonnal becsukódott vagy nem fókuszált vissza az editorra). Mostantól a Link gomb egy beépített popover űrlapot nyit URL mezővel, **Beszúrás**, **Mégse** és — meglévő linknél — **Eltávolítás** gombokkal. Enter = beszúrás, Esc = bezárás. A kijelölt szöveg megmarad, mert a popover nem veszi el az editor szelekcióját.
+
 ## [1.16.3] – 2026-04-29
 
 ### Javítás
