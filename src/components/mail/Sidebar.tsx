@@ -34,7 +34,21 @@ export function Sidebar({
   accounts, activeAccountId, activeMailbox,
   onSelectAccount, onSelectMailbox, onAddAccount, onEditAccount, onDeleteAccount, onOpenTemplates, onOpenSettings,
 }: Props) {
+  const [statuses, setStatuses] = useState<Record<string, AccountStatus>>(() => getAllAccountStatuses());
+
+  useEffect(() => {
+    const refresh = () => setStatuses(getAllAccountStatuses());
+    refresh();
+    window.addEventListener("accountStatusChanged", refresh);
+    const t = setInterval(refresh, 30000); // re-render relative time
+    return () => {
+      window.removeEventListener("accountStatusChanged", refresh);
+      clearInterval(t);
+    };
+  }, []);
+
   return (
+    <TooltipProvider delayDuration={200}>
     <aside className="w-60 shrink-0 bg-gradient-sidebar border-r border-sidebar-border flex flex-col h-full">
       <div className="mac-titlebar shrink-0" />
 
