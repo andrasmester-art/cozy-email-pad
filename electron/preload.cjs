@@ -42,4 +42,6 @@ contextBridge.exposeInMainWorld("mailAPI", {
       return () => ipcRenderer.removeListener("updater:log", handler);
     },
   },
-});
+  window: {
+    openMessage: (params) => ipcRenderer.invoke("window:openMessage", params),
+  },
