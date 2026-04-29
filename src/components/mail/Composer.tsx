@@ -79,14 +79,28 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
       setDefaultId(saved);
       setTo(initial?.to || "");
       setSubject(initial?.subject || "");
-      setBody(initial?.body || "");
+      // Apply default signature for the initial account on open
+      const sig = getSignature(initId ? getDefaultSignatureId(initId) : null);
+      setBody(applySignatureToBody(initial?.body || "", sig));
       setCc(""); setBcc(""); setShowCc(false);
     }
   }, [open, defaultAccountId, accounts, initial?.to, initial?.subject, initial?.body]);
 
+  // Swap default signature whenever the account changes (after the dialog is open)
+  useEffect(() => {
+    if (!open || !accountId) return;
+    const sig = getSignature(getDefaultSignatureId(accountId));
+    setBody((prev) => applySignatureToBody(prev, sig));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId]);
+
   const applyTemplate = (tpl: EmailTemplate) => {
     if (!subject) setSubject(tpl.subject);
     setBody((prev) => (prev && prev !== "<p></p>" ? prev + tpl.body : tpl.body));
+  };
+
+  const applySignature = (sig: Signature | null) => {
+    setBody((prev) => applySignatureToBody(prev, sig));
   };
 
   // Pending-send state for the undo countdown UI
