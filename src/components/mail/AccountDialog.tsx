@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { CheckCircle2, AlertCircle, Circle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getAccountStatus, setAccountStatus, formatRelative, type AccountStatus } from "@/lib/accountStatus";
+import { getAccountStatus, setAccountStatus, formatRelative, formatCountdown, type AccountStatus } from "@/lib/accountStatus";
 
 type Props = {
   open: boolean;
