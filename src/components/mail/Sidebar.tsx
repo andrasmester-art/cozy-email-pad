@@ -62,39 +62,67 @@ export function Sidebar({
               Még nincs fiók. Adj hozzá egyet!
             </div>
           )}
-          {accounts.map((a, i) => (
-            <div
-              key={a.id}
-              className={cn(
-                "group w-full flex items-center gap-2 pl-2 pr-1 py-1.5 rounded-md text-sm transition-colors",
-                activeAccountId === a.id
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "hover:bg-sidebar-accent/60 text-sidebar-foreground",
-              )}
-            >
-              <button
-                onClick={() => onSelectAccount(a.id)}
-                className="flex items-center gap-2 flex-1 min-w-0 text-left"
-              >
-                <span className={cn("w-2 h-2 rounded-full shrink-0", COLORS[i % COLORS.length])} />
-                <span className="truncate">{a.label}</span>
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); onEditAccount(a); }}
-                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-background/50"
-                title="Fiók szerkesztése"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); onDeleteAccount(a); }}
-                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 hover:text-destructive"
-                title="Fiók törlése"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ))}
+          {accounts.map((a, i) => {
+            const st = statuses[a.id];
+            const StatusIcon = !st ? Circle : st.ok ? CheckCircle2 : AlertCircle;
+            const statusColor = !st
+              ? "text-muted-foreground/50"
+              : st.ok
+              ? "text-success"
+              : "text-destructive";
+            const statusLabel = !st
+              ? "Nincs ellenőrzés"
+              : st.ok
+              ? `Csatlakozva · ${formatRelative(st.lastChecked)}`
+              : `Hiba · ${st.error || "ismeretlen"}`;
+            return (
+              <div key={a.id} className="space-y-0.5">
+                <div
+                  className={cn(
+                    "group w-full flex items-center gap-2 pl-2 pr-1 py-1.5 rounded-md text-sm transition-colors",
+                    activeAccountId === a.id
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      : "hover:bg-sidebar-accent/60 text-sidebar-foreground",
+                  )}
+                >
+                  <button
+                    onClick={() => onSelectAccount(a.id)}
+                    className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                  >
+                    <span className={cn("w-2 h-2 rounded-full shrink-0", COLORS[i % COLORS.length])} />
+                    <span className="truncate">{a.label}</span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <StatusIcon className={cn("h-3.5 w-3.5 shrink-0", statusColor)} />
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-xs">
+                        <div className="text-xs">{statusLabel}</div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onEditAccount(a); }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-background/50"
+                    title="Fiók szerkesztése"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDeleteAccount(a); }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 hover:text-destructive"
+                    title="Fiók törlése"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                {activeAccountId === a.id && (
+                  <div className={cn("text-[10px] px-2 pb-1 truncate", statusColor)}>
+                    {statusLabel}
+                  </div>
+                )}
+              </div>
+            );
+          })}
           <Button
             variant="ghost"
             size="sm"
