@@ -70,6 +70,7 @@ export function MessageList({ messages, selectedSeqno, onSelect, onOpen, onToggl
         selectedSeqno={selectedSeqno}
         onSelect={onSelect}
         onOpen={onOpen}
+        onToggleFlag={onToggleFlag}
         onLoadMore={onLoadMore}
         loadingMore={loadingMore}
         exhausted={exhausted}
