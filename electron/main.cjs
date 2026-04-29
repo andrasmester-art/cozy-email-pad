@@ -203,6 +203,7 @@ function fetchByUidRange(imap, range) {
         msg.once("end", () => {
           Promise.resolve(simpleParser(raw))
             .then((parsed) => {
+              const flags = Array.isArray(attrs?.flags) ? attrs.flags : [];
               out.push({
                 uid: attrs?.uid,
                 from: parsed.from?.text || "",
@@ -212,6 +213,8 @@ function fetchByUidRange(imap, range) {
                 text: parsed.text || "",
                 html: parsed.html || "",
                 snippet: (parsed.text || "").slice(0, 140),
+                flagged: flags.includes("\\Flagged"),
+                seen: flags.includes("\\Seen"),
               });
             })
             .catch(() => {
