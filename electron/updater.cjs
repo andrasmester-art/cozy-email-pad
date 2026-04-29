@@ -135,6 +135,46 @@ function fetchRemoteVersion() {
   });
 }
 
+// Fetch the raw CHANGELOG.md from the default branch (best-effort).
+function fetchRemoteChangelog() {
+  return new Promise((resolve) => {
+    const opts = {
+      host: "raw.githubusercontent.com",
+      path: `/${REPO_OWNER}/${REPO_NAME}/${DEFAULT_BRANCH}/CHANGELOG.md`,
+      headers: { "User-Agent": "MEpodMail-Updater" },
+    };
+    https.get(opts, (res) => {
+      let body = "";
+      res.on("data", (c) => (body += c));
+      res.on("end", () => {
+        if (res.statusCode !== 200) return resolve(null);
+        resolve(body);
+      });
+    }).on("error", () => resolve(null));
+  });
+}
+
+// Parse a CHANGELOG.md into an array of { version, date, body } entries.
+// Recognises headings like "## [1.2.3] – 2026-04-29" or "## 1.2.3 - 2026-04-29".
+function parseChangelog(md) {
+  if (!md) return [];
+  const lines = md.split(/\r?\n/);
+  const entries = [];
+  let current = null;
+  const headingRe = /^##\s+\[?(\d+\.\d+\.\d+)\]?\s*[–-]?\s*(.*)$/;
+  for (const line of lines) {
+    const m = line.match(headingRe);
+    if (m) {
+      if (current) entries.push(current);
+      current = { version: m[1], date: (m[2] || "").trim(), body: "" };
+    } else if (current) {
+      current.body += line + "\n";
+    }
+  }
+  if (current) entries.push(current);
+  return entries.map((e) => ({ ...e, body: e.body.trim() }));
+}
+
 function readLocalSha(dir) {
   try {
     const head = fs.readFileSync(path.join(dir, ".git", "HEAD"), "utf-8").trim();
