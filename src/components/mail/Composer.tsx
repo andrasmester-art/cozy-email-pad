@@ -541,6 +541,8 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
           </div>
         </div>
 
+        <SignatureLayoutPreview body={body} signatures={signatures} />
+
         <div className="flex-1 p-4 overflow-hidden">
           <RichTextEditor value={body} onChange={setBody} placeholder="Írd ide az üzeneted…" className="h-full" />
         </div>
