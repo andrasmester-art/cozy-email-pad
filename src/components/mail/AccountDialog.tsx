@@ -9,9 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { CheckCircle2, AlertCircle, Circle, Eye, EyeOff } from "lucide-react";
+import { CheckCircle2, AlertCircle, Circle, RefreshCw, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getAccountStatus, formatRelative, formatCountdown, type AccountStatus } from "@/lib/accountStatus";
+import { getAccountStatus, setAccountStatus, formatRelative, formatCountdown, type AccountStatus } from "@/lib/accountStatus";
 
 type Props = {
   open: boolean;
@@ -30,7 +30,7 @@ const PRESETS: Record<string, Partial<Account>> = {
 export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
   const [a, setA] = useState<Account>(() => initial || blank());
   const [status, setStatus] = useState<AccountStatus | null>(null);
-  
+  const [testing, setTesting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
@@ -65,7 +65,29 @@ export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
     onClose();
   };
 
-  // A kapcsolat-ellenőrzés (IMAP teszt) el lett távolítva az 1.2.0-ban.
+  const handleTest = async () => {
+    if (!a.label || !a.user || !a.imapHost) {
+      return toast.error("Hiányzó adatok", { description: "Add meg legalább a nevet, e-mailt és IMAP hostot." });
+    }
+    setTesting(true);
+    try {
+      // Mentjük a friss adatokat (jelszót is), majd futtatjuk a teszt-bejelentkezést.
+      await mailAPI.accounts.save(a);
+      await mailAPI.imap.test(a.id);
+      const next: AccountStatus = { lastChecked: Date.now(), ok: true };
+      setAccountStatus(a.id, next);
+      setStatus(next);
+      toast.success("Sikeres kapcsolódás");
+    } catch (e: any) {
+      const msg = String(e?.message || e);
+      const next: AccountStatus = { lastChecked: Date.now(), ok: false, error: msg };
+      setAccountStatus(a.id, next);
+      setStatus(next);
+      toast.error("Kapcsolódás sikertelen", { description: msg });
+    } finally {
+      setTesting(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
