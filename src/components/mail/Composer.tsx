@@ -70,19 +70,82 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
   const handleSend = async () => {
     if (!accountId) return toast.error("Válassz fiókot");
     if (!to.trim()) return toast.error("Adj meg címzettet");
-    setSending(true);
-    try {
-      await mailAPI.smtp.send({
-        accountId, to, cc: cc || undefined, bcc: bcc || undefined,
-        subject, html: body, text: htmlToText(body),
-      });
-      toast.success("Levél elküldve");
-      onClose();
-    } catch (e: any) {
-      toast.error("Küldés sikertelen", { description: String(e?.message || e) });
-    } finally {
-      setSending(false);
+
+    const payload = {
+      accountId, to, cc: cc || undefined, bcc: bcc || undefined,
+      subject, html: body, text: htmlToText(body),
+    };
+
+    // No delay → send immediately
+    if (delay === 0) {
+      setSending(true);
+      try {
+        await mailAPI.smtp.send(payload);
+        toast.success("Levél elküldve");
+        onClose();
+      } catch (e: any) {
+        toast.error("Küldés sikertelen", { description: String(e?.message || e) });
+      } finally {
+        setSending(false);
+      }
+      return;
     }
+
+    // Delayed send with undo
+    onClose();
+    let cancelled = false;
+    let remaining = delay;
+    const toastId = toast(`Küldés ${remaining} mp múlva…`, {
+      duration: delay * 1000 + 500,
+      action: {
+        label: "Visszavonás",
+        onClick: () => {
+          cancelled = true;
+          clearInterval(tick);
+          clearTimeout(timer);
+          toast.dismiss(toastId);
+          toast.info("Küldés visszavonva", {
+            description: `Tárgy: ${subject || "(nincs tárgy)"}`,
+          });
+        },
+      },
+    });
+
+    const tick = setInterval(() => {
+      remaining -= 1;
+      if (remaining > 0 && !cancelled) {
+        toast(`Küldés ${remaining} mp múlva…`, {
+          id: toastId,
+          duration: remaining * 1000 + 500,
+          action: {
+            label: "Visszavonás",
+            onClick: () => {
+              cancelled = true;
+              clearInterval(tick);
+              clearTimeout(timer);
+              toast.dismiss(toastId);
+              toast.info("Küldés visszavonva");
+            },
+          },
+        });
+      } else {
+        clearInterval(tick);
+      }
+    }, 1000);
+
+    const timer = setTimeout(async () => {
+      clearInterval(tick);
+      if (cancelled) return;
+      try {
+        await mailAPI.smtp.send(payload);
+        toast.success("Levél elküldve", { id: toastId });
+      } catch (e: any) {
+        toast.error("Küldés sikertelen", {
+          id: toastId,
+          description: String(e?.message || e),
+        });
+      }
+    }, delay * 1000);
   };
 
   const saveAsTemplate = async () => {
