@@ -10,7 +10,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { X, Send, FileCode2, Save, Clock, Star, Loader2, FileSignature } from "lucide-react";
+import { X, Send, FileCode2, Save, Clock, Star, Loader2, FileSignature, FileText, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { getSendDelay, setSendDelay, SEND_DELAY_OPTIONS, formatDelay } from "@/lib/sendDelay";
 import { getDefaultAccountId, setDefaultAccountId } from "@/lib/defaultAccount";
