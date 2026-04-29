@@ -3,6 +3,12 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.17.0] – 2026-04-29
+
+### Változás
+- **Az aláírás okos pozícionálása**: új levélnél továbbra is a levél legvégén jelenik meg, **válasznál és továbbításnál viszont az idézett előző üzenet FÖLÉ** kerül — pont oda, ahova a válaszodat is gépeled. Így a címzett a sajátt aláírásodat közvetlenül a válaszod után látja, és csak utána jön a korábbi levelezés (ahogy az Apple Mail / Gmail / Outlook is csinálja).
+- Az `applySignatureToBody` mostantól megkeresi a `data-mwquote="1"` jelölésű idézett blokkot, és a szöveget **a blokk elé** szúrja be. A reply / forward HTML-ek megkapták ezt a jelölőt, és a sanitizer is megőrzi.
+
 ## [1.16.6] – 2026-04-29
 
 ### Javítás

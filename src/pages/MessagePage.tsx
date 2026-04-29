@@ -18,7 +18,7 @@ function extractEmails(s: string): string[] {
 }
 
 function quoteBody(m: MailMessage) {
-  return `<p></p><blockquote><p><em>${m.from} írta:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`;
+  return `<p></p><blockquote data-mwquote="1"><p><em>${m.from} írta:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`;
 }
 
 const MessagePage = () => {
@@ -99,7 +99,7 @@ const MessagePage = () => {
   const handleForward = (m: MailMessage) => {
     setComposerInitial({
       subject: m.subject.startsWith("Fwd:") ? m.subject : `Fwd: ${m.subject}`,
-      body: `<p></p><blockquote><p><em>Továbbított üzenet — ${m.from}:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`,
+      body: `<p></p><blockquote data-mwquote="1"><p><em>Továbbított üzenet — ${m.from}:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`,
     });
     setComposerMode("forward");
     setComposerOpen(true);

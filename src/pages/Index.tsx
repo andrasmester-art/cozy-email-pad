@@ -261,7 +261,7 @@ const Index = () => {
   }, [accounts, syncing, activeAccountId, activeMailbox]);
 
   const quoteBody = (m: MailMessage) =>
-    `<p></p><blockquote><p><em>${m.from} írta:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`;
+    `<p></p><blockquote data-mwquote="1"><p><em>${m.from} írta:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`;
 
   // Optimista flag-frissítés a lokális state-ben + szerverhívás. Ha hibázik, visszagörgetjük.
   const applyFlagPatch = useCallback(async (m: MailMessage, patch: { flagged?: boolean; seen?: boolean }) => {
@@ -361,7 +361,7 @@ const Index = () => {
   const handleForward = (m: MailMessage) => {
     setComposerInitial({
       subject: m.subject.startsWith("Fwd:") ? m.subject : `Fwd: ${m.subject}`,
-      body: `<p></p><blockquote><p><em>Továbbított üzenet — ${m.from}:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`,
+      body: `<p></p><blockquote data-mwquote="1"><p><em>Továbbított üzenet — ${m.from}:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`,
     });
     setComposerMode("forward");
     setComposerOpen(true);
