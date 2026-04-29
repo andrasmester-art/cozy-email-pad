@@ -205,6 +205,7 @@ const Index = () => {
         accounts={accounts}
         defaultAccountId={activeAccountId}
         initial={composerInitial}
+        mode={composerMode}
       />
       <AccountDialog
         open={accountDlgOpen}
