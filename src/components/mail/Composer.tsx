@@ -333,6 +333,50 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
           </div>
         )}
 
+        {/* Restore-draft banner: shown when reopening with a saved draft available. */}
+        {pendingDraft && !pending && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="px-4 py-2.5 bg-amber-500/10 border-b border-amber-500/30 flex items-center gap-3"
+          >
+            <FileText className="h-4 w-4 text-amber-600 shrink-0" />
+            <div className="flex-1 min-w-0 text-sm">
+              <div className="font-medium text-foreground">
+                Mentett piszkozat található
+              </div>
+              <div className="text-xs text-muted-foreground truncate">
+                {pendingDraft.subject?.trim() || "(nincs tárgy)"}
+                {pendingDraft.to ? ` · ${pendingDraft.to}` : ""}
+                {" · "}
+                {formatRelativeTime(pendingDraft.updatedAt)}
+              </div>
+            </div>
+            <Button size="sm" variant="outline" onClick={restorePendingDraft}>
+              <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+              Visszaállítás
+            </Button>
+            <Button size="sm" variant="ghost" onClick={dismissPendingDraft}>
+              Eldobás
+            </Button>
+          </div>
+        )}
+
+        {/* Persistent draft-status strip showing the last autosave timestamp. */}
+        {!pendingDraft && (
+          <div
+            className="px-4 py-1.5 text-[11px] text-muted-foreground bg-surface-elevated/60 border-b border-border flex items-center gap-1.5"
+            data-tick={savedTick}
+          >
+            <Save className="h-3 w-3 opacity-70" />
+            <span>
+              {lastSavedAt
+                ? `Piszkozat mentve · ${formatRelativeTime(lastSavedAt)}`
+                : "Még nincs mentett piszkozat"}
+            </span>
+          </div>
+        )}
+
         <div className="px-4 py-3 space-y-2 border-b border-border">
           <div className="flex items-center gap-2">
             <Label className="w-14 text-xs text-muted-foreground">Fiók</Label>
