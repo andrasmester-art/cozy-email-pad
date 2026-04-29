@@ -3,6 +3,14 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.23.0] – 2026-04-29
+
+### Új
+- **Levél mentése PDF-ként.** Az üzenet-nézet eszköztárán új **PDF** gomb jelent meg. Rákattintva megnyílik a böngésző natív nyomtatási ablaka az adott levél formázott előnézetével — itt válaszd a **„PDF-ként mentés"** opciót (Cél: „Mentés PDF-ként" / „Save as PDF") a fájl letöltéséhez.
+- A PDF tartalmazza a levél fejlécét (Tárgy, Feladó, Címzett, Másolat, Dátum) **és** az **eredeti HTML formázást** (színek, betűtípusok, beágyazott képek, táblázatok, idézet-blokkok), nyomtatás-barát A4-es elrendezésben (18×16 mm margó).
+- A javasolt fájlnév automatikusan a levél tárgya alapján generálódik — a fájlrendszer számára veszélyes karaktereket (`/ \ : * ? " < > |`) aláhúzásra cseréli.
+- A megoldás külső függőség nélkül készült (a böngésző renderelő motorja állítja elő a PDF-et), így a formázás 1:1 megegyezik azzal, amit az alkalmazásban látsz.
+
 ## [1.22.0] – 2026-04-29
 
 ### Új
