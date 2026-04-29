@@ -21,6 +21,7 @@ type Props = {
   onOpenTemplates: () => void;
   onOpenSignatures: () => void;
   onOpenSettings: () => void;
+  onOpenUpdater: () => void;
 };
 
 const MAILBOXES = [
