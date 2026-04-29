@@ -22,13 +22,14 @@ type Props = {
 };
 
 const ToolbarBtn = ({
-  active, onClick, children, title,
-}: { active?: boolean; onClick: () => void; children: React.ReactNode; title: string }) => (
+  active, disabled, onClick, children, title,
+}: { active?: boolean; disabled?: boolean; onClick: () => void; children: React.ReactNode; title: string }) => (
   <Button
     type="button"
     variant="ghost"
     size="sm"
     title={title}
+    disabled={disabled}
     // FONTOS: a mousedown alapértelmezett viselkedése elvenné a fókuszt az
     // editorról, mire a kattintás-handler lefut. Ettől a chain().focus()
     // hívás új szelekcióval vagy hibásan futna, és pl. a H1/lista/link
