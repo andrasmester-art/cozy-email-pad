@@ -82,6 +82,11 @@ export function getSignature(id: string | null | undefined): Signature | null {
 // Allows swapping signatures without touching the user's body content.
 export const SIGNATURE_MARKER = "data-mwsig";
 
+// HTML wrapper used to identify a quoted previous message (reply/forward).
+// Lets us position the signature ABOVE the quote on replies, while still
+// keeping it at the very end on a fresh new email.
+export const QUOTE_MARKER = "data-mwquote";
+
 export function wrapSignature(html: string): string {
   // Defensive: also sanitise at insertion time, so legacy unsanitised entries
   // already in localStorage are cleaned before being merged into a draft.
@@ -98,9 +103,34 @@ export function stripSignature(body: string): string {
   return body.replace(re, "");
 }
 
+/**
+ * Insert (or swap) the signature into `body`.
+ *
+ * - **New email** (no quoted previous message): signature is appended to the
+ *   very end of the body.
+ * - **Reply / forward** (body contains a `data-mwquote` block): signature is
+ *   inserted **right before** the quoted block, so the recipient sees:
+ *   `[user's reply] [signature] [previous email quote]` — matching how
+ *   Apple Mail / Gmail / Outlook lay out replies.
+ */
 export function applySignatureToBody(body: string, sig: Signature | null): string {
   const stripped = stripSignature(body || "");
   if (!sig) return stripped;
+
+  const quoteRe = new RegExp(
+    `<(blockquote|div)[^>]*${QUOTE_MARKER}=["']1["'][\\s\\S]*`,
+    "i",
+  );
+  const match = stripped.match(quoteRe);
+  if (match && match.index !== undefined) {
+    // Reply / forward: split at the quote and insert the signature in front.
+    const before = stripped.slice(0, match.index);
+    const quote = stripped.slice(match.index);
+    const sep = before && before !== "<p></p>" ? "<p><br></p>" : "";
+    return `${before}${sep}${wrapSignature(sig.body)}${quote}`;
+  }
+
+  // Plain new email: append at the very end.
   const sep = stripped && stripped !== "<p></p>" ? "<p><br></p>" : "";
   return `${stripped}${sep}${wrapSignature(sig.body)}`;
 }
