@@ -7,6 +7,8 @@ import Typography from "@tiptap/extension-typography";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Bold, Italic, Strikethrough, Code, List, ListOrdered, Quote,
   Heading1, Heading2, Heading3, Link as LinkIcon, Image as ImageIcon,
