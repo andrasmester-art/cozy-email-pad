@@ -11,6 +11,7 @@ import { AccountDialog } from "@/components/mail/AccountDialog";
 import { TemplatesDialog } from "@/components/mail/TemplatesDialog";
 import { SignaturesDialog } from "@/components/mail/SignaturesDialog";
 import { UpdaterDialog } from "@/components/mail/UpdaterDialog";
+import { ContactsDialog } from "@/components/mail/ContactsDialog";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -39,6 +40,7 @@ const Index = () => {
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [signaturesOpen, setSignaturesOpen] = useState(false);
   const [updaterOpen, setUpdaterOpen] = useState(false);
+  const [contactsOpen, setContactsOpen] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState<Account | null>(null);
 
   const confirmDeleteAccount = async () => {
@@ -312,6 +314,7 @@ const Index = () => {
           onOpenTemplates={() => setTemplatesOpen(true)}
           onOpenSignatures={() => setSignaturesOpen(true)}
           onOpenUpdater={() => setUpdaterOpen(true)}
+          onOpenContacts={() => setContactsOpen(true)}
           onReorderAccounts={reorderAccounts}
           onOpenSettings={() => {
             const current = accounts.find((x) => x.id === activeAccountId) || null;
@@ -362,6 +365,15 @@ const Index = () => {
       <TemplatesDialog open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
       <SignaturesDialog open={signaturesOpen} onClose={() => setSignaturesOpen(false)} />
       <UpdaterDialog open={updaterOpen} onClose={() => setUpdaterOpen(false)} />
+      <ContactsDialog
+        open={contactsOpen}
+        onClose={() => setContactsOpen(false)}
+        onCompose={(to) => {
+          setComposerInitial({ to });
+          setComposerMode("new");
+          setComposerOpen(true);
+        }}
+      />
 
       <AlertDialog open={!!deletingAccount} onOpenChange={(o) => !o && setDeletingAccount(null)}>
         <AlertDialogContent>
