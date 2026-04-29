@@ -51,6 +51,116 @@ function formatRelativeTime(ts: number | null): string {
   return new Date(ts).toLocaleString("hu-HU");
 }
 
+// Valós idejű, vizuális összegzés a levél felépítéséről, hogy a felhasználó
+// azonnal lássa, hová kerül az aláírása reply / forward / új levél esetén.
+//
+// A `body` HTML-jét a sanitizer-markerek alapján 3 logikai blokkra bontjuk:
+//   1) "Tartalom" — a felhasználó által írt rész (a `data-mwsig` és
+//      `data-mwquote` blokkok ELŐTT)
+//   2) "Aláírás (név)" — a `data-mwsig`-jelölt blokk (ha van), a megtalált
+//      aláírás nevével
+//   3) "Idézett előzmény" — a `data-mwquote`-jelölt blokk (reply / forward)
+//
+// A blokkokat ténylegesen olyan sorrendben mutatjuk, ahogyan a generált
+// HTML-ben szerepelnek — így a felhasználó pontosan látja a végső sorrendet
+// (pl. válasznál: Tartalom → Aláírás → Idézet).
+function SignatureLayoutPreview({
+  body,
+  signatures,
+}: {
+  body: string;
+  signatures: Signature[];
+}) {
+  // Üres / triviális body esetén ne foglaljon helyet.
+  const trimmed = (body || "").trim();
+  if (!trimmed || trimmed === "<p></p>") return null;
+
+  const sigRe = new RegExp(
+    `<div[^>]*${SIGNATURE_MARKER}=["']1["'][\\s\\S]*?<\\/div>`,
+    "i",
+  );
+  const quoteRe = new RegExp(
+    `<(blockquote|div)[^>]*${QUOTE_MARKER}=["']1["']`,
+    "i",
+  );
+  const sigMatch = body.match(sigRe);
+  const quoteMatch = body.match(quoteRe);
+
+  // Ha sem aláírás, sem idézet nincs, nincs mit „összegezni" — a szerkesztő
+  // önmagában is mutatja a tartalmat.
+  if (!sigMatch && !quoteMatch) return null;
+
+  // Az aláírás nevének felismerése: a `body`-ban tárolt aláírás-HTML-t
+  // összevetjük a mentett aláírások body-jával — exact match esetén
+  // megjelenítjük a nevet ("Üdv, Példa Péter — Munkahely").
+  let sigName: string | null = null;
+  if (sigMatch) {
+    const inner = sigMatch[0]
+      .replace(/^<div[^>]*>/i, "")
+      .replace(/<\/div>$/i, "")
+      .trim();
+    const found = signatures.find((s) => (s.body || "").trim() === inner);
+    if (found) sigName = found.name;
+  }
+
+  // Sorrend kiszámítása az indexek alapján (kisebb index → előbb jön).
+  type Block = { key: "content" | "sig" | "quote"; label: string; pos: number };
+  const blocks: Block[] = [];
+  // A „Tartalom" mindig az első blokk ELŐTT helyezkedik el (pos = 0), és
+  // csak akkor mutatjuk, ha tényleg van valami a sig/quote ELŐTT.
+  const firstMarkerPos = Math.min(
+    sigMatch?.index ?? Number.POSITIVE_INFINITY,
+    quoteMatch?.index ?? Number.POSITIVE_INFINITY,
+  );
+  const beforeFirst = body.slice(0, firstMarkerPos).replace(/<[^>]+>/g, "").trim();
+  if (beforeFirst.length > 0) {
+    blocks.push({ key: "content", label: "Tartalom", pos: 0 });
+  }
+  if (sigMatch) {
+    blocks.push({
+      key: "sig",
+      label: sigName ? `Aláírás (${sigName})` : "Aláírás",
+      pos: sigMatch.index ?? 0,
+    });
+  }
+  if (quoteMatch) {
+    blocks.push({
+      key: "quote",
+      label: "Idézett előzmény",
+      pos: quoteMatch.index ?? 0,
+    });
+  }
+  blocks.sort((a, b) => a.pos - b.pos);
+
+  const colorFor = (key: Block["key"]) =>
+    key === "sig"
+      ? "border-primary/40 bg-primary/10 text-primary"
+      : key === "quote"
+        ? "border-muted-foreground/30 bg-muted text-muted-foreground"
+        : "border-border bg-surface-elevated text-foreground";
+
+  return (
+    <div
+      className="px-4 py-1.5 text-[11px] border-b border-border bg-surface-elevated/40 flex items-center gap-1.5 flex-wrap"
+      aria-label="A levél felépítésének előnézete"
+    >
+      <span className="text-muted-foreground mr-1">Sorrend:</span>
+      {blocks.map((b, i) => (
+        <span key={b.key} className="inline-flex items-center gap-1.5">
+          <span
+            className={`inline-flex items-center px-1.5 py-0.5 rounded border ${colorFor(b.key)}`}
+          >
+            {b.label}
+          </span>
+          {i < blocks.length - 1 && (
+            <span className="text-muted-foreground select-none">→</span>
+          )}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export function Composer({ open, onClose, accounts, defaultAccountId, initial, mode = "new" }: Props) {
   const titleIdle = mode === "reply" ? "Válasz" : mode === "forward" ? "Továbbítás" : "Új levél";
   const resolveInitialAccount = () => {
