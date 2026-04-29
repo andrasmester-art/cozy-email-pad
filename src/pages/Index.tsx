@@ -159,6 +159,27 @@ const Index = () => {
         }}
       />
       <TemplatesDialog open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
+
+      <AlertDialog open={!!deletingAccount} onOpenChange={(o) => !o && setDeletingAccount(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Fiók törlése</AlertDialogTitle>
+            <AlertDialogDescription>
+              Biztosan törlöd a(z) <strong>{deletingAccount?.label}</strong> fiókot?
+              A bejelentkezési adatok eltűnnek a gépedről. Ez nem vonható vissza.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Mégse</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteAccount}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Törlés
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
