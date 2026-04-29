@@ -78,10 +78,52 @@ function Toolbar({ editor }: { editor: Editor | null }) {
       <ToolbarBtn title="Áthúzott" active={editor.isActive("strike")} onClick={() => editor.chain().focus().toggleStrike().run()}><Strikethrough className="h-4 w-4" /></ToolbarBtn>
       <ToolbarBtn title="Inline kód" active={editor.isActive("code")} onClick={() => editor.chain().focus().toggleCode().run()}><Code className="h-4 w-4" /></ToolbarBtn>
       <Separator orientation="vertical" className="h-5 mx-1" />
-      <ToolbarBtn title="Felsorolás" active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()}><List className="h-4 w-4" /></ToolbarBtn>
-      <ToolbarBtn title="Számozott lista" active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()}><ListOrdered className="h-4 w-4" /></ToolbarBtn>
-      <ToolbarBtn title="Idézet" active={editor.isActive("blockquote")} onClick={() => editor.chain().focus().toggleBlockquote().run()}><Quote className="h-4 w-4" /></ToolbarBtn>
-      <ToolbarBtn title="Kód blokk" active={editor.isActive("codeBlock")} onClick={() => editor.chain().focus().toggleCodeBlock().run()}><CodeSquare className="h-4 w-4" /></ToolbarBtn>
+      {/* Listák/idézet/kódblokk: a `lift`/`toggle` parancsok némán false-t adnak,
+          ha a szelekció olyan blokkban van (pl. blockquote idézet, signature),
+          ahol a célblokk nem váltható közvetlenül. Ezért előbb `liftEmptyBlock`
+          és — ha még akkor sem aktiválható — `clearNodes`-szal visszaalakítjuk
+          a környezetet egyszerű paragraph-okká, és úgy hívjuk meg a toggle-t.
+          Ez teszi megbízhatóvá a felsorolás gombot reply/forward után is. */}
+      <ToolbarBtn
+        title="Felsorolás"
+        active={editor.isActive("bulletList")}
+        onClick={() => {
+          if (editor.isActive("bulletList")) {
+            editor.chain().focus().toggleBulletList().run();
+          } else if (!editor.chain().focus().toggleBulletList().run()) {
+            editor.chain().focus().clearNodes().toggleBulletList().run();
+          }
+        }}
+      ><List className="h-4 w-4" /></ToolbarBtn>
+      <ToolbarBtn
+        title="Számozott lista"
+        active={editor.isActive("orderedList")}
+        onClick={() => {
+          if (editor.isActive("orderedList")) {
+            editor.chain().focus().toggleOrderedList().run();
+          } else if (!editor.chain().focus().toggleOrderedList().run()) {
+            editor.chain().focus().clearNodes().toggleOrderedList().run();
+          }
+        }}
+      ><ListOrdered className="h-4 w-4" /></ToolbarBtn>
+      <ToolbarBtn
+        title="Idézet"
+        active={editor.isActive("blockquote")}
+        onClick={() => {
+          if (!editor.chain().focus().toggleBlockquote().run()) {
+            editor.chain().focus().clearNodes().toggleBlockquote().run();
+          }
+        }}
+      ><Quote className="h-4 w-4" /></ToolbarBtn>
+      <ToolbarBtn
+        title="Kód blokk"
+        active={editor.isActive("codeBlock")}
+        onClick={() => {
+          if (!editor.chain().focus().toggleCodeBlock().run()) {
+            editor.chain().focus().clearNodes().toggleCodeBlock().run();
+          }
+        }}
+      ><CodeSquare className="h-4 w-4" /></ToolbarBtn>
       <ToolbarBtn title="Vízszintes vonal" onClick={() => editor.chain().focus().setHorizontalRule().run()}><Minus className="h-4 w-4" /></ToolbarBtn>
       <Separator orientation="vertical" className="h-5 mx-1" />
       <ToolbarBtn title="Link" active={editor.isActive("link")} onClick={setLink}><LinkIcon className="h-4 w-4" /></ToolbarBtn>

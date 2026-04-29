@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.16.1] – 2026-04-29
+
+### Javítás
+- **Felsorolás / számozott lista gomb most már mindig működik** a levélszerkesztőben. A korábbi viselkedés: ha a kurzor egy idézet (`blockquote`) vagy aláírás-blokk belsejében volt — ami reply/forward után tipikus —, a TipTap `toggleBulletList` parancs csendben false-t adott vissza, és a gomb úgy tűnt, mintha nem reagálna. Mostantól, ha az első hívás nem sikerül, a szerkesztő először `clearNodes`-szal egyszerű paragraph-okká alakítja a szelekciót, és úgy alkalmazza a listát. Ugyanez az „önjavító" logika él már az **Idézet** és **Kód blokk** gombokra is.
+
 ## [1.16.0] – 2026-04-29
 
 ### Új
