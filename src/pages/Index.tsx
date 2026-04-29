@@ -77,21 +77,35 @@ const Index = () => {
     })();
   }, []);
 
-  // Levelek betöltése: jelenleg csak az INBOX él, a többi mappa üres listát ad.
+  // Cache-first betöltés: azonnal kirakjuk a lokálisan tárolt leveleket,
+  // majd háttérben inkrementális szinkronnal lehúzzuk az újakat.
   const loadMessages = useCallback(async () => {
     if (!activeAccountId) return;
-    setLoading(true);
     setSelected(null);
+    // 1) Cache azonnal — nincs spinner, nincs várakozás.
     try {
-      const msgs = await mailAPI.imap.fetch({
+      const cached = await mailAPI.imap.fetch({
         accountId: activeAccountId,
         mailbox: activeMailbox,
-        limit: 30,
+        limit: 1000,
       });
-      setMessages(msgs);
-    } catch (e: any) {
-      toast.error("Levelek betöltése sikertelen", { description: String(e?.message || e) });
+      setMessages(cached);
+    } catch {
       setMessages([]);
+    }
+    // 2) Háttér-szinkron: csak az új UID-okat húzza le.
+    setLoading(true);
+    try {
+      const r = await mailAPI.cache.syncMailbox({
+        accountId: activeAccountId,
+        mailbox: activeMailbox,
+      });
+      setMessages(r.messages);
+      if (r.added > 0) {
+        toast.success(`${r.added} új levél`);
+      }
+    } catch (e: any) {
+      toast.error("Frissítés sikertelen", { description: String(e?.message || e) });
     } finally {
       setLoading(false);
     }
@@ -99,7 +113,30 @@ const Index = () => {
 
   useEffect(() => { loadMessages(); }, [loadMessages]);
 
-  // "Szinkronizálás" gomb: minden fiókra újrahúzzuk az INBOX-ot.
+  // Fiókváltáskor: háttérben az összes mappát szinkronizáljuk, hogy a sidebaron
+  // történő mappaváltás már friss cache-ből rendereljen.
+  useEffect(() => {
+    if (!activeAccountId || !mailAPI.isElectron) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await mailAPI.cache.syncAccount(activeAccountId);
+        if (cancelled) return;
+        // Ha közben nem váltottunk, frissítsük az aktuális mappa nézetét.
+        const fresh = await mailAPI.imap.fetch({
+          accountId: activeAccountId,
+          mailbox: activeMailbox,
+          limit: 1000,
+        });
+        if (!cancelled) setMessages((prev) => (fresh.length >= prev.length ? fresh : prev));
+      } catch { /* ignore — egyenkénti mappa-sync hibák már jeleztek */ }
+    })();
+    return () => { cancelled = true; };
+    // szándékosan csak fiókváltásra fut
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeAccountId]);
+
+  // "Szinkronizálás" gomb: minden fiók összes mappáját inkrementálisan frissíti.
   const syncAll = useCallback(async () => {
     if (syncing || accounts.length === 0) {
       if (accounts.length === 0) toast.info("Nincs fiók a szinkronizáláshoz");
@@ -107,27 +144,38 @@ const Index = () => {
     }
     setSyncing(true);
     const t = toast.loading(`Frissítés (${accounts.length} fiók)…`);
-    let okCount = 0;
+    let totalAdded = 0;
     let failCount = 0;
     await Promise.all(
       accounts.map(async (a) => {
         try {
-          await mailAPI.imap.fetch({ accountId: a.id, mailbox: "INBOX", limit: 30 });
-          okCount++;
+          const r = await mailAPI.cache.syncAccount(a.id);
+          totalAdded += (r.results || []).reduce((s, x) => s + (x.added || 0), 0);
         } catch {
           failCount++;
         }
       }),
     );
-    await loadMessages();
+    if (activeAccountId) {
+      const fresh = await mailAPI.imap.fetch({
+        accountId: activeAccountId,
+        mailbox: activeMailbox,
+        limit: 1000,
+      });
+      setMessages(fresh);
+    }
     setSyncing(false);
     toast.dismiss(t);
-    if (failCount === 0) toast.success(`Frissítve — ${okCount} fiók`);
-    else toast.warning(`${okCount} sikeres, ${failCount} hiba`);
-  }, [accounts, syncing, loadMessages]);
+    if (failCount === 0) {
+      toast.success(totalAdded > 0 ? `Frissítve — ${totalAdded} új levél` : "Minden naprakész");
+    } else {
+      toast.warning(`${accounts.length - failCount} sikeres, ${failCount} hiba`);
+    }
+  }, [accounts, syncing, activeAccountId, activeMailbox]);
 
   const quoteBody = (m: MailMessage) =>
     `<p></p><blockquote><p><em>${m.from} írta:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`;
+
 
   const handleReply = (m: MailMessage) => {
     setComposerInitial({

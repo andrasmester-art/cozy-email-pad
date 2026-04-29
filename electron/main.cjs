@@ -1,12 +1,11 @@
-// Electron main process — fiók/sablon tárolás + minimalista IMAP/SMTP híd.
-// Szándékosan nincs cache, nincs background sync, nincs mailbox-resolve és nincs
-// auto-retry. Minden IPC hívás egyszer lefut, kemény timeouttal, és véget ér.
+// Electron main process — fiók/sablon tárolás + IMAP/SMTP híd lokális cache-sel.
 const { app, BrowserWindow, ipcMain, safeStorage } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const Imap = require("imap");
 const { simpleParser } = require("mailparser");
 const nodemailer = require("nodemailer");
+const cache = require("./mailCache.cjs");
 require("./updater.cjs");
 
 // ---- Persistent storage ----
@@ -40,6 +39,19 @@ function decryptPassword(stored) {
 const loadAccounts = () => readStore("accounts", []);
 const saveAccounts = (a) => writeStore("accounts", a);
 
+// Fő mappák, amiket a sidebar listáz — ezeket szinkronizáljuk inkrementálisan.
+const SYNC_MAILBOXES = ["INBOX", "Sent", "Drafts", "Archive", "Spam", "Trash"];
+
+// IMAP szerverenként eltérő mappanév-leképzés (Gmail [Gmail]/Sent Mail, stb.).
+// Próbálunk több névvariációt; az első létezőt használjuk.
+const MAILBOX_ALIASES = {
+  Sent: ["Sent", "INBOX.Sent", "Sent Items", "Sent Messages", "[Gmail]/Sent Mail", "[Google Mail]/Sent Mail"],
+  Drafts: ["Drafts", "INBOX.Drafts", "[Gmail]/Drafts", "[Google Mail]/Drafts"],
+  Archive: ["Archive", "Archives", "INBOX.Archive", "All Mail", "[Gmail]/All Mail", "[Google Mail]/All Mail"],
+  Spam: ["Spam", "Junk", "INBOX.Spam", "INBOX.Junk", "[Gmail]/Spam", "[Google Mail]/Spam"],
+  Trash: ["Trash", "Deleted", "Deleted Items", "INBOX.Trash", "[Gmail]/Trash", "[Google Mail]/Trash"],
+};
+
 // ---- IPC: accounts ----
 ipcMain.handle("accounts:list", () =>
   loadAccounts().map((a) => ({ ...a, password: undefined, smtpPassword: undefined })),
@@ -62,6 +74,7 @@ ipcMain.handle("accounts:save", (_e, account) => {
 
 ipcMain.handle("accounts:delete", (_e, id) => {
   saveAccounts(loadAccounts().filter((a) => a.id !== id));
+  cache.purgeAccount(userDataDir(), id);
   return { ok: true };
 });
 
@@ -96,8 +109,6 @@ function imapClient(account) {
   });
 }
 
-// Wrap an IMAP session with a hard deadline so a stuck server can never
-// freeze the renderer. The session always ends, success or failure.
 function withImap(account, totalTimeoutMs, work) {
   return new Promise((resolve, reject) => {
     const imap = imapClient(account);
@@ -125,17 +136,62 @@ function withImap(account, totalTimeoutMs, work) {
   });
 }
 
-function openInbox(imap) {
+function openBox(imap, name) {
   return new Promise((resolve, reject) => {
-    imap.openBox("INBOX", true, (err, box) => (err ? reject(err) : resolve(box)));
+    imap.openBox(name, true, (err, box) => (err ? reject(err) : resolve(box)));
   });
 }
 
-function fetchSeqRange(imap, range) {
+function listBoxes(imap) {
+  return new Promise((resolve, reject) => {
+    imap.getBoxes((err, boxes) => (err ? reject(err) : resolve(boxes || {})));
+  });
+}
+
+function flattenBoxNames(boxes, prefix = "") {
+  const out = [];
+  for (const [name, info] of Object.entries(boxes || {})) {
+    const full = prefix + name;
+    out.push(full);
+    if (info && info.children) {
+      const sep = info.delimiter || "/";
+      out.push(...flattenBoxNames(info.children, full + sep));
+    }
+  }
+  return out;
+}
+
+// Megpróbálja megtalálni az adott logikai mappához tartozó valódi nevet a szerveren.
+async function resolveMailbox(imap, logical) {
+  if (logical === "INBOX") return "INBOX";
+  const aliases = MAILBOX_ALIASES[logical] || [logical];
+  let allBoxes = null;
+  for (const candidate of aliases) {
+    try {
+      await openBox(imap, candidate);
+      return candidate;
+    } catch {
+      if (!allBoxes) {
+        try { allBoxes = flattenBoxNames(await listBoxes(imap)); } catch { allBoxes = []; }
+      }
+      const found = allBoxes.find(
+        (n) => n.toLowerCase() === candidate.toLowerCase()
+            || n.toLowerCase().endsWith(`/${candidate.toLowerCase()}`)
+            || n.toLowerCase().endsWith(`.${candidate.toLowerCase()}`),
+      );
+      if (found) {
+        try { await openBox(imap, found); return found; } catch { /* keep trying */ }
+      }
+    }
+  }
+  return null;
+}
+
+function fetchByUidRange(imap, range) {
   return new Promise((resolve, reject) => {
     const out = [];
-    const f = imap.seq.fetch(range, { bodies: "", struct: true });
-    f.on("message", (msg, seqno) => {
+    const f = imap.fetch(range, { bodies: "", struct: true });
+    f.on("message", (msg) => {
       let raw = "";
       let attrs = null;
       msg.on("body", (stream) => {
@@ -146,7 +202,6 @@ function fetchSeqRange(imap, range) {
         try {
           const parsed = await simpleParser(raw);
           out.push({
-            seqno,
             uid: attrs?.uid,
             from: parsed.from?.text || "",
             to: parsed.to?.text || "",
@@ -165,31 +220,118 @@ function fetchSeqRange(imap, range) {
 }
 
 // ---- IPC: IMAP ----
-// Egyszerű kapcsolat-teszt: bejelentkezés, INBOX megnyitás, kilépés.
 ipcMain.handle("imap:test", async (_e, { accountId } = {}) => {
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("A fiók nem található.");
-  await withImap(account, 15000, async (imap) => {
-    await openInbox(imap);
-  });
+  await withImap(account, 15000, async (imap) => { await openBox(imap, "INBOX"); });
   return { ok: true };
 });
 
-// Az INBOX utolsó `limit` üzenetét hozza le, parsolva. Nincs cache, nincs UID
-// követés — minden hívás újrahúzza az adatokat. Egyszerű és kiszámítható.
-ipcMain.handle("imap:listInbox", async (_e, { accountId, limit = 30 } = {}) => {
+// Cache azonnali olvasása — a UI render-first ezt hívja.
+ipcMain.handle("cache:read", (_e, { accountId, mailbox }) => {
+  if (!accountId || !mailbox) return { messages: [], updatedAt: 0 };
+  const state = cache.read(userDataDir(), accountId, mailbox);
+  return { messages: state.messages, updatedAt: state.updatedAt };
+});
+
+// Inkrementális szinkron egy mappához. Csak az új UID-okat húzza le, vagy
+// üres cache-nél az utolsó MAX_PER_MAILBOX-ot. UIDVALIDITY változás → reset.
+async function syncMailbox(account, logicalMailbox) {
+  return withImap(account, 60000, async (imap) => {
+    const realName = await resolveMailbox(imap, logicalMailbox);
+    if (!realName) return { added: 0, total: 0, mailbox: logicalMailbox, missing: true };
+    const box = await openBox(imap, realName);
+    const uidvalidity = box.uidvalidity ?? null;
+    let state = cache.read(userDataDir(), account.id, logicalMailbox);
+
+    // UIDVALIDITY váltott → eldobjuk a cache-t.
+    if (state.uidvalidity != null && uidvalidity != null && state.uidvalidity !== uidvalidity) {
+      state = cache.reset(uidvalidity);
+    } else if (state.uidvalidity == null) {
+      state.uidvalidity = uidvalidity;
+    }
+
+    if (!box.messages.total) {
+      cache.write(userDataDir(), account.id, logicalMailbox, { ...state, updatedAt: Date.now() });
+      return { added: 0, total: 0, mailbox: logicalMailbox };
+    }
+
+    let range;
+    if (state.lastUid > 0) {
+      // Csak az újak: lastUid+1 felett.
+      range = `${state.lastUid + 1}:*`;
+    } else {
+      // Üres cache → utolsó N. UID-okat nem ismerjük, ezért seq -> uid lekérdezéssel.
+      const total = box.messages.total;
+      const limit = cache.MAX_PER_MAILBOX;
+      const startSeq = Math.max(1, total - limit + 1);
+      // Lekérjük az UID-okat a megadott seq tartományra
+      const uids = await new Promise((resolve, reject) => {
+        imap.seq.search([["UID", `${startSeq}:${total}`]], (err, results) => {
+          if (err) {
+            // fallback: végigpörgetjük a seqno-t és csak attribute-okat húzunk
+            const out = [];
+            const f = imap.seq.fetch(`${startSeq}:${total}`, { bodies: "" });
+            f.on("message", (msg) => {
+              msg.once("attributes", (a) => { if (a?.uid) out.push(a.uid); });
+            });
+            f.once("error", reject);
+            f.once("end", () => resolve(out));
+          } else resolve(results || []);
+        });
+      });
+      if (!uids.length) {
+        cache.write(userDataDir(), account.id, logicalMailbox, { ...state, updatedAt: Date.now() });
+        return { added: 0, total: box.messages.total, mailbox: logicalMailbox };
+      }
+      const minUid = Math.min(...uids);
+      const maxUid = Math.max(...uids);
+      range = `${minUid}:${maxUid}`;
+    }
+
+    const fetched = await fetchByUidRange(imap, range);
+    // Ha lastUid alapú volt a query, dedupol a merge.
+    const newOnly = state.lastUid > 0
+      ? fetched.filter((m) => m.uid > state.lastUid)
+      : fetched;
+    const next = cache.mergeNewMessages(state, newOnly);
+    cache.write(userDataDir(), account.id, logicalMailbox, next);
+    return { added: newOnly.length, total: box.messages.total, mailbox: logicalMailbox };
+  });
+}
+
+// Egyetlen mappa szinkronizálása (UI gomb / fiókváltás háttér-sync).
+ipcMain.handle("cache:syncMailbox", async (_e, { accountId, mailbox }) => {
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("A fiók nem található.");
-  return withImap(account, 30000, async (imap) => {
-    const box = await openInbox(imap);
-    if (!box.messages.total) return [];
-    const start = Math.max(1, box.messages.total - limit + 1);
-    const range = `${start}:${box.messages.total}`;
-    const messages = await fetchSeqRange(imap, range);
-    // Newest first
-    messages.sort((a, b) => (b.seqno || 0) - (a.seqno || 0));
-    return messages;
-  });
+  const result = await syncMailbox(account, mailbox);
+  const state = cache.read(userDataDir(), accountId, mailbox);
+  return { ...result, messages: state.messages, updatedAt: state.updatedAt };
+});
+
+// Egy fiók összes mappájának szinkronizálása. Sorban, hogy ne nyissunk
+// több párhuzamos IMAP kapcsolatot ugyanahhoz a szerverhez.
+ipcMain.handle("cache:syncAccount", async (_e, { accountId }) => {
+  const account = loadAccounts().find((a) => a.id === accountId);
+  if (!account) throw new Error("A fiók nem található.");
+  const results = [];
+  for (const mb of SYNC_MAILBOXES) {
+    try {
+      const r = await syncMailbox(account, mb);
+      results.push({ mailbox: mb, ok: true, added: r.added, missing: !!r.missing });
+    } catch (e) {
+      results.push({ mailbox: mb, ok: false, error: String(e?.message || e) });
+    }
+  }
+  return { ok: true, results };
+});
+
+// Régi végpont kompatibilitás: ha valami még listInbox-ot hívna, INBOX cache-et adunk.
+ipcMain.handle("imap:listInbox", async (_e, { accountId } = {}) => {
+  const account = loadAccounts().find((a) => a.id === accountId);
+  if (!account) throw new Error("A fiók nem található.");
+  await syncMailbox(account, "INBOX");
+  return cache.read(userDataDir(), accountId, "INBOX").messages;
 });
 
 // ---- IPC: SMTP ----
