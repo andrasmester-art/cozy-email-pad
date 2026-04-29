@@ -29,7 +29,7 @@ const Index = () => {
   const [syncing, setSyncing] = useState(false);
 
   const [composerOpen, setComposerOpen] = useState(false);
-  const [composerInitial, setComposerInitial] = useState<{ to?: string; subject?: string; body?: string } | undefined>();
+  const [composerInitial, setComposerInitial] = useState<{ to?: string; cc?: string; bcc?: string; subject?: string; body?: string } | undefined>();
   const [composerMode, setComposerMode] = useState<"new" | "reply" | "forward">("new");
   const [accountDlgOpen, setAccountDlgOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
@@ -139,13 +139,57 @@ const Index = () => {
     }
   }, [accounts, syncing, loadMessages]);
 
+  const quoteBody = (m: MailMessage) =>
+    `<p></p><blockquote><p><em>${m.from} írta:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`;
+
   const handleReply = (m: MailMessage) => {
     setComposerInitial({
       to: m.from,
       subject: m.subject.startsWith("Re:") ? m.subject : `Re: ${m.subject}`,
-      body: `<p></p><blockquote><p><em>${m.from} írta:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`,
+      body: quoteBody(m),
     });
     setComposerMode("reply");
+    setComposerOpen(true);
+  };
+
+  // Extract email addresses from a header-style string ("Name <a@b.c>, x@y.z")
+  const extractEmails = (s: string): string[] => {
+    if (!s) return [];
+    const out: string[] = [];
+    const re = /([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/gi;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(s))) out.push(m[1]);
+    return out;
+  };
+
+  const handleReplyAll = (m: MailMessage) => {
+    const account = accounts.find((a) => a.id === activeAccountId);
+    const myEmail = (account?.user || "").toLowerCase();
+    const fromEmails = extractEmails(m.from);
+    const toEmails = extractEmails(m.to);
+    const primary = fromEmails[0] || m.from;
+    // Recipients in CC: original To recipients plus any extra From addresses,
+    // minus the primary reply target and the current account's own address.
+    const others = Array.from(new Set([...toEmails, ...fromEmails.slice(1)]))
+      .filter((e) => e.toLowerCase() !== primary.toLowerCase())
+      .filter((e) => !myEmail || e.toLowerCase() !== myEmail);
+
+    setComposerInitial({
+      to: primary,
+      subject: m.subject.startsWith("Re:") ? m.subject : `Re: ${m.subject}`,
+      body: quoteBody(m),
+      cc: others.length ? others.join(", ") : undefined,
+    });
+    setComposerMode("reply");
+    setComposerOpen(true);
+  };
+
+  const handleForward = (m: MailMessage) => {
+    setComposerInitial({
+      subject: m.subject.startsWith("Fwd:") ? m.subject : `Fwd: ${m.subject}`,
+      body: `<p></p><blockquote><p><em>Továbbított üzenet — ${m.from}:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`,
+    });
+    setComposerMode("forward");
     setComposerOpen(true);
   };
 
@@ -195,7 +239,12 @@ const Index = () => {
         />
 
         <div className="flex-1 flex flex-col min-w-0 relative">
-          <MessageView message={selected} onReply={handleReply} />
+          <MessageView
+            message={selected}
+            onReply={handleReply}
+            onReplyAll={handleReplyAll}
+            onForward={handleForward}
+          />
         </div>
       </div>
 

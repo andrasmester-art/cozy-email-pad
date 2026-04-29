@@ -28,7 +28,7 @@ type Props = {
   onClose: () => void;
   accounts: Account[];
   defaultAccountId?: string | null;
-  initial?: { to?: string; subject?: string; body?: string };
+  initial?: { to?: string; cc?: string; bcc?: string; subject?: string; body?: string };
   mode?: "new" | "reply" | "forward";
 };
 
@@ -75,7 +75,7 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
     if (open) {
       mailAPI.templates.list().then(setTemplates);
       const saved = getDefaultAccountId();
-      const hasInitial = !!(initial?.to || initial?.subject || initial?.body);
+      const hasInitial = !!(initial?.to || initial?.cc || initial?.bcc || initial?.subject || initial?.body);
       const draft = !hasInitial ? loadDraft() : null;
       const useDraft = draft && isDraftMeaningful(draft);
 
@@ -99,14 +99,16 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
         });
       } else {
         setTo(initial?.to || "");
+        setCc(initial?.cc || "");
+        setBcc(initial?.bcc || "");
+        setShowCc(!!initial?.cc || !!initial?.bcc);
         setSubject(initial?.subject || "");
         // Apply default signature for the initial account on open
         const sig = getSignature(initId ? getDefaultSignatureId(initId) : null);
         setBody(applySignatureToBody(initial?.body || "", sig));
-        setCc(""); setBcc(""); setShowCc(false);
       }
     }
-  }, [open, defaultAccountId, accounts, initial?.to, initial?.subject, initial?.body]);
+  }, [open, defaultAccountId, accounts, initial?.to, initial?.cc, initial?.bcc, initial?.subject, initial?.body]);
 
   // Auto-save draft whenever editable fields change while the composer is open.
   useEffect(() => {
