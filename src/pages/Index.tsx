@@ -9,6 +9,7 @@ import { MessageList } from "@/components/mail/MessageList";
 import { MessageView } from "@/components/mail/MessageView";
 import { Composer } from "@/components/mail/Composer";
 import { AccountDialog } from "@/components/mail/AccountDialog";
+import { AccountWizard } from "@/components/mail/AccountWizard";
 import { TemplatesDialog } from "@/components/mail/TemplatesDialog";
 import { SignaturesDialog } from "@/components/mail/SignaturesDialog";
 import { UpdaterDialog } from "@/components/mail/UpdaterDialog";
