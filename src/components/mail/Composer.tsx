@@ -151,6 +151,25 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
     toast.info("Mentett piszkozat eldobva");
   };
 
+  // Permanently discard the saved draft from localStorage and reset all
+  // composer fields. Suppresses the next autosave tick so the freshly cleared
+  // state can't immediately repopulate the storage entry.
+  const discardDraft = () => {
+    skipAutoSaveRef.current = true;
+    clearDraft();
+    setPendingDraft(null);
+    setLastSavedAt(null);
+    setTo("");
+    setCc("");
+    setBcc("");
+    setShowCc(false);
+    setSubject("");
+    const sig = getSignature(accountId ? getDefaultSignatureId(accountId) : null);
+    setBody(applySignatureToBody("", sig));
+    toast.success("Piszkozat törölve");
+    setTimeout(() => { skipAutoSaveRef.current = false; }, 50);
+  };
+
   // Auto-save draft whenever editable fields change while the composer is open.
   useEffect(() => {
     if (!open) return;
