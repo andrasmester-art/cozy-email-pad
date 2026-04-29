@@ -38,7 +38,8 @@ function htmlToText(html: string) {
   return tmp.textContent || "";
 }
 
-export function Composer({ open, onClose, accounts, defaultAccountId, initial }: Props) {
+export function Composer({ open, onClose, accounts, defaultAccountId, initial, mode = "new" }: Props) {
+  const titleIdle = mode === "reply" ? "Válasz" : mode === "forward" ? "Továbbítás" : "Új levél";
   const resolveInitialAccount = () => {
     const saved = getDefaultAccountId();
     if (saved && accounts.some((a) => a.id === saved)) return saved;
