@@ -19,6 +19,8 @@ type Props = {
   onLoadMore?: () => void;
   loadingMore?: boolean;
   exhausted?: boolean;
+  /** Pixel-szélesség; ha nincs megadva, a régi 340px alapértékre esik vissza. */
+  width?: number;
 };
 
 function senderName(from: string) {
@@ -28,7 +30,7 @@ function senderName(from: string) {
 
 type FilterMode = "all" | "unread" | "flagged";
 
-export function MessageList({ messages, selectedSeqno, onSelect, onOpen, onToggleFlag, loading, onRefresh, mailbox, onLoadMore, loadingMore, exhausted }: Props) {
+export function MessageList({ messages, selectedSeqno, onSelect, onOpen, onToggleFlag, loading, onRefresh, mailbox, onLoadMore, loadingMore, exhausted, width }: Props) {
   const [q, setQ] = useState("");
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
 
@@ -54,7 +56,10 @@ export function MessageList({ messages, selectedSeqno, onSelect, onOpen, onToggl
   }, [messages, q, filterMode]);
 
   return (
-    <div className="w-[340px] shrink-0 border-r border-border bg-surface flex flex-col h-full">
+    <div
+      className="shrink-0 border-r border-border bg-surface flex flex-col h-full"
+      style={{ width: width ?? 340 }}
+    >
       <div className="mac-titlebar shrink-0 flex items-center justify-between px-3">
         <div>
           <div className="text-sm font-semibold">{mailbox}</div>
