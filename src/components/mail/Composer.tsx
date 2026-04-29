@@ -55,11 +55,17 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
   const [saveTplOpen, setSaveTplOpen] = useState(false);
   const [tplName, setTplName] = useState("");
   const [delay, setDelay] = useState<number>(getSendDelay());
+  const [signatures, setSignatures] = useState<Signature[]>(() => listSignatures());
 
   useEffect(() => {
     const handler = (e: Event) => setDelay((e as CustomEvent<number>).detail);
     window.addEventListener("sendDelayChanged", handler);
-    return () => window.removeEventListener("sendDelayChanged", handler);
+    const sigHandler = () => setSignatures(listSignatures());
+    window.addEventListener("signaturesChanged", sigHandler);
+    return () => {
+      window.removeEventListener("sendDelayChanged", handler);
+      window.removeEventListener("signaturesChanged", sigHandler);
+    };
   }, []);
 
   useEffect(() => {
