@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Account, MailMessage, mailAPI } from "@/lib/mailBridge";
-import { clearAccountStatus } from "@/lib/accountStatus";
+
 import {
   startRetryScheduler, setKnownAccounts, markSuccess, markFailure, clearRetryFor,
 } from "@/lib/accountRetry";
