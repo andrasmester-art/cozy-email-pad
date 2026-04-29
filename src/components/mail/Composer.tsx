@@ -242,9 +242,30 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
               <Save className="h-4 w-4 mr-1.5" /> Mentés sablonként
             </Button>
           </div>
-          <Button onClick={handleSend} disabled={sending} className="bg-gradient-primary">
-            <Send className="h-4 w-4 mr-1.5" /> {sending ? "Küldés…" : "Küldés"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
+              <span>Visszavonási idő</span>
+            </div>
+            <Select
+              value={String(delay)}
+              onValueChange={(v) => { const n = parseInt(v, 10); setDelay(n); setSendDelay(n); }}
+            >
+              <SelectTrigger className="h-8 w-[110px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SEND_DELAY_OPTIONS.map((s) => (
+                  <SelectItem key={s} value={String(s)} className="text-xs">
+                    {formatDelay(s)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={handleSend} disabled={sending} className="bg-gradient-primary">
+              <Send className="h-4 w-4 mr-1.5" /> {sending ? "Küldés…" : "Küldés"}
+            </Button>
+          </div>
         </div>
       </div>
 
