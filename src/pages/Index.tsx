@@ -21,6 +21,7 @@ const Index = () => {
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerInitial, setComposerInitial] = useState<{ to?: string; subject?: string; body?: string } | undefined>();
   const [accountDlgOpen, setAccountDlgOpen] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
 
   // Initial load
@@ -91,9 +92,14 @@ const Index = () => {
           activeMailbox={activeMailbox}
           onSelectAccount={(id) => setActiveAccountId(id)}
           onSelectMailbox={setActiveMailbox}
-          onAddAccount={() => setAccountDlgOpen(true)}
+          onAddAccount={() => { setEditingAccount(null); setAccountDlgOpen(true); }}
+          onEditAccount={(a) => { setEditingAccount(a); setAccountDlgOpen(true); }}
           onOpenTemplates={() => setTemplatesOpen(true)}
-          onOpenSettings={() => setAccountDlgOpen(true)}
+          onOpenSettings={() => {
+            const current = accounts.find((x) => x.id === activeAccountId) || null;
+            setEditingAccount(current);
+            setAccountDlgOpen(true);
+          }}
         />
 
         <MessageList
@@ -124,7 +130,8 @@ const Index = () => {
       />
       <AccountDialog
         open={accountDlgOpen}
-        onClose={() => setAccountDlgOpen(false)}
+        onClose={() => { setAccountDlgOpen(false); setEditingAccount(null); }}
+        initial={editingAccount}
         onSaved={async () => {
           const list = await mailAPI.accounts.list();
           setAccounts(list);
