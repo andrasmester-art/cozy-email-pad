@@ -239,7 +239,12 @@ const Index = () => {
         />
 
         <div className="flex-1 flex flex-col min-w-0 relative">
-          <MessageView message={selected} onReply={handleReply} />
+          <MessageView
+            message={selected}
+            onReply={handleReply}
+            onReplyAll={handleReplyAll}
+            onForward={handleForward}
+          />
         </div>
       </div>
 
