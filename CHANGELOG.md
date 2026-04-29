@@ -3,6 +3,13 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.20.0] – 2026-04-29
+
+### Új
+- **Valós idejű aláírás-előnézet a levélkompozitorban.** A szerkesztő fölött egy kompakt sáv folyamatosan mutatja a levél tényleges felépítését — pl. válaszlevélnél: **Tartalom → Aláírás (név) → Idézett előzmény** —, így minden pillanatban pontosan látod, hol fog megjelenni az aláírásod a végső, elküldött levélben.
+- A sáv színkódolva jelzi a blokkokat (aláírás → kiemelt, idézet → halvány), és élőben követi a változásokat: ha másik aláírást választasz, vagy átszerkeszted a sorrendet a szerkesztőben, az előnézet azonnal frissül.
+- Ha az aláírást felismeri (egyezik egy mentett aláírással), a nevét is kiírja zárójelben — így nem kell „kitalálnod", melyik aláírást szúrtad be.
+
 ## [1.19.5] – 2026-04-29
 
 ### Javítás
