@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld("mailAPI", {
     read: (params) => ipcRenderer.invoke("cache:read", params),
     syncMailbox: (params) => ipcRenderer.invoke("cache:syncMailbox", params),
     syncAccount: (params) => ipcRenderer.invoke("cache:syncAccount", params),
+    loadOlder: (params) => ipcRenderer.invoke("cache:loadOlder", params),
   },
   smtp: {
     send: (params) => ipcRenderer.invoke("smtp:send", params),

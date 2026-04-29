@@ -168,7 +168,15 @@ export const mailAPI = {
         messages: params.mailbox === "INBOX" ? demoMessages(acc?.label || "demo@local") : [],
       };
     },
-    // Egy fiók összes fő mappájának szinkronja.
+    // Régebbi levelek lazy-load betöltése (görgetésre).
+    async loadOlder(params: { accountId: string; mailbox: string; pageSize?: number }): Promise<{ added: number; messages: MailMessage[]; exhausted?: boolean }> {
+      if (isElectron && (window as any).mailAPI.cache.loadOlder) {
+        const r = await (window as any).mailAPI.cache.loadOlder(params);
+        return { added: r?.added || 0, messages: r?.messages || [], exhausted: !!r?.exhausted };
+      }
+      return { added: 0, messages: [], exhausted: true };
+    },
+    // Egy fiók INBOX szinkronja (a többi mappa csak kattintásra).
     async syncAccount(accountId: string): Promise<{ ok: true; results: Array<{ mailbox: string; ok: boolean; added?: number; error?: string; missing?: boolean }> }> {
       if (isElectron) return (window as any).mailAPI.cache.syncAccount({ accountId });
       await new Promise((r) => setTimeout(r, 200));
