@@ -181,11 +181,11 @@ const MessagePage = () => {
       <div className="flex-1 flex flex-col min-h-0">
         {loading ? (
           <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
-            Betöltés…
+            Levél betöltése…
           </div>
         ) : !message ? (
           <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
-            A levél nem érhető el. Zárd be az ablakot és próbáld újra a fő ablakból.
+            A levél nem tölthető le. Ellenőrizd a kapcsolatot, és próbáld újra.
           </div>
         ) : (
           <>
