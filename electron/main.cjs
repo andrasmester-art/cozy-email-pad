@@ -99,6 +99,9 @@ function imapConfigFor(account) {
     port: account.imapPort || 993,
     tls: account.imapTls !== false,
     authTimeout: 15000,
+    connTimeout: 15000,
+    socketTimeout: 30000,
+    keepalive: false,
     tlsOptions: { rejectUnauthorized: false },
   });
 }
