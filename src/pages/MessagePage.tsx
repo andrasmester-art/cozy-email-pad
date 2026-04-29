@@ -36,7 +36,11 @@ const MessagePage = () => {
   const [composerInitial, setComposerInitial] = useState<{ to?: string; cc?: string; bcc?: string; subject?: string; body?: string } | undefined>();
   const [composerMode, setComposerMode] = useState<"new" | "reply" | "forward">("reply");
 
-  // Fiókok + levél betöltése a cache-ből.
+  // Fiókok + levél betöltése.
+  // Először a cache-ből próbáljuk (gyors), és ha ott nincs (pl. még nem
+  // szinkronizált, vagy a felhasználó épp most kapta meg), akkor élőben
+  // letöltjük a szervertől UID alapján. Így dupla kattal nyitva sosem
+  // marad üres az ablak — vagy a cache-ből, vagy frissen jön a tartalom.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -51,8 +55,29 @@ const MessagePage = () => {
           (uid ? list.find((m) => m.uid === uid) : null) ||
           (seqno != null ? list.find((m) => m.seqno === seqno) : null) ||
           null;
-        setMessage(found);
-        if (!found) toast.error("A levél nem található a cache-ben");
+
+        if (found) {
+          setMessage(found);
+          return;
+        }
+
+        // Cache-ben nincs → próbáljuk élőben a szervertől, ha van UID-unk.
+        if (!uid) {
+          toast.error("A levél nem található és nincs UID a megnyitáshoz.");
+          return;
+        }
+        const r = await mailAPI.mail.fetchBody({ accountId, mailbox, uid });
+        if (cancelled) return;
+        if (!r?.ok || !r.message) {
+          toast.error("A levél nem tölthető le a szerverről.");
+          return;
+        }
+        // A fetchBody most már fejléc-mezőket is visszaad (from/to/subject/date),
+        // így önmagában elég egy teljes nézethez.
+        setMessage({
+          seqno: seqno ?? 0,
+          ...r.message,
+        } as MailMessage);
       } catch (e: any) {
         toast.error("Levél betöltése sikertelen", { description: String(e?.message || e) });
       } finally {
@@ -156,11 +181,11 @@ const MessagePage = () => {
       <div className="flex-1 flex flex-col min-h-0">
         {loading ? (
           <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
-            Betöltés…
+            Levél betöltése…
           </div>
         ) : !message ? (
           <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
-            A levél nem érhető el. Zárd be az ablakot és próbáld újra a fő ablakból.
+            A levél nem tölthető le. Ellenőrizd a kapcsolatot, és próbáld újra.
           </div>
         ) : (
           <>
