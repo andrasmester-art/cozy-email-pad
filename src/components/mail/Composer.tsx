@@ -185,13 +185,25 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
       };
       try {
         if (isDraftMeaningful(draft)) {
+          // A „Mentés…" jelzést saját render-ciklusban mutatjuk, hogy a
+          // felhasználó tényleg lássa a folyamatban-állapotot — különben a
+          // React a saving→saved setStateket batch-elné, és a spinner
+          // soha nem villanna fel.
           setSaveStatus("saving");
-          saveDraft(draft);
-          setLastSavedAt(now);
-          setSaveStatus("saved");
-          // Reset the "Mentve" flash back to the persistent timestamp label after 2s.
-          if (savedFlashRef.current) clearTimeout(savedFlashRef.current);
-          savedFlashRef.current = setTimeout(() => setSaveStatus("idle"), 2000);
+          requestAnimationFrame(() => {
+            try {
+              saveDraft(draft);
+              setLastSavedAt(now);
+              setSaveStatus("saved");
+              if (savedFlashRef.current) clearTimeout(savedFlashRef.current);
+              savedFlashRef.current = setTimeout(() => setSaveStatus("idle"), 2000);
+            } catch (e: any) {
+              setSaveStatus("error");
+              toast.error("Piszkozat mentése sikertelen", {
+                description: String(e?.message || e),
+              });
+            }
+          });
         } else {
           clearDraft();
           setLastSavedAt(null);
