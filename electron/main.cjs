@@ -686,11 +686,11 @@ async function runAutoSync() {
     for (const account of accounts) {
       try {
         const r = await syncMailbox(account, "INBOX");
-        if (r && r.added > 0 && mainWindow && !mainWindow.isDestroyed()) {
+        if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send("mail:auto-synced", {
             accountId: account.id,
             mailbox: "INBOX",
-            added: r.added,
+            added: (r && r.added) || 0,
           });
         }
       } catch (e) {
