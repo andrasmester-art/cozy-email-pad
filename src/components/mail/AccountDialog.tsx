@@ -167,7 +167,12 @@ export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
           </div>
           <div>
             <Label className="text-xs">Jelszó</Label>
-            <Input type="password" value={a.password || ""} onChange={(e) => update({ password: e.target.value })} placeholder="••••••••" />
+            <Input
+              type="password"
+              value={a.password || ""}
+              onChange={(e) => update({ password: e.target.value })}
+              placeholder={initial ? "Mentett jelszó megtartása" : "••••••••"}
+            />
           </div>
 
           <div>
