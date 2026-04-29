@@ -10,9 +10,10 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { X, Send, FileCode2, Save, Clock } from "lucide-react";
+import { X, Send, FileCode2, Save, Clock, Star } from "lucide-react";
 import { toast } from "sonner";
 import { getSendDelay, setSendDelay, SEND_DELAY_OPTIONS, formatDelay } from "@/lib/sendDelay";
+import { getDefaultAccountId, setDefaultAccountId } from "@/lib/defaultAccount";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -32,7 +33,13 @@ function htmlToText(html: string) {
 }
 
 export function Composer({ open, onClose, accounts, defaultAccountId, initial }: Props) {
-  const [accountId, setAccountId] = useState<string>(defaultAccountId || accounts[0]?.id || "");
+  const resolveInitialAccount = () => {
+    const saved = getDefaultAccountId();
+    if (saved && accounts.some((a) => a.id === saved)) return saved;
+    return defaultAccountId || accounts[0]?.id || "";
+  };
+  const [accountId, setAccountId] = useState<string>(resolveInitialAccount());
+  const [defaultId, setDefaultId] = useState<string | null>(getDefaultAccountId());
   const [to, setTo] = useState(initial?.to || "");
   const [cc, setCc] = useState("");
   const [bcc, setBcc] = useState("");
@@ -54,7 +61,12 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
   useEffect(() => {
     if (open) {
       mailAPI.templates.list().then(setTemplates);
-      setAccountId(defaultAccountId || accounts[0]?.id || "");
+      const saved = getDefaultAccountId();
+      const initId = saved && accounts.some((a) => a.id === saved)
+        ? saved
+        : (defaultAccountId || accounts[0]?.id || "");
+      setAccountId(initId);
+      setDefaultId(saved);
       setTo(initial?.to || "");
       setSubject(initial?.subject || "");
       setBody(initial?.body || "");
@@ -183,10 +195,42 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
               <SelectTrigger className="h-8 flex-1"><SelectValue placeholder="Válassz fiókot" /></SelectTrigger>
               <SelectContent>
                 {accounts.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>{a.label} ({a.user})</SelectItem>
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.label} ({a.user}){defaultId === a.id ? " — alapértelmezett" : ""}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              title={
+                !accountId
+                  ? "Válassz fiókot"
+                  : defaultId === accountId
+                    ? "Alapértelmezett fiók eltávolítása"
+                    : "Beállítás alapértelmezett fiókként"
+              }
+              disabled={!accountId}
+              onClick={() => {
+                if (defaultId === accountId) {
+                  setDefaultAccountId(null);
+                  setDefaultId(null);
+                  toast.info("Alapértelmezett fiók törölve");
+                } else {
+                  setDefaultAccountId(accountId);
+                  setDefaultId(accountId);
+                  const acc = accounts.find((a) => a.id === accountId);
+                  toast.success("Alapértelmezett fiók beállítva", {
+                    description: acc ? `${acc.label} (${acc.user})` : undefined,
+                  });
+                }
+              }}
+            >
+              <Star className={`h-4 w-4 ${defaultId === accountId ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+            </Button>
           </div>
           <div className="flex items-center gap-2">
             <Label className="w-14 text-xs text-muted-foreground">Címzett</Label>
