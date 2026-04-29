@@ -59,6 +59,11 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
   const [tplName, setTplName] = useState("");
   const [delay, setDelay] = useState<number>(getSendDelay());
   const [signatures, setSignatures] = useState<Signature[]>(() => listSignatures());
+  // Draft persistence UI state
+  const [pendingDraft, setPendingDraft] = useState<Draft | null>(null); // shown as a banner on open
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const [savedTick, setSavedTick] = useState(0); // forces relative-time refresh
+  const skipAutoSaveRef = useRef(false); // suppress autosave while we (re)hydrate fields
 
   useEffect(() => {
     const handler = (e: Event) => setDelay((e as CustomEvent<number>).detail);
