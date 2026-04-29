@@ -44,7 +44,7 @@ export function Sidebar({
     const refresh = () => setStatuses(getAllAccountStatuses());
     refresh();
     window.addEventListener("accountStatusChanged", refresh);
-    const t = setInterval(refresh, 30000); // re-render relative time
+    const t = setInterval(refresh, 1000); // 1s tick so retry countdown stays accurate
     return () => {
       window.removeEventListener("accountStatusChanged", refresh);
       clearInterval(t);
