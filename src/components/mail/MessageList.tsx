@@ -122,6 +122,7 @@ function ScrollList({
                 <li key={m.seqno + ":" + (m.uid ?? "")}>
                   <button
                     onClick={() => onSelect(m)}
+                    onDoubleClick={() => onOpen?.(m)}
                     className={cn(
                       "w-full text-left px-4 py-3 border-b border-border/60 transition-colors",
                       active ? "bg-accent" : "hover:bg-muted/60",
