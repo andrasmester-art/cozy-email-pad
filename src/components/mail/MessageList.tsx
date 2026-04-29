@@ -11,6 +11,7 @@ type Props = {
   messages: MailMessage[];
   selectedSeqno: number | null;
   onSelect: (m: MailMessage) => void;
+  onOpen?: (m: MailMessage) => void;
   loading: boolean;
   onRefresh: () => void;
   mailbox: string;
