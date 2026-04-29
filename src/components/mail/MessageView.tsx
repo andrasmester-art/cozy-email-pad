@@ -92,7 +92,11 @@ export function MessageView({ message, onReply, onReplyAll, onForward, onToggleF
       </div>
 
       <div className="flex-1 overflow-y-auto px-8 py-6">
-        {message.html ? (
+        {message.bodyLoaded === false && !message.html && !message.text ? (
+          <div className="text-sm text-muted-foreground italic">
+            Levél tartalmának betöltése…
+          </div>
+        ) : message.html ? (
           <div
             className="prose prose-sm max-w-none dark:prose-invert"
             dangerouslySetInnerHTML={{ __html: message.html }}

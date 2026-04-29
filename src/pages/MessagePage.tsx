@@ -118,10 +118,24 @@ const MessagePage = () => {
   const toggleFlag = (m: MailMessage) => applyFlagPatch(m, { flagged: !m.flagged });
   const toggleSeen = (m: MailMessage) => applyFlagPatch(m, { seen: m.seen === false ? true : false });
 
-  // Levél megnyitásakor automatikusan olvasottnak jelöljük (ha még nem az).
+  // Levél megnyitásakor: 1) automatikus \\Seen, 2) lazy body fetch, ha még
+  // nincs letöltve a teljes tartalom (a sync csak fejléceket húz).
   useEffect(() => {
-    if (message && message.uid && message.seen === false) {
+    if (!message || !message.uid) return;
+    if (message.seen === false) {
       applyFlagPatch(message, { seen: true });
+    }
+    if (message.bodyLoaded === false && accountId) {
+      let cancelled = false;
+      mailAPI.mail
+        .fetchBody({ accountId, mailbox, uid: message.uid })
+        .then((r) => {
+          if (cancelled || !r?.ok || !r.message) return;
+          const fresh = r.message;
+          setMessage((prev) => (prev && prev.uid === fresh.uid ? { ...prev, ...fresh } : prev));
+        })
+        .catch(() => { /* csendes hiba */ });
+      return () => { cancelled = true; };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [message?.uid]);

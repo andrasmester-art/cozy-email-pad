@@ -142,6 +142,23 @@ function applyFlagUpdates(state, updates) {
   return { state: { ...state, messages: next, updatedAt: Date.now() }, changed };
 }
 
+// Egyetlen üzenet body-mezőit (text/html/snippet/bodyLoaded) frissíti.
+function updateMessageBody(state, uid, body) {
+  const idx = state.messages.findIndex((m) => m.uid === uid);
+  if (idx < 0) return state;
+  const next = state.messages.slice();
+  next[idx] = {
+    ...next[idx],
+    text: body.text ?? next[idx].text ?? "",
+    html: body.html ?? next[idx].html ?? "",
+    snippet: body.snippet ?? next[idx].snippet ?? "",
+    bodyLoaded: true,
+    flagged: typeof body.flagged === "boolean" ? body.flagged : next[idx].flagged,
+    seen: typeof body.seen === "boolean" ? body.seen : next[idx].seen,
+  };
+  return { ...state, messages: next, updatedAt: Date.now() };
+}
+
 module.exports = {
   MAX_PER_MAILBOX,
   INITIAL_PAGE_SIZE,
@@ -150,6 +167,7 @@ module.exports = {
   write,
   mergeNewMessages,
   updateMessageFlags,
+  updateMessageBody,
   applyFlagUpdates,
   reset,
   purgeAccount,

@@ -3,6 +3,16 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.16.0] – 2026-04-29
+
+### Új
+- **Header-only szinkron**: a lista letöltésekor már csak a fejléceket (feladó, címzett, tárgy, dátum, flag-ek) húzzuk le a szerverről, nem a teljes levelet. Tipikusan **5–10× gyorsabb** szinkron, főleg sok új levél és nagy üzenetek esetén.
+- **Lazy body-betöltés**: a teljes szöveg/HTML akkor töltődik le, amikor megnyitsz egy levelet (olvasópanel vagy új ablak). Egy „Levél tartalmának betöltése…" felirat jelzi a betöltést, ami általában <1 mp.
+- **Fiókok párhuzamos szinkronizálása**: az 5 perces háttér-poll mostantól minden fiókot **egyszerre** szinkronizál, nem sorban. Több fiókkal arányosan gyorsabb a teljes ciklus.
+
+### Változás
+- A `mail:fetchBody` IPC végpont és a `mailAPI.mail.fetchBody` bridge-metódus új. A `MailMessage` típus kiegészült a `bodyLoaded?: boolean` mezővel — `false`, ha még csak fejléc van a cache-ben, `true`, ha a teljes body letöltődött (a sikeres body-fetch után tartósan a cache-ben marad).
+
 ## [1.15.0] – 2026-04-29
 
 ### Új
