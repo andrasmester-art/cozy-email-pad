@@ -66,6 +66,13 @@ export function sanitizeEmailHtml(input: string): string {
     ALLOW_DATA_ATTR: false,
     FORBID_TAGS: ["style", "script", "iframe", "object", "embed", "form", "input", "button", "meta", "link", "base"],
     FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover", "onfocus", "onblur", "onchange", "onsubmit", "srcset"],
+    // FONTOS: a `data:` URL séma alapból NINCS engedélyezve a DOMPurify-ban.
+    // Ez azt jelenti, hogy a beillesztett vagy beágyazott képek (a Tiptap
+    // editor `data:image/png;base64,…` formában mentett képei) sablon-mentés
+    // után eltűnnének. `ADD_DATA_URI_TAGS: ["img"]`-vel kifejezetten csak az
+    // <img> tag számára engedélyezzük a data URI-kat — más elemekre nem,
+    // így a `data:text/html` fajta XSS-vektor továbbra sem érvényesül.
+    ADD_DATA_URI_TAGS: ["img"],
     // Strip <html>/<head>/<body> shells from pasted email content
     WHOLE_DOCUMENT: false,
     RETURN_TRUSTED_TYPE: false,
