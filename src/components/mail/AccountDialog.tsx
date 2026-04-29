@@ -139,13 +139,31 @@ export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs">Megjelenített név</Label>
+              <Label className="text-xs">Fiók címkéje</Label>
               <Input value={a.label} onChange={(e) => update({ label: e.target.value })} placeholder="Munka" />
             </div>
             <div>
-              <Label className="text-xs">E-mail cím</Label>
-              <Input value={a.user} onChange={(e) => update({ user: e.target.value, from: e.target.value })} placeholder="te@példa.hu" />
+              <Label className="text-xs">Megjelenített név (feladó)</Label>
+              <Input
+                value={a.displayName || ""}
+                onChange={(e) => update({ displayName: e.target.value })}
+                placeholder="Kovács János"
+              />
             </div>
+          </div>
+          <div>
+            <Label className="text-xs">E-mail cím</Label>
+            <Input value={a.user} onChange={(e) => update({ user: e.target.value, from: e.target.value })} placeholder="te@hoating.eu" />
+          </div>
+          <div>
+            <Label className="text-xs">
+              Felhasználónév <span className="text-muted-foreground">(opcionális — ha eltér az e-mail címtől)</span>
+            </Label>
+            <Input
+              value={a.authUser || ""}
+              onChange={(e) => update({ authUser: e.target.value })}
+              placeholder="pl. tarhely cPanel mailbox név"
+            />
           </div>
           <div>
             <Label className="text-xs">Jelszó</Label>
