@@ -20,6 +20,21 @@ import {
 import { PenSquare, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
+// A levéllista (középső oszlop) szélességét a felhasználó húzhatja, és
+// localStorage-be mentjük, hogy újraindításkor is megmaradjon.
+const LIST_WIDTH_KEY = "mw.layout.listWidth";
+const LIST_WIDTH_MIN = 260;
+const LIST_WIDTH_MAX = 720;
+const LIST_WIDTH_DEFAULT = 340;
+
+function readListWidth(): number {
+  try {
+    const raw = Number(localStorage.getItem(LIST_WIDTH_KEY));
+    if (Number.isFinite(raw) && raw >= LIST_WIDTH_MIN && raw <= LIST_WIDTH_MAX) return raw;
+  } catch {}
+  return LIST_WIDTH_DEFAULT;
+}
+
 const Index = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [activeAccountId, setActiveAccountId] = useState<string | null>(null);
@@ -28,6 +43,40 @@ const Index = () => {
   const [selected, setSelected] = useState<MailMessage | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [listWidth, setListWidth] = useState<number>(readListWidth);
+
+  // Húzás közben élőben frissítjük a szélességet, és pointerup-on mentjük le.
+  // A `pointer*` eseményeket a `window`-on figyeljük, hogy a kurzor akkor is
+  // követhető legyen, ha kicsúszik a fogantyú fölül.
+  const startResize = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = listWidth;
+    const onMove = (ev: PointerEvent) => {
+      const dx = ev.clientX - startX;
+      const next = Math.min(LIST_WIDTH_MAX, Math.max(LIST_WIDTH_MIN, startW + dx));
+      setListWidth(next);
+    };
+    const onUp = (ev: PointerEvent) => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      const dx = ev.clientX - startX;
+      const final = Math.min(LIST_WIDTH_MAX, Math.max(LIST_WIDTH_MIN, startW + dx));
+      try { localStorage.setItem(LIST_WIDTH_KEY, String(final)); } catch {}
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }, [listWidth]);
+
+  // Dupla kattintás → visszaáll alapértelmezett szélességre.
+  const resetListWidth = useCallback(() => {
+    setListWidth(LIST_WIDTH_DEFAULT);
+    try { localStorage.setItem(LIST_WIDTH_KEY, String(LIST_WIDTH_DEFAULT)); } catch {}
+  }, []);
   const [exhausted, setExhausted] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
@@ -435,6 +484,20 @@ const Index = () => {
           onLoadMore={loadOlder}
           loadingMore={loadingMore}
           exhausted={exhausted}
+          width={listWidth}
+        />
+
+        {/* Húzható válaszfal a levéllista és az üzenet-nézet között.
+            - Húzás: bal/jobb mozgatással átméretezi a listát (260–720 px).
+            - Dupla kattintás: visszaáll a 340 px alapértékre. */}
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Levéllista szélességének átméretezése"
+          title="Húzd a szélesség beállításához (dupla kattintás: alapérték)"
+          onPointerDown={startResize}
+          onDoubleClick={resetListWidth}
+          className="w-1 shrink-0 cursor-col-resize bg-border hover:bg-primary/40 active:bg-primary/60 transition-colors"
         />
 
         <div className="flex-1 flex flex-col min-w-0 relative">

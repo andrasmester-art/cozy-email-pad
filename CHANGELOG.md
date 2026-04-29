@@ -3,6 +3,13 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.21.0] – 2026-04-29
+
+### Új
+- **A levéllista és az üzenet-nézet közötti válaszfal mostantól húzható.** Egérkurzort a két oszlop közé víve a kurzor `↔` ikonra vált; bal/jobb húzással szabadon átméretezhető a középső lista (260 és 720 pixel között).
+- **Dupla kattintás** a válaszfalon visszaállítja a 340 pixeles alapértelmezett szélességet.
+- A beállított szélesség a böngésző tárolójában (localStorage) megmarad, így újraindításkor is ugyanazt a layoutot látod.
+
 ## [1.20.1] – 2026-04-29
 
 ### Javítás
