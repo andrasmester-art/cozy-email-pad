@@ -29,6 +29,7 @@ type Props = {
   accounts: Account[];
   defaultAccountId?: string | null;
   initial?: { to?: string; subject?: string; body?: string };
+  mode?: "new" | "reply" | "forward";
 };
 
 function htmlToText(html: string) {
@@ -37,7 +38,8 @@ function htmlToText(html: string) {
   return tmp.textContent || "";
 }
 
-export function Composer({ open, onClose, accounts, defaultAccountId, initial }: Props) {
+export function Composer({ open, onClose, accounts, defaultAccountId, initial, mode = "new" }: Props) {
+  const titleIdle = mode === "reply" ? "Válasz" : mode === "forward" ? "Továbbítás" : "Új levél";
   const resolveInitialAccount = () => {
     const saved = getDefaultAccountId();
     if (saved && accounts.some((a) => a.id === saved)) return saved;
@@ -250,7 +252,7 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
       <div className="bg-surface rounded-xl shadow-mac-lg w-full max-w-3xl h-[85vh] flex flex-col overflow-hidden border border-border">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <h2 className="text-sm font-semibold">
-            {pending ? "Tart a küldés…" : sending ? "Küldés folyamatban…" : "Új levél"}
+            {pending ? "Tart a küldés…" : sending ? "Küldés folyamatban…" : titleIdle}
           </h2>
           <Button
             variant="ghost"

@@ -30,6 +30,7 @@ const Index = () => {
 
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerInitial, setComposerInitial] = useState<{ to?: string; subject?: string; body?: string } | undefined>();
+  const [composerMode, setComposerMode] = useState<"new" | "reply" | "forward">("new");
   const [accountDlgOpen, setAccountDlgOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
@@ -144,11 +145,13 @@ const Index = () => {
       subject: m.subject.startsWith("Re:") ? m.subject : `Re: ${m.subject}`,
       body: `<p></p><blockquote><p><em>${m.from} írta:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`,
     });
+    setComposerMode("reply");
     setComposerOpen(true);
   };
 
   const openCompose = () => {
     setComposerInitial(undefined);
+    setComposerMode("new");
     setComposerOpen(true);
   };
 
@@ -202,6 +205,7 @@ const Index = () => {
         accounts={accounts}
         defaultAccountId={activeAccountId}
         initial={composerInitial}
+        mode={composerMode}
       />
       <AccountDialog
         open={accountDlgOpen}
