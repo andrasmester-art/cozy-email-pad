@@ -316,6 +316,23 @@ const Index = () => {
     setComposerOpen(true);
   };
 
+  // Dupla kattintás: levél megnyitása új natív ablakban (Electron). Böngészőben
+  // fallback: csak kijelöli a levelet (ott úgyis csak előnézet van).
+  const openInNewWindow = (m: MailMessage) => {
+    if (!activeAccountId) return;
+    const api = (window as any).mailAPI;
+    if (mailAPI.isElectron && api?.window?.openMessage) {
+      api.window.openMessage({
+        accountId: activeAccountId,
+        mailbox: activeMailbox,
+        seqno: m.seqno,
+        uid: m.uid ?? null,
+      });
+    } else {
+      setSelected(m);
+    }
+  };
+
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       {!mailAPI.isElectron && (
@@ -353,6 +370,7 @@ const Index = () => {
           messages={messages}
           selectedSeqno={selected?.seqno ?? null}
           onSelect={setSelected}
+          onOpen={openInNewWindow}
           loading={loading}
           onRefresh={loadMessages}
           mailbox={activeMailbox}

@@ -11,6 +11,7 @@ type Props = {
   messages: MailMessage[];
   selectedSeqno: number | null;
   onSelect: (m: MailMessage) => void;
+  onOpen?: (m: MailMessage) => void;
   loading: boolean;
   onRefresh: () => void;
   mailbox: string;
@@ -24,7 +25,7 @@ function senderName(from: string) {
   return (m ? m[1] : from).trim() || from;
 }
 
-export function MessageList({ messages, selectedSeqno, onSelect, loading, onRefresh, mailbox, onLoadMore, loadingMore, exhausted }: Props) {
+export function MessageList({ messages, selectedSeqno, onSelect, onOpen, loading, onRefresh, mailbox, onLoadMore, loadingMore, exhausted }: Props) {
   const [q, setQ] = useState("");
   const filtered = useMemo(() => {
     if (!q.trim()) return messages;
@@ -67,6 +68,7 @@ export function MessageList({ messages, selectedSeqno, onSelect, loading, onRefr
         filtered={filtered}
         selectedSeqno={selectedSeqno}
         onSelect={onSelect}
+        onOpen={onOpen}
         onLoadMore={onLoadMore}
         loadingMore={loadingMore}
         exhausted={exhausted}
@@ -77,13 +79,14 @@ export function MessageList({ messages, selectedSeqno, onSelect, loading, onRefr
 }
 
 function ScrollList({
-  loading, messages, filtered, selectedSeqno, onSelect, onLoadMore, loadingMore, exhausted, searching,
+  loading, messages, filtered, selectedSeqno, onSelect, onOpen, onLoadMore, loadingMore, exhausted, searching,
 }: {
   loading: boolean;
   messages: MailMessage[];
   filtered: MailMessage[];
   selectedSeqno: number | null;
   onSelect: (m: MailMessage) => void;
+  onOpen?: (m: MailMessage) => void;
   onLoadMore?: () => void;
   loadingMore?: boolean;
   exhausted?: boolean;
@@ -119,6 +122,7 @@ function ScrollList({
                 <li key={m.seqno + ":" + (m.uid ?? "")}>
                   <button
                     onClick={() => onSelect(m)}
+                    onDoubleClick={() => onOpen?.(m)}
                     className={cn(
                       "w-full text-left px-4 py-3 border-b border-border/60 transition-colors",
                       active ? "bg-accent" : "hover:bg-muted/60",

@@ -518,6 +518,20 @@ ipcMain.handle("imap:appendDraft", async (_e, { accountId, to, cc, bcc, subject,
 
 // ---- Window ----
 let mainWindow = null;
+const childWindows = new Set();
+
+function loadRoute(win, hashRoute) {
+  const devUrl = process.env.ELECTRON_DEV_URL;
+  if (devUrl) {
+    // Vite dev server — hash route mögé fűzve.
+    win.loadURL(devUrl + (hashRoute ? `#${hashRoute}` : ""));
+  } else {
+    win.loadFile(path.join(__dirname, "..", "dist", "index.html"), {
+      hash: hashRoute || undefined,
+    });
+  }
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
@@ -534,10 +548,37 @@ function createWindow() {
   });
   mainWindow = win;
   win.on("closed", () => { if (mainWindow === win) mainWindow = null; });
-  const devUrl = process.env.ELECTRON_DEV_URL;
-  if (devUrl) win.loadURL(devUrl);
-  else win.loadFile(path.join(__dirname, "..", "dist", "index.html"));
+  loadRoute(win, "");
 }
+
+// Egy levél megnyitása új ablakban (dupla kattintás a listában).
+function openMessageWindow({ accountId, mailbox, seqno, uid }) {
+  const win = new BrowserWindow({
+    width: 900,
+    height: 720,
+    minWidth: 560,
+    minHeight: 420,
+    titleBarStyle: "hiddenInset",
+    backgroundColor: "#f5f6f8",
+    webPreferences: {
+      preload: path.join(__dirname, "preload.cjs"),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  childWindows.add(win);
+  win.on("closed", () => childWindows.delete(win));
+  const params = new URLSearchParams();
+  if (accountId) params.set("accountId", String(accountId));
+  if (mailbox) params.set("mailbox", String(mailbox));
+  if (seqno != null) params.set("seqno", String(seqno));
+  if (uid != null) params.set("uid", String(uid));
+  loadRoute(win, `/message?${params.toString()}`);
+  return { ok: true };
+}
+
+ipcMain.handle("window:openMessage", (_e, params = {}) => openMessageWindow(params));
+
 
 // ---- Automatikus háttér-szinkron (polling) ----
 // 5 percenként végigmegy minden mentett fiók INBOX-án; ha érkezett új levél,
