@@ -65,28 +65,7 @@ export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
     onClose();
   };
 
-  const handleTest = async () => {
-    if (!a.label || !a.user || !a.imapHost) {
-      return toast.error("Hiányzó adatok", { description: "Add meg legalább a nevet, e-mailt és IMAP hostot." });
-    }
-    setTesting(true);
-    try {
-      await mailAPI.accounts.save(a);
-      await mailAPI.imap.testConnection({ accountId: a.id, timeoutMs: 12_000 });
-      const next: AccountStatus = { lastChecked: Date.now(), ok: true };
-      setAccountStatus(a.id, next);
-      setStatus(next);
-      toast.success("Sikeres kapcsolódás");
-    } catch (e: any) {
-      const msg = String(e?.message || e);
-      const next: AccountStatus = { lastChecked: Date.now(), ok: false, error: msg };
-      setAccountStatus(a.id, next);
-      setStatus(next);
-      toast.error("Kapcsolódás sikertelen", { description: msg });
-    } finally {
-      setTesting(false);
-    }
-  };
+  // A kapcsolat-ellenőrzés (IMAP teszt) el lett távolítva az 1.2.0-ban.
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
