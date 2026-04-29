@@ -46,7 +46,7 @@ const Index = () => {
     const id = deletingAccount.id;
     await mailAPI.accounts.delete(id);
     clearRetryFor(id);
-    const list = await mailAPI.accounts.list();
+    const list = sortByOrder(await mailAPI.accounts.list());
     setAccounts(list);
     if (activeAccountId === id) {
       setActiveAccountId(list[0]?.id ?? null);
@@ -354,7 +354,7 @@ const Index = () => {
         onClose={() => { setAccountDlgOpen(false); setEditingAccount(null); }}
         initial={editingAccount}
         onSaved={async () => {
-          const list = await mailAPI.accounts.list();
+          const list = sortByOrder(await mailAPI.accounts.list());
           setAccounts(list);
         }}
       />
