@@ -85,8 +85,22 @@ function Toolbar({ editor }: { editor: Editor | null }) {
     editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
   };
   const insertImage = () => {
-    const url = window.prompt("Kép URL");
-    if (url) editor.chain().focus().setImage({ src: url }).run();
+    // Fájl választó: base64 data URL-ként ágyazzuk be a képet, így az
+    // email küldéskor is megjelenik a címzettnél (nem szükséges külső host).
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const src = reader.result as string;
+        if (src) editor.chain().focus().setImage({ src }).run();
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
   };
   return (
     <div className="flex flex-wrap items-center gap-0.5 border-b border-border px-2 py-1.5 bg-surface-elevated rounded-t-md">
