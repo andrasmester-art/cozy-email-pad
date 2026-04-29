@@ -38,7 +38,7 @@ function decryptPassword(stored) {
 }
 
 function loadAccounts() {
-  return readStore("accounts", []);
+  return readStore("accounts", []).map(normalizeAccountHosts);
 }
 function saveAccounts(accounts) {
   writeStore("accounts", accounts);
