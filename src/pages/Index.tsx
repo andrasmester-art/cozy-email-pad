@@ -114,14 +114,10 @@ const Index = () => {
           try {
             await mailAPI.imap.fetch({ accountId: a.id, mailbox: "Sent", limit: 50 });
           } catch { /* Sent folder may not exist on every server */ }
-          setAccountStatus(a.id, { lastChecked: Date.now(), ok: true });
+          markSuccess(a.id);
           okCount++;
         } catch (e: any) {
-          setAccountStatus(a.id, {
-            lastChecked: Date.now(),
-            ok: false,
-            error: String(e?.message || e),
-          });
+          markFailure(a.id, String(e?.message || e));
           failCount++;
         }
       }),
