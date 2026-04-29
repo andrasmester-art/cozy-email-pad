@@ -16,6 +16,7 @@ import {
   Signature, listSignatures, saveSignature, deleteSignature,
   getDefaultSignatureId, setDefaultSignature,
 } from "@/lib/signatures";
+import { sanitizeEmailHtml } from "@/lib/sanitizeHtml";
 
 type Props = {
   open: boolean;
