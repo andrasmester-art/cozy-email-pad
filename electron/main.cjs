@@ -372,8 +372,29 @@ function fetchBodyByUid(imap, uid) {
       try {
         const parsed = await simpleParser(raw);
         const flags = Array.isArray(attrs?.flags) ? attrs.flags : [];
+        // A header mezőket is visszaadjuk, hogy a hívó (pl. új ablak,
+        // ami nem találja a levelet a cache-ben) önmagában fel tudjon
+        // építeni egy teljes MailMessage objektumot, ne csak a body-t
+        // tudja merge-elni egy meglévő fejlécre.
+        const fmt = (a) => {
+          if (!a) return "";
+          if (Array.isArray(a)) return a.map(fmt).filter(Boolean).join(", ");
+          if (a.text) return a.text;
+          if (Array.isArray(a.value)) {
+            return a.value
+              .map((v) => (v.name ? `${v.name} <${v.address}>` : v.address))
+              .filter(Boolean)
+              .join(", ");
+          }
+          return "";
+        };
         resolve({
           uid: attrs?.uid ?? Number(uid),
+          from: fmt(parsed.from),
+          to: fmt(parsed.to),
+          cc: fmt(parsed.cc),
+          subject: parsed.subject || "(nincs tárgy)",
+          date: parsed.date ? new Date(parsed.date).toISOString() : null,
           text: parsed.text || "",
           html: parsed.html || "",
           snippet: (parsed.text || "").slice(0, 140),
