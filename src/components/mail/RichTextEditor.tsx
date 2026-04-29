@@ -79,12 +79,28 @@ function Toolbar({ editor }: { editor: Editor | null }) {
     }
     editor.chain().focus().clearNodes().toggleOrderedList().run();
   };
-  const setLink = () => {
-    const prev = editor.getAttributes("link").href;
-    const url = window.prompt("URL", prev || "https://");
-    if (url === null) return;
-    if (url === "") return editor.chain().focus().extendMarkRange("link").unsetLink().run();
-    editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+  // A link szerkesztését popoverrel oldjuk meg, mert a `window.prompt`
+  // Electron alatt sok esetben nem fókuszál vissza az editorra (vagy
+  // azonnal becsukódik), ezért a Link gomb gyakorlatilag nem működött.
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const openLinkEditor = () => {
+    const prev = (editor.getAttributes("link").href as string) || "";
+    setLinkUrl(prev || "https://");
+    setLinkOpen(true);
+  };
+  const applyLink = () => {
+    const url = linkUrl.trim();
+    if (!url || url === "https://") {
+      editor.chain().focus().extendMarkRange("link").unsetLink().run();
+    } else {
+      editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+    }
+    setLinkOpen(false);
+  };
+  const removeLink = () => {
+    editor.chain().focus().extendMarkRange("link").unsetLink().run();
+    setLinkOpen(false);
   };
   const insertImage = () => {
     // Fájl választó: base64 data URL-ként ágyazzuk be a képet, így az
