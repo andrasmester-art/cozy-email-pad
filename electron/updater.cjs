@@ -264,6 +264,17 @@ async function bundleUpdate(log) {
   log("→ npm run build (renderer)\n");
   await run("npm", ["run", "build"], { cwd: srcDir, env }, log);
 
+  // Rebuild native modules (better-sqlite3) for the Electron ABI.
+  log("→ Natív modulok újrafordítása (electron-rebuild)…\n");
+  try {
+    await run(
+      "npx", ["--yes", "electron-rebuild", "-f", "-w", "better-sqlite3"],
+      { cwd: srcDir, env }, log,
+    );
+  } catch (e) {
+    log(`! electron-rebuild figyelmeztetés: ${e.message}\n`);
+  }
+
   // 3. Repackage .app
   const arch = process.arch === "arm64" ? "arm64" : "x64";
 

@@ -84,18 +84,16 @@ const Index = () => {
     setKnownAccounts(accounts);
     startRetryScheduler();
   }, [accounts]);
+  // Load from local cache (instant, no network).
   const loadMessages = useCallback(async () => {
     if (!activeAccountId) return;
     setLoading(true);
     setSelected(null);
     try {
-      const msgs = await mailAPI.imap.fetch({ accountId: activeAccountId, mailbox: activeMailbox, limit: 50 });
+      const msgs = await mailAPI.imap.fetch({ accountId: activeAccountId, mailbox: activeMailbox, limit: 200 });
       setMessages(msgs);
-      markSuccess(activeAccountId);
     } catch (e: any) {
-      const msg = String(e?.message || e);
-      markFailure(activeAccountId, msg);
-      toast.error("Levelek betöltése sikertelen", { description: msg });
+      toast.error("Levelek betöltése sikertelen", { description: String(e?.message || e) });
       setMessages([]);
     } finally {
       setLoading(false);
@@ -104,8 +102,28 @@ const Index = () => {
 
   useEffect(() => { loadMessages(); }, [loadMessages]);
 
-  // Manual sync across ALL accounts: fetches INBOX + Sent for each so the
-  // status indicator + the visible mailbox both refresh in one go.
+  // Auto-sync the active mailbox in the background each time the user
+  // switches account/mailbox — pulls only NEW messages (UID > last_uid).
+  useEffect(() => {
+    if (!activeAccountId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await mailAPI.imap.sync({ accountId: activeAccountId, mailbox: activeMailbox, limit: 200 });
+        if (cancelled) return;
+        if (res.added > 0) {
+          setMessages(res.messages);
+          toast.success(`${res.added} új üzenet`);
+        }
+        markSuccess(activeAccountId);
+      } catch (e: any) {
+        if (!cancelled) markFailure(activeAccountId, String(e?.message || e));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [activeAccountId, activeMailbox]);
+
+  // Manual full sync: pulls only NEW messages for INBOX, Sent, Drafts on every account.
   const syncAll = useCallback(async () => {
     if (syncing) return;
     if (accounts.length === 0) {
@@ -116,14 +134,14 @@ const Index = () => {
     const t = toast.loading(`Szinkronizálás (${accounts.length} fiók)…`);
     let okCount = 0;
     let failCount = 0;
+    let totalNew = 0;
     await Promise.all(
       accounts.map(async (a) => {
         try {
-          // Pull both inbox and sent so "ki és be" egyaránt frissül
-          await mailAPI.imap.fetch({ accountId: a.id, mailbox: "INBOX", limit: 50 });
-          try {
-            await mailAPI.imap.fetch({ accountId: a.id, mailbox: "Sent", limit: 50 });
-          } catch { /* Sent folder may not exist on every server */ }
+          const res = await mailAPI.imap.syncAll({ accountId: a.id });
+          for (const v of Object.values(res)) {
+            if (typeof v === "number") totalNew += v;
+          }
           markSuccess(a.id);
           okCount++;
         } catch (e: any) {
@@ -132,14 +150,13 @@ const Index = () => {
         }
       }),
     );
-    // Refresh the currently visible mailbox so new messages show up
     await loadMessages();
     setSyncing(false);
     toast.dismiss(t);
     if (failCount === 0) {
-      toast.success(`Szinkronizálva — ${okCount} fiók`);
+      toast.success(`Szinkronizálva — ${okCount} fiók, ${totalNew} új üzenet`);
     } else {
-      toast.warning(`Szinkronizálás kész — ${okCount} sikeres, ${failCount} hiba`);
+      toast.warning(`${okCount} sikeres, ${failCount} hiba — ${totalNew} új üzenet`);
     }
   }, [accounts, syncing, loadMessages]);
 

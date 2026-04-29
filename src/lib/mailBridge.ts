@@ -174,6 +174,16 @@ export const mailAPI = {
       const acc = accounts.find((a) => a.id === params.accountId);
       return demoMessages(acc?.label || "demo@local");
     },
+    async sync(params: { accountId: string; mailbox?: string; limit?: number }): Promise<{ added: number; messages: MailMessage[] }> {
+      if (isElectron) return (window as any).mailAPI.imap.sync(params);
+      const accounts = await mailAPI.accounts.list();
+      const acc = accounts.find((a) => a.id === params.accountId);
+      return { added: 0, messages: demoMessages(acc?.label || "demo@local") };
+    },
+    async syncAll(params: { accountId: string }): Promise<Record<string, number | { error: string }>> {
+      if (isElectron) return (window as any).mailAPI.imap.syncAll(params);
+      return { INBOX: 0, Sent: 0, Drafts: 0 };
+    },
   },
 
   smtp: {

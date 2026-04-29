@@ -15,6 +15,9 @@ contextBridge.exposeInMainWorld("mailAPI", {
   imap: {
     listMailboxes: (accountId) => ipcRenderer.invoke("imap:listMailboxes", accountId),
     fetch: (params) => ipcRenderer.invoke("imap:fetch", params),
+    sync: (params) => ipcRenderer.invoke("imap:sync", params),
+    syncAll: (params) => ipcRenderer.invoke("imap:syncAll", params),
+    cacheInfo: (params) => ipcRenderer.invoke("imap:cacheInfo", params),
   },
   smtp: {
     send: (params) => ipcRenderer.invoke("smtp:send", params),

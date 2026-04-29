@@ -7,6 +7,7 @@ const Imap = require("imap");
 const { simpleParser } = require("mailparser");
 const nodemailer = require("nodemailer");
 require("./updater.cjs");
+const cache = require("./mailCache.cjs");
 
 const userDataDir = () => app.getPath("userData");
 const storeFile = (name) => path.join(userDataDir(), `${name}.json`);
@@ -65,6 +66,7 @@ ipcMain.handle("accounts:save", (_e, account) => {
 ipcMain.handle("accounts:delete", (_e, id) => {
   const accounts = loadAccounts().filter((a) => a.id !== id);
   saveAccounts(accounts);
+  try { cache.wipeAccount(id); } catch { /* ignore */ }
   return { ok: true };
 });
 
@@ -128,51 +130,106 @@ ipcMain.handle("imap:listMailboxes", async (_e, accountId) => {
   });
 });
 
-ipcMain.handle("imap:fetch", async (_e, { accountId, mailbox = "INBOX", limit = 50 }) => {
-  const account = loadAccounts().find((a) => a.id === accountId);
-  if (!account) throw new Error("Account not found");
-  const imap = imapConfigFor(account);
-
+// Open a mailbox in READ-ONLY mode and return the box object.
+function openMailbox(imap, mailbox) {
   return new Promise((resolve, reject) => {
-    const messages = [];
+    imap.openBox(mailbox || "INBOX", true, (err, box) => (err ? reject(err) : resolve(box)));
+  });
+}
+
+// Fetch a UID range from the currently open mailbox and parse each message.
+function fetchUidRange(imap, uidRange) {
+  return new Promise((resolve, reject) => {
+    const out = [];
+    const f = imap.fetch(uidRange, { bodies: "", struct: true });
+    f.on("message", (msg, seqno) => {
+      let raw = "";
+      let attrs = null;
+      msg.on("body", (stream) => {
+        stream.on("data", (chunk) => (raw += chunk.toString("utf8")));
+      });
+      msg.once("attributes", (a) => { attrs = a; });
+      msg.once("end", async () => {
+        try {
+          const parsed = await simpleParser(raw);
+          out.push({
+            uid: attrs?.uid,
+            seqno,
+            messageId: parsed.messageId || null,
+            from: parsed.from?.text || "",
+            to: parsed.to?.text || "",
+            subject: parsed.subject || "(no subject)",
+            date: parsed.date?.toISOString() || null,
+            text: parsed.text || "",
+            html: parsed.html || "",
+            snippet: (parsed.text || "").slice(0, 140),
+          });
+        } catch { /* ignore parse failures */ }
+      });
+    });
+    f.once("error", reject);
+    f.once("end", () => resolve(out));
+  });
+}
+
+// Synchronize a single mailbox: pulls only messages with UID > last_uid.
+async function syncMailbox(account, mailbox, { batchSize = 200 } = {}) {
+  const imap = imapConfigFor(account);
+  return new Promise((resolve, reject) => {
     imap.once("ready", async () => {
       try {
-        const box = await openInbox(imap, mailbox);
-        const total = box.messages.total;
-        if (total === 0) {
-          imap.end();
-          return resolve([]);
+        const box = await openMailbox(imap, mailbox);
+        const meta = cache.getMeta(account.id, mailbox) || { last_uid: 0, uidvalidity: null };
+
+        // UIDVALIDITY changed → wipe cache for this mailbox and start fresh.
+        if (box.uidvalidity && meta.uidvalidity && box.uidvalidity !== meta.uidvalidity) {
+          cache.wipeMailbox(account.id, mailbox);
+          meta.last_uid = 0;
         }
-        const start = Math.max(1, total - limit + 1);
-        const range = `${start}:${total}`;
-        const f = imap.seq.fetch(range, { bodies: "", struct: true });
-        f.on("message", (msg, seqno) => {
-          let raw = "";
-          msg.on("body", (stream) => {
-            stream.on("data", (chunk) => (raw += chunk.toString("utf8")));
+
+        if (!box.uidnext || box.messages.total === 0) {
+          cache.setMeta(account.id, mailbox, {
+            uidvalidity: box.uidvalidity,
+            last_uid: meta.last_uid || 0,
           });
-          msg.once("end", async () => {
-            try {
-              const parsed = await simpleParser(raw);
-              messages.push({
-                seqno,
-                uid: parsed.messageId,
-                from: parsed.from?.text || "",
-                to: parsed.to?.text || "",
-                subject: parsed.subject || "(no subject)",
-                date: parsed.date?.toISOString() || null,
-                text: parsed.text || "",
-                html: parsed.html || "",
-                snippet: (parsed.text || "").slice(0, 140),
-              });
-            } catch (e) { /* ignore */ }
-          });
-        });
-        f.once("error", reject);
-        f.once("end", () => {
           imap.end();
-          resolve(messages.sort((a, b) => b.seqno - a.seqno));
-        });
+          return resolve(0);
+        }
+
+        const fromUid = (meta.last_uid || 0) + 1;
+        const toUid = box.uidnext - 1;
+        if (fromUid > toUid) {
+          cache.setMeta(account.id, mailbox, {
+            uidvalidity: box.uidvalidity,
+            last_uid: meta.last_uid,
+          });
+          imap.end();
+          return resolve(0);
+        }
+
+        let cursor = fromUid;
+        let totalNew = 0;
+        let highestSeen = meta.last_uid || 0;
+        while (cursor <= toUid) {
+          const batchEnd = Math.min(cursor + batchSize - 1, toUid);
+          const range = `${cursor}:${batchEnd}`;
+          const messages = await fetchUidRange(imap, range);
+          if (messages.length) {
+            cache.insertMessages(account.id, mailbox, messages);
+            totalNew += messages.length;
+            for (const m of messages) {
+              if (typeof m.uid === "number" && m.uid > highestSeen) highestSeen = m.uid;
+            }
+            cache.setMeta(account.id, mailbox, {
+              uidvalidity: box.uidvalidity,
+              last_uid: highestSeen,
+            });
+          }
+          cursor = batchEnd + 1;
+        }
+
+        imap.end();
+        resolve(totalNew);
       } catch (e) {
         imap.end();
         reject(e);
@@ -181,7 +238,48 @@ ipcMain.handle("imap:fetch", async (_e, { accountId, mailbox = "INBOX", limit = 
     imap.once("error", reject);
     imap.connect();
   });
+}
+
+// imap:fetch — return cached messages immediately (no network call).
+ipcMain.handle("imap:fetch", async (_e, { accountId, mailbox = "INBOX", limit = 200 }) => {
+  return cache.listMessages(accountId, mailbox, limit);
 });
+
+// imap:sync — pull only new messages from the server into the cache.
+ipcMain.handle("imap:sync", async (_e, { accountId, mailbox = "INBOX", limit = 200 }) => {
+  const account = loadAccounts().find((a) => a.id === accountId);
+  if (!account) throw new Error("Account not found");
+  const added = await syncMailbox(account, mailbox);
+  return {
+    added,
+    messages: cache.listMessages(account.id, mailbox, limit),
+  };
+});
+
+// imap:syncAll — sync INBOX, Sent and Drafts for an account.
+ipcMain.handle("imap:syncAll", async (_e, { accountId }) => {
+  const account = loadAccounts().find((a) => a.id === accountId);
+  if (!account) throw new Error("Account not found");
+  const targets = ["INBOX", "Sent", "Drafts"];
+  const results = {};
+  for (const mb of targets) {
+    try {
+      results[mb] = await syncMailbox(account, mb);
+    } catch (e) {
+      results[mb] = { error: String(e?.message || e) };
+    }
+  }
+  return results;
+});
+
+ipcMain.handle("imap:cacheInfo", async (_e, { accountId, mailbox = "INBOX" }) => {
+  return {
+    meta: cache.getMeta(accountId, mailbox),
+    count: cache.countMessages(accountId, mailbox),
+  };
+});
+
+
 
 ipcMain.handle("smtp:send", async (_e, { accountId, to, cc, bcc, subject, html, text }) => {
   const account = loadAccounts().find((a) => a.id === accountId);
