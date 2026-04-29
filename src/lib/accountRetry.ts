@@ -68,7 +68,7 @@ async function attemptRetry(accountId: string) {
   if (inFlight.has(accountId)) return;
   inFlight.add(accountId);
   try {
-    await mailAPI.imap.fetch({ accountId, mailbox: "INBOX", limit: 50 });
+    await mailAPI.imap.sync({ accountId, mailbox: "INBOX", limit: 1 });
     markSuccess(accountId);
   } catch (e: any) {
     markFailure(accountId, String(e?.message || e));
