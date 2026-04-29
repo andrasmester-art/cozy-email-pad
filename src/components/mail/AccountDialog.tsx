@@ -39,6 +39,19 @@ export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
     }
   }, [open, initial]);
 
+  // Live-refresh status (so the auto-retry countdown updates each second
+  // and reflects external changes like a successful background retry).
+  useEffect(() => {
+    if (!open || !initial) return;
+    const refresh = () => setStatus(getAccountStatus(initial.id));
+    window.addEventListener("accountStatusChanged", refresh);
+    const t = setInterval(refresh, 1000);
+    return () => {
+      window.removeEventListener("accountStatusChanged", refresh);
+      clearInterval(t);
+    };
+  }, [open, initial]);
+
   const update = (patch: Partial<Account>) => setA((prev) => ({ ...prev, ...patch }));
 
   const handleSave = async () => {
