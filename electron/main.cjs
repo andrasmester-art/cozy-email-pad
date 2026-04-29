@@ -114,6 +114,32 @@ function openInbox(imap, mailbox) {
   });
 }
 
+function withTimeout(work, timeoutMs, message) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error(message));
+    }, timeoutMs);
+
+    Promise.resolve()
+      .then(work)
+      .then((result) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(result);
+      })
+      .catch((error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        reject(error);
+      });
+  });
+}
+
 function verifyImapConnection(account, { timeoutMs = 12000 } = {}) {
   const imap = imapConfigFor(account);
   return new Promise((resolve, reject) => {
@@ -177,10 +203,25 @@ function pickMailbox(boxes, specialUse, namePatterns) {
   return null;
 }
 
-function getBoxesAsync(imap) {
-  return new Promise((resolve, reject) => {
-    imap.getBoxes((err, boxes) => (err ? reject(err) : resolve(boxes)));
-  });
+function getBoxesAsync(imap, { timeoutMs = 12000 } = {}) {
+  return withTimeout(
+    () => new Promise((resolve, reject) => {
+      imap.getBoxes((err, boxes) => (err ? reject(err) : resolve(boxes)));
+    }),
+    timeoutMs,
+    `Időtúllépés (${Math.ceil(timeoutMs / 1000)}s) — a mappalista lekérése túl sokáig tart.`,
+  );
+}
+
+function isMailboxNotFoundError(error) {
+  const msg = String(error?.message || error || "").toLowerCase();
+  return (
+    msg.includes("nonexistent")
+    || msg.includes("does not exist")
+    || msg.includes("unknown mailbox")
+    || msg.includes("invalid mailbox")
+    || msg.includes("namespace")
+  );
 }
 
 ipcMain.handle("imap:listMailboxes", async (_e, accountId) => {
