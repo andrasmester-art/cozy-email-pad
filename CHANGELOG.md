@@ -3,6 +3,12 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.19.5] – 2026-04-29
+
+### Javítás
+- **A piszkozat mentési állapota most láthatóan végigfut a három fázison**: „Mentés…" (forgó ikon), „Mentve" (zöld pipa-ikon, 2 mp-ig), majd vissza a „Piszkozat mentve · X perce" időbélyegre. Korábban a React batchelése miatt a „Mentés…" fázis sosem villant fel — most `requestAnimationFrame` választja szét a két állapotot, így a felhasználó valódi visszajelzést kap a háttérmentésről.
+- Hiba esetén a státusz-sáv pirosra vált és „Mentés sikertelen" felirat jelenik meg, valamint toast-üzenet is megy a részletes hibaüzenettel.
+
 ## [1.19.4] – 2026-04-29
 
 ### Javítás
