@@ -319,17 +319,31 @@ ipcMain.handle("imap:sync", async (_e, { accountId, mailbox = "INBOX", limit = 2
   };
 });
 
-// imap:syncAll — sync INBOX, Sent and Drafts for an account.
+// imap:syncAll — sync Inbox, Sent and Drafts for an account.
+// Uses the server's actual mailbox names (handles Hostinger's "INBOX.Sent" etc.).
 ipcMain.handle("imap:syncAll", async (_e, { accountId }) => {
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("Account not found");
-  const targets = ["INBOX", "Sent", "Drafts"];
+
+  let mailboxes;
+  try {
+    mailboxes = await resolveAccountMailboxes(account);
+  } catch (e) {
+    return { INBOX: { error: `Mappa felismerés sikertelen: ${e?.message || e}` } };
+  }
+
+  const targets = [
+    ["INBOX", mailboxes.inbox],
+    ["Sent", mailboxes.sent],
+    ["Drafts", mailboxes.drafts],
+  ].filter(([, real]) => !!real);
+
   const results = {};
-  for (const mb of targets) {
+  for (const [label, real] of targets) {
     try {
-      results[mb] = await syncMailbox(account, mb);
+      results[label] = await syncMailbox(account, real);
     } catch (e) {
-      results[mb] = { error: String(e?.message || e) };
+      results[label] = { error: String(e?.message || e) };
     }
   }
   return results;
