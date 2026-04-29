@@ -244,13 +244,16 @@ export type UpdaterInfo = {
   writable: boolean;
   isGit: boolean;
   localSha: string | null;
+  localVersion?: string | null;
   remoteSha: string | null;
+  remoteVersion?: string | null;
   remoteMessage: string | null;
   remoteDate: string | null;
   remoteError: string | null;
   repoUrl: string;
   branch: string;
   upToDate: boolean;
+  versionDelta?: number; // 1 = update available, 0 = up to date
 };
 
 function defaultTemplates(): EmailTemplate[] {
