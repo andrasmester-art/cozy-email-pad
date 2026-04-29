@@ -141,16 +141,38 @@ export const mailAPI = {
       await new Promise((r) => setTimeout(r, 400));
       return { ok: true };
     },
+    // Csak a cache-ből olvas — azonnali, nem hív szervert.
     async fetch(params: { accountId: string; mailbox?: string; limit?: number }): Promise<MailMessage[]> {
-      const { accountId, mailbox = "INBOX", limit = 30 } = params;
+      const { accountId, mailbox = "INBOX", limit = 1000 } = params;
       if (isElectron) {
-        // Csak az INBOX-ot kérdezzük le élőben — a többi mappa egyelőre nem támogatott.
-        if (mailbox !== "INBOX") return [];
-        return (window as any).mailAPI.imap.listInbox({ accountId, limit });
+        const res = await (window as any).mailAPI.cache.read({ accountId, mailbox });
+        return (res?.messages || []).slice(0, limit);
       }
       const accounts = await mailAPI.accounts.list();
       const acc = accounts.find((a) => a.id === accountId);
       return mailbox === "INBOX" ? demoMessages(acc?.label || "demo@local") : [];
+    },
+  },
+
+  cache: {
+    // Egy mappa inkrementális szinkronja — visszaadja a friss listát.
+    async syncMailbox(params: { accountId: string; mailbox: string }): Promise<{ added: number; messages: MailMessage[] }> {
+      if (isElectron) {
+        const r = await (window as any).mailAPI.cache.syncMailbox(params);
+        return { added: r?.added || 0, messages: r?.messages || [] };
+      }
+      const accounts = await mailAPI.accounts.list();
+      const acc = accounts.find((a) => a.id === params.accountId);
+      return {
+        added: 0,
+        messages: params.mailbox === "INBOX" ? demoMessages(acc?.label || "demo@local") : [],
+      };
+    },
+    // Egy fiók összes fő mappájának szinkronja.
+    async syncAccount(accountId: string): Promise<{ ok: true; results: Array<{ mailbox: string; ok: boolean; added?: number; error?: string; missing?: boolean }> }> {
+      if (isElectron) return (window as any).mailAPI.cache.syncAccount({ accountId });
+      await new Promise((r) => setTimeout(r, 200));
+      return { ok: true, results: [] };
     },
   },
 
