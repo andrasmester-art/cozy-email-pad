@@ -35,23 +35,23 @@ export const PROVIDERS: ProviderPreset[] = [
     id: "hostinger",
     name: "Hostinger",
     description:
-      "Hostinger Email / Titan Mail — minden domainnél a központi mail.hostinger.com hostot használja.",
+      "Hostinger Email / Titan Mail — a legtöbb fióknál Titan infrastruktúrát használ, külön IMAP/SMTP hozzáférés engedélyezéssel.",
     domains: [
       "hostinger.com",
       // Sok Hostinger ügyfél saját domainen futtatja az email-jét, ezeket nem
       // tudjuk előre felsorolni — viszont a "Hostinger" gomb mindig kiválasztható kézzel.
     ],
     settings: {
-      imapHost: "imap.hostinger.com",
+      imapHost: "imap.titan.email",
       imapPort: 993,
       imapTls: true,
-      smtpHost: "smtp.hostinger.com",
+      smtpHost: "smtp.titan.email",
       smtpPort: 465,
       smtpSecure: true,
     },
     authUserHint: "email",
     passwordHint:
-      "A Hostinger / hPanel-ben az e-mail fiókhoz beállított jelszót add meg (nem a Hostinger fiók bejelentkezési jelszót).",
+      "A mailbox saját jelszavát add meg teljes e-mail címes felhasználónévvel, és a Titan webmailben engedélyezd az 'other apps' / harmadik feles hozzáférést.",
   },
   {
     id: "hoating",
@@ -59,16 +59,16 @@ export const PROVIDERS: ProviderPreset[] = [
     description: "Hoating.eu — Hostinger infrastruktúrán fut.",
     domains: ["hoating.eu"],
     settings: {
-      imapHost: "imap.hostinger.com",
+      imapHost: "imap.titan.email",
       imapPort: 993,
       imapTls: true,
-      smtpHost: "smtp.hostinger.com",
+      smtpHost: "smtp.titan.email",
       smtpPort: 465,
       smtpSecure: true,
     },
     authUserHint: "email",
     passwordHint:
-      "A Hostinger / hPanel-ben a mailbox-hoz beállított jelszó (nem a tárhely admin jelszó).",
+      "A mailbox-hoz tartozó saját jelszó kell teljes e-mail címes belépéssel, és a Titan 'Configure 3rd party apps' hozzáférés legyen bekapcsolva.",
   },
   {
     id: "gmail",
