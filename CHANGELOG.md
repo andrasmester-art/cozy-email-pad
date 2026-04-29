@@ -3,6 +3,14 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.15.0] – 2026-04-29
+
+### Új
+- **Lista szűrők**: a kereső alatt három chip jelent meg — **Összes**, **Olvasatlan**, **Csillagos** — mindegyiken a darabszámmal. Kattintásra a lista azonnal szűkül; ugyanarra a chipre újra kattintva visszavált „Összes"-re.
+- A **Csillagos** szűrő aktív állapotban sárga, az **Olvasatlan** kék kiemelést kap, így messziről látszik az aktuális mód.
+- Üres találatnál szűrő-specifikus üzenet („Nincs olvasatlan levél" / „Nincs megjelölt levél").
+- Mappaváltáskor a szűrő automatikusan visszaáll **Összes**-re, így nem lehet véletlenül „beragadni" üres listán másik mappában.
+
 ## [1.14.0] – 2026-04-29
 
 ### Új
