@@ -76,6 +76,12 @@ log "Vite build…"
 npx vite build
 ok "Frontend build kész."
 
+# ---- Natív modulok újrafordítása az Electron verziójához ------------------
+# A better-sqlite3 (lokális e-mail cache) C++ modul, az Electronhoz kell forditani.
+log "Natív modulok újrafordítása az Electronhoz (better-sqlite3)…"
+npx --yes electron-rebuild -f -w better-sqlite3 || warn "electron-rebuild figyelmeztetés — folytatjuk."
+ok "Natív modulok kész."
+
 # ---- 2) .app csomagolás ----------------------------------------------------
 OUT_DIR="electron-release"
 PKG_DIR="$OUT_DIR/$APP_NAME-darwin-$ARCH"
