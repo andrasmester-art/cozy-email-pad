@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Account, EmailTemplate, MailMessage, mailAPI } from "@/lib/mailBridge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { X, Send, FileCode2, Save, Clock, Star, Loader2, FileSignature } from "lucide-react";
+import { X, Send, FileCode2, Save, Clock, Star, Loader2, FileSignature, FileText, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { getSendDelay, setSendDelay, SEND_DELAY_OPTIONS, formatDelay } from "@/lib/sendDelay";
 import { getDefaultAccountId, setDefaultAccountId } from "@/lib/defaultAccount";
@@ -18,7 +18,7 @@ import {
   listSignatures, getDefaultSignatureId, getSignature, applySignatureToBody,
   type Signature,
 } from "@/lib/signatures";
-import { loadDraft, saveDraft, clearDraft, isDraftMeaningful } from "@/lib/draft";
+import { loadDraft, saveDraft, clearDraft, isDraftMeaningful, type Draft } from "@/lib/draft";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -36,6 +36,17 @@ function htmlToText(html: string) {
   const tmp = document.createElement("div");
   tmp.innerHTML = html;
   return tmp.textContent || "";
+}
+
+// Human-friendly relative timestamp for the draft-status panel.
+function formatRelativeTime(ts: number | null): string {
+  if (!ts) return "—";
+  const diff = Math.max(0, Date.now() - ts);
+  if (diff < 5_000) return "épp most";
+  if (diff < 60_000) return `${Math.floor(diff / 1000)} mp-e`;
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} perce`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} órája`;
+  return new Date(ts).toLocaleString("hu-HU");
 }
 
 export function Composer({ open, onClose, accounts, defaultAccountId, initial, mode = "new" }: Props) {
@@ -59,6 +70,11 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
   const [tplName, setTplName] = useState("");
   const [delay, setDelay] = useState<number>(getSendDelay());
   const [signatures, setSignatures] = useState<Signature[]>(() => listSignatures());
+  // Draft persistence UI state
+  const [pendingDraft, setPendingDraft] = useState<Draft | null>(null); // shown as a banner on open
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const [savedTick, setSavedTick] = useState(0); // forces relative-time refresh
+  const skipAutoSaveRef = useRef(false); // suppress autosave while we (re)hydrate fields
 
   useEffect(() => {
     const handler = (e: Event) => setDelay((e as CustomEvent<number>).detail);
@@ -77,54 +93,90 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
       const saved = getDefaultAccountId();
       const hasInitial = !!(initial?.to || initial?.cc || initial?.bcc || initial?.subject || initial?.body);
       const draft = !hasInitial ? loadDraft() : null;
-      const useDraft = draft && isDraftMeaningful(draft);
+      const offerDraft = draft && isDraftMeaningful(draft);
 
-      const initId = useDraft && draft && accounts.some((a) => a.id === draft.accountId)
-        ? draft!.accountId
-        : (saved && accounts.some((a) => a.id === saved)
-          ? saved
-          : (defaultAccountId || accounts[0]?.id || ""));
+      const initId = saved && accounts.some((a) => a.id === saved)
+        ? saved
+        : (defaultAccountId || accounts[0]?.id || "");
+
+      // Suppress autosave during initial hydration so we don't bump `lastSavedAt`
+      // immediately on open and so the offered draft isn't overwritten before
+      // the user decides whether to restore it.
+      skipAutoSaveRef.current = true;
       setAccountId(initId);
       setDefaultId(saved);
+      setTo(initial?.to || "");
+      setCc(initial?.cc || "");
+      setBcc(initial?.bcc || "");
+      setShowCc(!!initial?.cc || !!initial?.bcc);
+      setSubject(initial?.subject || "");
+      const sig = getSignature(initId ? getDefaultSignatureId(initId) : null);
+      setBody(applySignatureToBody(initial?.body || "", sig));
 
-      if (useDraft && draft) {
-        setTo(draft.to || "");
-        setCc(draft.cc || "");
-        setBcc(draft.bcc || "");
-        setShowCc(!!draft.showCc || !!draft.cc || !!draft.bcc);
-        setSubject(draft.subject || "");
-        setBody(draft.body || "");
-        toast.info("Piszkozat visszaállítva", {
-          description: "Az utoljára szerkesztett levél folytatható.",
-        });
-      } else {
-        setTo(initial?.to || "");
-        setCc(initial?.cc || "");
-        setBcc(initial?.bcc || "");
-        setShowCc(!!initial?.cc || !!initial?.bcc);
-        setSubject(initial?.subject || "");
-        // Apply default signature for the initial account on open
-        const sig = getSignature(initId ? getDefaultSignatureId(initId) : null);
-        setBody(applySignatureToBody(initial?.body || "", sig));
-      }
+      // Show the recovery banner if a meaningful draft exists; otherwise track
+      // the last-saved timestamp from the loaded draft (if any).
+      setPendingDraft(offerDraft && draft ? draft : null);
+      setLastSavedAt(draft?.updatedAt ?? null);
+
+      // Re-enable autosave on the next tick so the hydration setStates settle.
+      const re = setTimeout(() => { skipAutoSaveRef.current = false; }, 50);
+      return () => clearTimeout(re);
     }
   }, [open, defaultAccountId, accounts, initial?.to, initial?.cc, initial?.bcc, initial?.subject, initial?.body]);
+
+  // Apply the offered draft into the editor when the user clicks "Visszaállítás".
+  const restorePendingDraft = () => {
+    if (!pendingDraft) return;
+    skipAutoSaveRef.current = true;
+    if (pendingDraft.accountId && accounts.some((a) => a.id === pendingDraft.accountId)) {
+      setAccountId(pendingDraft.accountId);
+    }
+    setTo(pendingDraft.to || "");
+    setCc(pendingDraft.cc || "");
+    setBcc(pendingDraft.bcc || "");
+    setShowCc(!!pendingDraft.showCc || !!pendingDraft.cc || !!pendingDraft.bcc);
+    setSubject(pendingDraft.subject || "");
+    setBody(pendingDraft.body || "");
+    setLastSavedAt(pendingDraft.updatedAt);
+    setPendingDraft(null);
+    toast.success("Piszkozat visszaállítva");
+    setTimeout(() => { skipAutoSaveRef.current = false; }, 50);
+  };
+
+  const dismissPendingDraft = () => {
+    // User chose not to restore — discard so it doesn't keep popping up.
+    clearDraft();
+    setPendingDraft(null);
+    setLastSavedAt(null);
+    toast.info("Mentett piszkozat eldobva");
+  };
 
   // Auto-save draft whenever editable fields change while the composer is open.
   useEffect(() => {
     if (!open) return;
+    if (skipAutoSaveRef.current) return; // hydration / restore in progress
     const t = setTimeout(() => {
+      const now = Date.now();
       const draft = {
-        accountId, to, cc, bcc, showCc, subject, body, updatedAt: Date.now(),
+        accountId, to, cc, bcc, showCc, subject, body, updatedAt: now,
       };
       if (isDraftMeaningful(draft)) {
         saveDraft(draft);
+        setLastSavedAt(now);
       } else {
         clearDraft();
+        setLastSavedAt(null);
       }
     }, 400);
     return () => clearTimeout(t);
   }, [open, accountId, to, cc, bcc, showCc, subject, body]);
+
+  // Tick every 30s so "x perce mentve" stays accurate without re-rendering on every keystroke.
+  useEffect(() => {
+    if (!open) return;
+    const id = setInterval(() => setSavedTick((n) => n + 1), 30_000);
+    return () => clearInterval(id);
+  }, [open]);
 
   // Swap default signature whenever the account changes (after the dialog is open)
   useEffect(() => {
@@ -289,6 +341,50 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
             <Button size="sm" variant="outline" onClick={pending.cancel}>
               Visszavonás
             </Button>
+          </div>
+        )}
+
+        {/* Restore-draft banner: shown when reopening with a saved draft available. */}
+        {pendingDraft && !pending && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="px-4 py-2.5 bg-amber-500/10 border-b border-amber-500/30 flex items-center gap-3"
+          >
+            <FileText className="h-4 w-4 text-amber-600 shrink-0" />
+            <div className="flex-1 min-w-0 text-sm">
+              <div className="font-medium text-foreground">
+                Mentett piszkozat található
+              </div>
+              <div className="text-xs text-muted-foreground truncate">
+                {pendingDraft.subject?.trim() || "(nincs tárgy)"}
+                {pendingDraft.to ? ` · ${pendingDraft.to}` : ""}
+                {" · "}
+                {formatRelativeTime(pendingDraft.updatedAt)}
+              </div>
+            </div>
+            <Button size="sm" variant="outline" onClick={restorePendingDraft}>
+              <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+              Visszaállítás
+            </Button>
+            <Button size="sm" variant="ghost" onClick={dismissPendingDraft}>
+              Eldobás
+            </Button>
+          </div>
+        )}
+
+        {/* Persistent draft-status strip showing the last autosave timestamp. */}
+        {!pendingDraft && (
+          <div
+            className="px-4 py-1.5 text-[11px] text-muted-foreground bg-surface-elevated/60 border-b border-border flex items-center gap-1.5"
+            data-tick={savedTick}
+          >
+            <Save className="h-3 w-3 opacity-70" />
+            <span>
+              {lastSavedAt
+                ? `Piszkozat mentve · ${formatRelativeTime(lastSavedAt)}`
+                : "Még nincs mentett piszkozat"}
+            </span>
           </div>
         )}
 
