@@ -124,6 +124,7 @@ const Index = () => {
           onDeleteAccount={(a) => setDeletingAccount(a)}
           onCompose={openCompose}
           onOpenTemplates={() => setTemplatesOpen(true)}
+          onOpenSignatures={() => setSignaturesOpen(true)}
           onOpenSettings={() => {
             const current = accounts.find((x) => x.id === activeAccountId) || null;
             setEditingAccount(current);
