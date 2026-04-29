@@ -192,6 +192,31 @@ const Index = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeAccountId]);
 
+  // Automatikus háttér-szinkron értesítés: ha a main process új levelet talált
+  // 5 percenként, és pont azt a fiók/mappa kombót nézzük, frissítsük a listát.
+  useEffect(() => {
+    if (!mailAPI.isElectron) return;
+    const api = (window as any).mailAPI;
+    if (!api?.events?.onAutoSync) return;
+    const off = api.events.onAutoSync(async (payload: { accountId: string; mailbox: string; added: number }) => {
+      if (!payload?.added) return;
+      const acc = accounts.find((a) => a.id === payload.accountId);
+      const label = acc?.email ? ` (${acc.email})` : "";
+      toast.success(`${payload.added} új levél${label}`);
+      if (payload.accountId === activeAccountId && payload.mailbox === activeMailbox) {
+        try {
+          const fresh = await mailAPI.imap.fetch({
+            accountId: payload.accountId,
+            mailbox: payload.mailbox,
+            limit: 5000,
+          });
+          setMessages(fresh);
+        } catch { /* ignore */ }
+      }
+    });
+    return () => { try { off?.(); } catch { /* ignore */ } };
+  }, [accounts, activeAccountId, activeMailbox]);
+
   // "Szinkronizálás" gomb: minden fiók összes mappáját inkrementálisan frissíti.
   const syncAll = useCallback(async () => {
     if (syncing || accounts.length === 0) {
