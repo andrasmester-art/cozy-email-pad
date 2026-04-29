@@ -1,8 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Account, mailAPI } from "@/lib/mailBridge";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,11 +14,12 @@ import { RichTextEditor } from "./RichTextEditor";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, FileSignature } from "lucide-react";
+import { Plus, Trash2, FileSignature, Download, Upload } from "lucide-react";
 import { toast } from "sonner";
 import {
   Signature, listSignatures, saveSignature, deleteSignature,
   getDefaultSignatureId, setDefaultSignature,
+  downloadSignaturesJson, importSignatures, type ImportMode,
 } from "@/lib/signatures";
 import { sanitizeEmailHtml } from "@/lib/sanitizeHtml";
 
