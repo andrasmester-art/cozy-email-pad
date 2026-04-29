@@ -74,8 +74,11 @@ const Index = () => {
     try {
       const msgs = await mailAPI.imap.fetch({ accountId: activeAccountId, mailbox: activeMailbox, limit: 50 });
       setMessages(msgs);
+      setAccountStatus(activeAccountId, { lastChecked: Date.now(), ok: true });
     } catch (e: any) {
-      toast.error("Levelek betöltése sikertelen", { description: String(e?.message || e) });
+      const msg = String(e?.message || e);
+      setAccountStatus(activeAccountId, { lastChecked: Date.now(), ok: false, error: msg });
+      toast.error("Levelek betöltése sikertelen", { description: msg });
       setMessages([]);
     } finally {
       setLoading(false);
