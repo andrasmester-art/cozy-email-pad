@@ -9,9 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { CheckCircle2, AlertCircle, Circle, RefreshCw, Eye, EyeOff } from "lucide-react";
+import { CheckCircle2, AlertCircle, Circle, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getAccountStatus, setAccountStatus, formatRelative, formatCountdown, type AccountStatus } from "@/lib/accountStatus";
+import { getAccountStatus, formatRelative, formatCountdown, type AccountStatus } from "@/lib/accountStatus";
 
 type Props = {
   open: boolean;
@@ -30,7 +30,7 @@ const PRESETS: Record<string, Partial<Account>> = {
 export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
   const [a, setA] = useState<Account>(() => initial || blank());
   const [status, setStatus] = useState<AccountStatus | null>(null);
-  const [testing, setTesting] = useState(false);
+  
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
