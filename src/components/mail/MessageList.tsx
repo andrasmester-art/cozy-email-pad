@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNowStrict } from "date-fns";
 import { hu } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
-import { Search, RefreshCw, Loader2 } from "lucide-react";
+import { Search, RefreshCw, Loader2, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useMemo, useRef, useEffect } from "react";
 
