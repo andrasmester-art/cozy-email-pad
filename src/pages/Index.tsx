@@ -74,6 +74,11 @@ const Index = () => {
     })();
   }, []);
 
+  // Auto-retry: keep the scheduler in sync with the current account list.
+  useEffect(() => {
+    setKnownAccounts(accounts);
+    startRetryScheduler();
+  }, [accounts]);
   const loadMessages = useCallback(async () => {
     if (!activeAccountId) return;
     setLoading(true);
