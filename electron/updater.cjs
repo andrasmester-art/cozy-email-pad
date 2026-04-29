@@ -266,22 +266,38 @@ async function bundleUpdate(log) {
 
   // 3. Repackage .app
   const arch = process.arch === "arm64" ? "arm64" : "x64";
+
+  // Read the Electron version from the freshly installed package.json so we
+  // can pass it explicitly. Without this, @electron/packager fails when it
+  // can't auto-detect (e.g. when electron is hoisted oddly or missing).
+  let electronVersion = null;
+  try {
+    const pkg = JSON.parse(
+      fs.readFileSync(path.join(srcDir, "node_modules", "electron", "package.json"), "utf-8"),
+    );
+    electronVersion = pkg.version;
+    log(`   Electron verzió: ${electronVersion}\n`);
+  } catch {
+    // Fallback: try the running app's Electron version (process.versions.electron).
+    electronVersion = process.versions.electron || null;
+    if (electronVersion) log(`   Electron verzió (fallback): ${electronVersion}\n`);
+  }
+
   log(`→ Electron csomagolás (${arch})…\n`);
   const outDir = path.join(work, "release");
-  await run(
-    "npx",
-    [
-      "--yes", "@electron/packager",
-      ".",
-      APP_NAME,
-      "--platform=darwin",
-      `--arch=${arch}`,
-      `--out=${outDir}`,
-      "--overwrite",
-    ],
-    { cwd: srcDir, env },
-    log,
-  );
+  const packagerArgs = [
+    "--yes", "@electron/packager",
+    ".",
+    APP_NAME,
+    "--platform=darwin",
+    `--arch=${arch}`,
+    `--out=${outDir}`,
+    "--overwrite",
+  ];
+  if (electronVersion) {
+    packagerArgs.push(`--electron-version=${electronVersion}`);
+  }
+  await run("npx", packagerArgs, { cwd: srcDir, env }, log);
 
   const newBundle = path.join(outDir, `${APP_NAME}-darwin-${arch}`, `${APP_NAME}.app`);
   if (!fs.existsSync(newBundle)) {
