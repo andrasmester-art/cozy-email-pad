@@ -839,7 +839,9 @@ async function runAutoSync() {
   autoSyncRunning = true;
   try {
     const accounts = loadAccounts();
-    for (const account of accounts) {
+    // Fiókonként párhuzamos INBOX-szinkron — sokfiókos esetben drasztikusan
+    // gyorsabb, mintha sorban várnánk az IMAP körutakra.
+    await Promise.allSettled(accounts.map(async (account) => {
       try {
         const r = await syncMailbox(account, "INBOX");
         if (mainWindow && !mainWindow.isDestroyed()) {
@@ -850,10 +852,9 @@ async function runAutoSync() {
           });
         }
       } catch (e) {
-        // Egy fiók hibája ne állítsa meg a többit.
         console.error("[auto-sync] hiba:", account.id, e?.message || e);
       }
-    }
+    }));
   } finally {
     autoSyncRunning = false;
   }
