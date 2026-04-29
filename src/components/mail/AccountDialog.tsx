@@ -19,14 +19,6 @@ type Props = {
   onSaved: (a: Account) => void;
   initial?: Account | null;
 };
-
-const PRESETS: Record<string, Partial<Account>> = {
-  Gmail: { imapHost: "imap.gmail.com", imapPort: 993, imapTls: true, smtpHost: "smtp.gmail.com", smtpPort: 465, smtpSecure: true },
-  iCloud: { imapHost: "imap.mail.me.com", imapPort: 993, imapTls: true, smtpHost: "smtp.mail.me.com", smtpPort: 587, smtpSecure: false },
-  Outlook: { imapHost: "outlook.office365.com", imapPort: 993, imapTls: true, smtpHost: "smtp.office365.com", smtpPort: 587, smtpSecure: false },
-  Yahoo: { imapHost: "imap.mail.yahoo.com", imapPort: 993, imapTls: true, smtpHost: "smtp.mail.yahoo.com", smtpPort: 465, smtpSecure: true },
-};
-
 export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
   const [a, setA] = useState<Account>(() => initial || blank());
   const [status, setStatus] = useState<AccountStatus | null>(null);
@@ -186,17 +178,6 @@ export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
-            </div>
-          </div>
-
-          <div>
-            <Label className="text-xs mb-1.5 block">Gyors beállítások</Label>
-            <div className="flex flex-wrap gap-2">
-              {Object.keys(PRESETS).map((name) => (
-                <Button key={name} variant="outline" size="sm" type="button" onClick={() => update(PRESETS[name])}>
-                  {name}
-                </Button>
-              ))}
             </div>
           </div>
 
