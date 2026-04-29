@@ -83,7 +83,10 @@ export function getSignature(id: string | null | undefined): Signature | null {
 export const SIGNATURE_MARKER = "data-mwsig";
 
 export function wrapSignature(html: string): string {
-  return `<div ${SIGNATURE_MARKER}="1">${html}</div>`;
+  // Defensive: also sanitise at insertion time, so legacy unsanitised entries
+  // already in localStorage are cleaned before being merged into a draft.
+  const safe = sanitizeEmailHtml(html || "");
+  return `<div ${SIGNATURE_MARKER}="1">${safe}</div>`;
 }
 
 export function stripSignature(body: string): string {
