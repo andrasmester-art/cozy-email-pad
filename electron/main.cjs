@@ -315,10 +315,21 @@ ipcMain.handle("imap:fetch", async (_e, { accountId, mailbox = "INBOX", limit = 
 ipcMain.handle("imap:sync", async (_e, { accountId, mailbox = "INBOX", limit = 200 }) => {
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("Account not found");
-  const added = await syncMailbox(account, mailbox);
+  // If caller asked for "INBOX" but the server uses a different name
+  // (e.g. Hostinger's "INBOX.*" namespace), resolve the real name first.
+  let realMailbox = mailbox;
+  if (mailbox === "INBOX") {
+    try {
+      const resolved = await resolveAccountMailboxes(account);
+      realMailbox = resolved.inbox || "INBOX";
+    } catch {
+      /* fall back to "INBOX" */
+    }
+  }
+  const added = await syncMailbox(account, realMailbox);
   return {
     added,
-    messages: cache.listMessages(account.id, mailbox, limit),
+    messages: cache.listMessages(account.id, realMailbox, limit),
   };
 });
 
