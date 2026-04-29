@@ -216,7 +216,18 @@ function Toolbar({ editor }: { editor: Editor | null }) {
             <LinkIcon className="h-4 w-4" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-80 p-3" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+        <PopoverContent
+          className="w-80 p-3"
+          align="start"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onCloseAutoFocus={(e) => {
+            // Ne hagyjuk, hogy a Popover/Dialog visszadobja a fókuszt a
+            // trigger gombra — ehelyett magunk fókuszálunk az editorra,
+            // hogy a beszúrt link/szöveg után rögtön gépelhetőek legyünk.
+            e.preventDefault();
+            requestAnimationFrame(() => editor?.commands.focus());
+          }}
+        >
           <div className="space-y-2">
             <label className="text-xs font-medium text-muted-foreground">Link URL</label>
             <Input
