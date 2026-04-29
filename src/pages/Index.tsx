@@ -407,6 +407,7 @@ const Index = () => {
           selectedSeqno={selected?.seqno ?? null}
           onSelect={setSelected}
           onOpen={openInNewWindow}
+          onToggleFlag={toggleFlag}
           loading={loading}
           onRefresh={loadMessages}
           mailbox={activeMailbox}
@@ -421,6 +422,8 @@ const Index = () => {
             onReply={handleReply}
             onReplyAll={handleReplyAll}
             onForward={handleForward}
+            onToggleFlag={toggleFlag}
+            onToggleSeen={toggleSeen}
           />
         </div>
       </div>
