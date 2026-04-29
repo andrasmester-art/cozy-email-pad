@@ -1,5 +1,6 @@
 // Email signatures with per-account defaults.
 // All data stored in localStorage so it works in both Electron and browser preview.
+import { sanitizeEmailHtml } from "./sanitizeHtml";
 
 export type Signature = {
   id: string;
