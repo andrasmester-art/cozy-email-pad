@@ -347,15 +347,20 @@ ipcMain.handle("cache:loadOlder", async (_e, { accountId, mailbox, pageSize }) =
 // Egy fiók szinkronizálása. Csak az INBOX-ot húzzuk inkrementálisan, hogy
 // fiókváltás ne akadjon meg a többi mappa miatt — azokat csak akkor szinkronizáljuk,
 // amikor a felhasználó rákattint.
+// Egy fiók szinkronizálása. Az INBOX és a Drafts mindig friss legyen
+// fiókváltáskor (Piszkozatok mappában gyorsan akarunk visszanézni); a többi
+// mappa csak akkor szinkronizál, amikor a felhasználó rákattint.
 ipcMain.handle("cache:syncAccount", async (_e, { accountId }) => {
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("A fiók nem található.");
   const results = [];
-  try {
-    const r = await syncMailbox(account, "INBOX");
-    results.push({ mailbox: "INBOX", ok: true, added: r.added, missing: !!r.missing });
-  } catch (e) {
-    results.push({ mailbox: "INBOX", ok: false, error: String(e?.message || e) });
+  for (const mb of ["INBOX", "Drafts"]) {
+    try {
+      const r = await syncMailbox(account, mb);
+      results.push({ mailbox: mb, ok: true, added: r.added, missing: !!r.missing });
+    } catch (e) {
+      results.push({ mailbox: mb, ok: false, error: String(e?.message || e) });
+    }
   }
   return { ok: true, results };
 });
