@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Account } from "@/lib/mailBridge";
 import { cn } from "@/lib/utils";
-import { Inbox, Send, FileText, Archive, Trash2, AlertOctagon, Plus, Settings, FileCode2, Pencil, X, AlertCircle, CheckCircle2, Circle, PenSquare, FileSignature, RefreshCw, Download, GripVertical } from "lucide-react";
+import { Inbox, Send, FileText, Archive, Trash2, AlertOctagon, Plus, Settings, FileCode2, Pencil, X, AlertCircle, CheckCircle2, Circle, PenSquare, FileSignature, RefreshCw, Download, GripVertical, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getAllAccountStatuses, formatRelative, formatCountdown, type AccountStatus } from "@/lib/accountStatus";
@@ -27,6 +27,7 @@ type Props = {
   onOpenSignatures: () => void;
   onOpenSettings: () => void;
   onOpenUpdater: () => void;
+  onOpenContacts: () => void;
   onReorderAccounts?: (fromId: string, toId: string) => void;
 };
 
@@ -43,7 +44,7 @@ const COLORS = ["bg-primary", "bg-success", "bg-warning", "bg-destructive", "bg-
 
 export function Sidebar({
   accounts, activeAccountId, activeMailbox,
-  onSelectAccount, onSelectMailbox, onAddAccount, onEditAccount, onDeleteAccount, onCompose, onSyncAll, syncing, onOpenTemplates, onOpenSignatures, onOpenSettings, onOpenUpdater, onReorderAccounts,
+  onSelectAccount, onSelectMailbox, onAddAccount, onEditAccount, onDeleteAccount, onCompose, onSyncAll, syncing, onOpenTemplates, onOpenSignatures, onOpenSettings, onOpenUpdater, onOpenContacts, onReorderAccounts,
 }: Props) {
   const [statuses, setStatuses] = useState<Record<string, AccountStatus>>(() => getAllAccountStatuses());
   const [dragId, setDragId] = useState<string | null>(null);
@@ -279,6 +280,9 @@ export function Sidebar({
       </div>
 
       <div className="mt-auto p-3 border-t border-sidebar-border space-y-1">
+        <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={onOpenContacts}>
+          <Users className="h-4 w-4" /> Kapcsolatok
+        </Button>
         <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={onOpenTemplates}>
           <FileCode2 className="h-4 w-4" /> Sablonok
         </Button>
