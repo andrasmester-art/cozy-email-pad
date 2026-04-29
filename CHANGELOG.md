@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.1.1] – 2026-04-29
+
+### Javítás
+- Hostinger (és más cPanel-alapú) szerverek mappa felismerése: a szerver által visszaadott valódi mappaneveket használjuk (pl. `INBOX.Sent`, `INBOX.Drafts`) a fixen kódolt `Sent` / `Drafts` helyett. Megszünteti a „Client tried to access nonexistent namespace" hibát.
+
 ## [1.1.0] – 2026-04-29
 
 ### Új
