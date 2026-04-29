@@ -1,8 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Account, mailAPI } from "@/lib/mailBridge";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,11 +14,12 @@ import { RichTextEditor } from "./RichTextEditor";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, FileSignature } from "lucide-react";
+import { Plus, Trash2, FileSignature, Download, Upload } from "lucide-react";
 import { toast } from "sonner";
 import {
   Signature, listSignatures, saveSignature, deleteSignature,
   getDefaultSignatureId, setDefaultSignature,
+  downloadSignaturesJson, importSignatures, type ImportMode,
 } from "@/lib/signatures";
 import { sanitizeEmailHtml } from "@/lib/sanitizeHtml";
 
@@ -28,6 +33,12 @@ export function SignaturesDialog({ open, onClose }: Props) {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [defaults, setDefaults] = useState<Record<string, string | null>>({});
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [pendingImport, setPendingImport] = useState<{
+    payload: unknown;
+    fileName: string;
+    count: number;
+  } | null>(null);
 
   const reload = () => {
     const sigs = listSignatures();
@@ -86,6 +97,69 @@ export function SignaturesDialog({ open, onClose }: Props) {
     const value = sigId === "__none__" ? null : sigId;
     setDefaultSignature(accountId, value);
     setDefaults((d) => ({ ...d, [accountId]: value }));
+  };
+
+  const handleExport = () => {
+    if (signatures.length === 0) {
+      toast.info("Nincs exportálható aláírás.");
+      return;
+    }
+    const stamp = new Date().toISOString().slice(0, 10);
+    downloadSignaturesJson(`mepodmail-signatures-${stamp}.json`);
+    toast.success(`Exportálva — ${signatures.length} aláírás`);
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFilePicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-importing the same file later
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("A fájl túl nagy (max. 5 MB).");
+      return;
+    }
+    try {
+      const text = await file.text();
+      const payload = JSON.parse(text);
+      const incoming = Array.isArray((payload as any)?.signatures)
+        ? (payload as any).signatures.length
+        : 0;
+      if (incoming === 0) {
+        toast.error("A fájl nem tartalmaz aláírásokat.");
+        return;
+      }
+      // If there are existing signatures, ask whether to merge or replace.
+      if (signatures.length > 0) {
+        setPendingImport({ payload, fileName: file.name, count: incoming });
+      } else {
+        runImport(payload, "merge");
+      }
+    } catch (err: any) {
+      toast.error("Hibás JSON fájl", {
+        description: String(err?.message || err),
+      });
+    }
+  };
+
+  const runImport = (payload: unknown, mode: ImportMode) => {
+    try {
+      const res = importSignatures(payload, mode);
+      reload();
+      toast.success("Importálás kész", {
+        description: `${res.imported} új, ${res.updated} frissítve${
+          res.skipped ? `, ${res.skipped} kihagyva` : ""
+        }.`,
+      });
+    } catch (err: any) {
+      toast.error("Importálás sikertelen", {
+        description: String(err?.message || err),
+      });
+    } finally {
+      setPendingImport(null);
+    }
   };
 
   return (
@@ -232,10 +306,63 @@ export function SignaturesDialog({ open, onClose }: Props) {
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="sm:justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleExport}>
+              <Download className="h-4 w-4 mr-1.5" /> Exportálás (JSON)
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleImportClick}>
+              <Upload className="h-4 w-4 mr-1.5" /> Importálás
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={handleFilePicked}
+            />
+          </div>
           <Button onClick={onClose}>Kész</Button>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog
+        open={!!pendingImport}
+        onOpenChange={(o) => !o && setPendingImport(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Aláírások importálása</AlertDialogTitle>
+            <AlertDialogDescription>
+              A <strong>{pendingImport?.fileName}</strong> fájl{" "}
+              <strong>{pendingImport?.count}</strong> aláírást tartalmaz.
+              Hogyan szeretnéd egyesíteni a meglévő{" "}
+              <strong>{signatures.length}</strong> aláírással?
+              <br />
+              <span className="text-xs text-muted-foreground">
+                · <strong>Egyesítés</strong>: új aláírások hozzáadódnak, az
+                azonos azonosítójúak felülíródnak.
+                <br />· <strong>Felülírás</strong>: minden meglévő aláírás
+                törlődik, csak a fájlból érkezők maradnak.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel>Mégse</AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => pendingImport && runImport(pendingImport.payload, "replace")}
+            >
+              Felülírás
+            </Button>
+            <AlertDialogAction
+              onClick={() => pendingImport && runImport(pendingImport.payload, "merge")}
+            >
+              Egyesítés
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
