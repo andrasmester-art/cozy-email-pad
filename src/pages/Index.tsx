@@ -201,7 +201,7 @@ const Index = () => {
           activeMailbox={activeMailbox}
           onSelectAccount={(id) => setActiveAccountId(id)}
           onSelectMailbox={setActiveMailbox}
-          onAddAccount={() => { setEditingAccount(null); setWizardOpen(true); }}
+          onAddAccount={() => { setEditingAccount(null); setAccountDlgOpen(true); }}
           onEditAccount={(a) => { setEditingAccount(a); setAccountDlgOpen(true); }}
           onDeleteAccount={(a) => setDeletingAccount(a)}
           onCompose={openCompose}
