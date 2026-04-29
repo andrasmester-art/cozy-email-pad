@@ -22,8 +22,9 @@ const ALLOWED_ATTR = [
   "align", "valign",
   "colspan", "rowspan",
   "style", "class",
-  // Preserve our signature marker so swap/strip logic keeps working
-  "data-mwsig",
+  // Preserve our signature + reply-quote markers so swap/strip and
+  // signature-positioning logic keeps working through sanitization.
+  "data-mwsig", "data-mwquote",
 ];
 
 // Drop CSS declarations that could break the surrounding layout or be used
