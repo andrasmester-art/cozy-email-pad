@@ -3,6 +3,12 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.19.0] – 2026-04-29
+
+### Új
+- **Kép drag-and-drop**: a Finderből vagy bármely más alkalmazásból egyszerűen ráhúzhatsz egy (vagy több) képet a levélszerkesztőre — base64 data URL-ként beágyazódik pontosan oda, ahova ejted. Mehet egyszerre több kép is.
+- **Vágólapról beillesztés (paste)**: Cmd+Shift+4-gyel készített képernyőkép, vagy bármely képen jobbklikk → „Kép másolása" után **Cmd+V** közvetlenül a szerkesztőbe szúrja be a képet, anélkül hogy előbb fájlba mentenéd. A beillesztett képeken ugyanúgy működik a mérete­zés / igazítás lebegő eszköztár (v1.18.0).
+
 ## [1.18.0] – 2026-04-29
 
 ### Új

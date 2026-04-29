@@ -466,6 +466,64 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Prop
       attributes: {
         class: "px-4 py-3 min-h-[260px] focus:outline-none",
       },
+      // Drag-and-drop: ha a beejtett DataTransfer-ben van kép fájl,
+      // base64 data URL-ként beágyazzuk a leveles editorba (ahogy a
+      // toolbar Kép gombja is). Több kép esetén egymás után kerülnek be.
+      // A drop pozíció az ejtés helyén lesz (posAtCoords).
+      handleDrop: (view, event, _slice, moved) => {
+        if (moved) return false; // belső node-mozgatás (pl. kép áthelyezés) — hagyjuk
+        const dt = (event as DragEvent).dataTransfer;
+        const files = dt?.files ? Array.from(dt.files).filter((f) => f.type.startsWith("image/")) : [];
+        if (files.length === 0) return false;
+        event.preventDefault();
+        const coords = { left: (event as DragEvent).clientX, top: (event as DragEvent).clientY };
+        const posInfo = view.posAtCoords(coords);
+        const dropPos = posInfo ? posInfo.pos : view.state.selection.from;
+        files.forEach((file) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const src = reader.result as string;
+            if (!src) return;
+            const node = view.state.schema.nodes.image?.create({ src });
+            if (!node) return;
+            const tr = view.state.tr.insert(dropPos, node);
+            view.dispatch(tr);
+          };
+          reader.readAsDataURL(file);
+        });
+        return true;
+      },
+      // Paste: vágólapra másolt képet (Cmd+Shift+4 screenshot, böngésző
+      // „Kép másolása", stb.) base64-ként szúrunk be a kurzor helyére.
+      // Ha van „normál" szöveg/HTML a vágólapon, azt nem zavarjuk —
+      // csak akkor kapcsolunk be, ha a clipboardItems között valódi
+      // kép-fájl van.
+      handlePaste: (view, event) => {
+        const items = event.clipboardData?.items;
+        if (!items) return false;
+        const imageFiles: File[] = [];
+        for (const it of Array.from(items)) {
+          if (it.kind === "file" && it.type.startsWith("image/")) {
+            const f = it.getAsFile();
+            if (f) imageFiles.push(f);
+          }
+        }
+        if (imageFiles.length === 0) return false;
+        event.preventDefault();
+        imageFiles.forEach((file) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const src = reader.result as string;
+            if (!src) return;
+            const node = view.state.schema.nodes.image?.create({ src });
+            if (!node) return;
+            const tr = view.state.tr.replaceSelectionWith(node);
+            view.dispatch(tr);
+          };
+          reader.readAsDataURL(file);
+        });
+        return true;
+      },
     },
   });
 
