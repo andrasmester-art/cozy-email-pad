@@ -632,6 +632,32 @@ ipcMain.handle("mail:setFlag", async (_e, { accountId, mailbox, uid, patch }) =>
   return setMessageFlags(account, mailbox, uid, patch || {});
 });
 
+// Egyetlen levél teljes body-jának lazy letöltése. A lista-szinkron már csak
+// fejléceket húz le (gyors), így a body-t akkor töltjük le, amikor a felhasználó
+// megnyit egy levelet. Eredmény bekerül a cache-be (bodyLoaded=true).
+async function loadMessageBody(account, logicalMailbox, uid) {
+  return withImap(account, 30000, async (imap) => {
+    const realName = await resolveMailbox(imap, logicalMailbox);
+    if (!realName) throw new Error(`Mappa nem található: ${logicalMailbox}`);
+    await openBox(imap, realName);
+    const numericUid = Number(uid);
+    if (!numericUid || Number.isNaN(numericUid)) throw new Error("Érvénytelen UID");
+    const body = await fetchBodyByUid(imap, numericUid);
+    if (!body) return { ok: false, reason: "not-found" };
+    const state = cache.read(userDataDir(), account.id, logicalMailbox);
+    const next = cache.updateMessageBody(state, numericUid, body);
+    cache.write(userDataDir(), account.id, logicalMailbox, next);
+    const updated = next.messages.find((m) => m.uid === numericUid) || null;
+    return { ok: true, message: updated };
+  });
+}
+
+ipcMain.handle("mail:fetchBody", async (_e, { accountId, mailbox, uid }) => {
+  const account = loadAccounts().find((a) => a.id === accountId);
+  if (!account) throw new Error("A fiók nem található.");
+  return loadMessageBody(account, mailbox, uid);
+});
+
 // Egy fiók szinkronizálása. Csak az INBOX-ot húzzuk inkrementálisan, hogy
 // fiókváltás ne akadjon meg a többi mappa miatt — azokat csak akkor szinkronizáljuk,
 // amikor a felhasználó rákattint.
