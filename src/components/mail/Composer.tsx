@@ -187,11 +187,44 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
       <div className="bg-surface rounded-xl shadow-mac-lg w-full max-w-3xl h-[85vh] flex flex-col overflow-hidden border border-border">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <h2 className="text-sm font-semibold">Új levél</h2>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
+          <h2 className="text-sm font-semibold">
+            {pending ? "Tart a küldés…" : sending ? "Küldés folyamatban…" : "Új levél"}
+          </h2>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={onClose}
+            disabled={!!pending || sending}
+            title={pending ? "Vond vissza vagy várd meg a küldést" : "Bezárás"}
+          >
             <X className="h-4 w-4" />
           </Button>
         </div>
+
+        {pending && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="px-4 py-2.5 bg-primary/10 border-b border-primary/20 flex items-center gap-3"
+          >
+            <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-foreground">
+                Tart a küldés — {pending.remaining} mp múlva indul
+              </div>
+              <div className="h-1 mt-1.5 bg-primary/15 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all duration-1000 ease-linear"
+                  style={{ width: `${((pending.total - pending.remaining) / pending.total) * 100}%` }}
+                />
+              </div>
+            </div>
+            <Button size="sm" variant="outline" onClick={pending.cancel}>
+              Visszavonás
+            </Button>
+          </div>
+        )}
 
         <div className="px-4 py-3 space-y-2 border-b border-border">
           <div className="flex items-center gap-2">
