@@ -64,6 +64,8 @@ type FilterMode = "all" | "unread" | "flagged";
 export function MessageList({ messages, selectedSeqno, onSelect, onOpen, onToggleFlag, loading, onRefresh, mailbox, onLoadMore, loadingMore, exhausted, width }: Props) {
   const [q, setQ] = useState("");
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
+  const [density, setDensityState] = useState<ListDensity>(readDensity);
+  const setDensity = (d: ListDensity) => { setDensityState(d); writeDensity(d); };
 
   // Mappaváltáskor visszaállunk az "Összes" szűrőre, hogy ne maradjon rajta
   // egy üres találati lista egy másik mappában.
@@ -96,9 +98,36 @@ export function MessageList({ messages, selectedSeqno, onSelect, onOpen, onToggl
           <div className="text-sm font-semibold">{mailbox}</div>
           <div className="text-xs text-muted-foreground">{filtered.length} üzenet</div>
         </div>
-        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onRefresh} title="Frissítés">
-          <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-        </Button>
+        <div className="flex items-center gap-0.5">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8"
+                title={`Sortávolság: ${DENSITY_LABEL[density]}`}
+              >
+                <Rows3 className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Sortávolság</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {(["compact", "comfortable", "relaxed"] as ListDensity[]).map((d) => (
+                <DropdownMenuItem
+                  key={d}
+                  onClick={() => setDensity(d)}
+                  className={density === d ? "bg-accent text-accent-foreground" : ""}
+                >
+                  {DENSITY_LABEL[d]}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onRefresh} title="Frissítés">
+            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+          </Button>
+        </div>
       </div>
 
       <div className="px-3 pb-2 space-y-2">
