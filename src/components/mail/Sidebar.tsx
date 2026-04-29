@@ -91,11 +91,17 @@ export function Sidebar({
               : st.ok
               ? "text-success"
               : "text-destructive";
+            const retryCountdown = !st || st.ok ? "" : formatCountdown(st.nextRetryAt);
             const statusLabel = !st
               ? "Nincs ellenőrzés"
               : st.ok
               ? `Csatlakozva · ${formatRelative(st.lastChecked)}`
-              : `Hiba · ${st.error || "ismeretlen"}`;
+              : retryCountdown
+                ? `Hiba · újra ${retryCountdown} múlva`
+                : `Hiba · ${st.error || "ismeretlen"}`;
+            const tooltipLabel = !st || st.ok
+              ? statusLabel
+              : `${st.error || "Ismeretlen hiba"}${retryCountdown ? ` · újrapróbálkozás ${retryCountdown} múlva` : ""}`;
             return (
               <div key={a.id} className="space-y-0.5">
                 <div
