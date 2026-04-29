@@ -233,6 +233,31 @@ function fetchByUidRange(imap, range) {
   });
 }
 
+// Csak a flag-eket olvassa le (body nélkül) → gyors, használjuk a cache-elt
+// levelek \\Flagged / \\Seen állapotának visszaszinkronjához.
+function fetchFlagsByUidRange(imap, range) {
+  return new Promise((resolve, reject) => {
+    const out = [];
+    const f = imap.fetch(range, { bodies: "", struct: false });
+    f.on("message", (msg) => {
+      let attrs = null;
+      msg.once("attributes", (a) => { attrs = a; });
+      msg.once("end", () => {
+        if (attrs && typeof attrs.uid === "number") {
+          const flags = Array.isArray(attrs.flags) ? attrs.flags : [];
+          out.push({
+            uid: attrs.uid,
+            flagged: flags.includes("\\Flagged"),
+            seen: flags.includes("\\Seen"),
+          });
+        }
+      });
+    });
+    f.once("error", reject);
+    f.once("end", () => resolve(out));
+  });
+}
+
 // ---- IPC: IMAP ----
 ipcMain.handle("imap:test", async (_e, { accountId } = {}) => {
   const account = loadAccounts().find((a) => a.id === accountId);
