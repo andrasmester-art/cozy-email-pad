@@ -407,17 +407,30 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
           </div>
         )}
 
-        {/* Persistent draft-status strip showing the last autosave timestamp. */}
+        {/* Persistent draft-status strip showing the autosave state and last timestamp. */}
         {!pendingDraft && (
           <div
-            className="px-4 py-1.5 text-[11px] text-muted-foreground bg-surface-elevated/60 border-b border-border flex items-center gap-1.5"
+            className={`px-4 py-1.5 text-[11px] border-b border-border bg-surface-elevated/60 flex items-center gap-1.5 ${
+              saveStatus === "error" ? "text-destructive" : "text-muted-foreground"
+            }`}
             data-tick={savedTick}
+            aria-live="polite"
           >
-            <Save className="h-3 w-3 opacity-70" />
+            {saveStatus === "saving" ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Save className={`h-3 w-3 ${saveStatus === "saved" ? "text-primary" : "opacity-70"}`} />
+            )}
             <span>
-              {lastSavedAt
-                ? `Piszkozat mentve · ${formatRelativeTime(lastSavedAt)}`
-                : "Még nincs mentett piszkozat"}
+              {saveStatus === "saving"
+                ? "Mentés…"
+                : saveStatus === "error"
+                  ? "Mentés sikertelen"
+                  : saveStatus === "saved"
+                    ? "Mentve"
+                    : lastSavedAt
+                      ? `Piszkozat mentve · ${formatRelativeTime(lastSavedAt)}`
+                      : "Még nincs mentett piszkozat"}
             </span>
           </div>
         )}
