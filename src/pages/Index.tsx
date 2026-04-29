@@ -201,7 +201,8 @@ const Index = () => {
     const off = api.events.onAutoSync(async (payload: { accountId: string; mailbox: string; added: number }) => {
       if (!payload?.added) return;
       const acc = accounts.find((a) => a.id === payload.accountId);
-      const label = acc?.email ? ` (${acc.email})` : "";
+      const accLabel = acc?.label || acc?.from || acc?.user;
+      const label = accLabel ? ` (${accLabel})` : "";
       toast.success(`${payload.added} új levél${label}`);
       if (payload.accountId === activeAccountId && payload.mailbox === activeMailbox) {
         try {
