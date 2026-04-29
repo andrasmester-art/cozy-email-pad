@@ -24,7 +24,8 @@ const ALLOWED_ATTR = [
   "style", "class",
   // Preserve our signature + reply-quote markers so swap/strip and
   // signature-positioning logic keeps working through sanitization.
-  "data-mwsig", "data-mwquote",
+  // Also keep `data-align` so image alignment survives a round-trip.
+  "data-mwsig", "data-mwquote", "data-align",
 ];
 
 // Drop CSS declarations that could break the surrounding layout or be used
