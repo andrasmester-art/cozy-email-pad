@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Account, EmailTemplate, MailMessage, mailAPI } from "@/lib/mailBridge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
