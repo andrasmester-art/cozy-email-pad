@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Account, MailMessage, mailAPI } from "@/lib/mailBridge";
+import { setAccountStatus, clearAccountStatus } from "@/lib/accountStatus";
 import { Sidebar } from "@/components/mail/Sidebar";
 import { MessageList } from "@/components/mail/MessageList";
 import { MessageView } from "@/components/mail/MessageView";
