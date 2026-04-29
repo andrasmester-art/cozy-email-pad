@@ -38,10 +38,19 @@ function decryptPassword(stored) {
 }
 
 function loadAccounts() {
-  return readStore("accounts", []);
+  return readStore("accounts", []).map(normalizeAccountHosts);
 }
 function saveAccounts(accounts) {
   writeStore("accounts", accounts);
+}
+
+function normalizeAccountHosts(account) {
+  if (!account) return account;
+  return {
+    ...account,
+    imapHost: account.imapHost === "imap.hostinger.com" ? "imap.titan.email" : account.imapHost,
+    smtpHost: account.smtpHost === "smtp.hostinger.com" ? "smtp.titan.email" : account.smtpHost,
+  };
 }
 
 // IPC: accounts
@@ -53,13 +62,14 @@ ipcMain.handle("accounts:save", (_e, account) => {
   const accounts = loadAccounts();
   const idx = accounts.findIndex((a) => a.id === account.id);
   const existing = idx >= 0 ? accounts[idx] : null;
+  const normalizedAccount = normalizeAccountHosts(account);
   const stored = {
-    ...account,
-    password: account.password
-      ? encryptPassword(account.password)
+    ...normalizedAccount,
+    password: normalizedAccount.password
+      ? encryptPassword(normalizedAccount.password)
       : existing?.password,
-    smtpPassword: account.smtpPassword
-      ? encryptPassword(account.smtpPassword)
+    smtpPassword: normalizedAccount.smtpPassword
+      ? encryptPassword(normalizedAccount.smtpPassword)
       : existing?.smtpPassword,
   };
   if (idx >= 0) accounts[idx] = { ...accounts[idx], ...stored };
