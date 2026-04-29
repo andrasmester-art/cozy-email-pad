@@ -10,7 +10,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { X, Send, FileCode2, Save, Clock, Star, Loader2, FileSignature, FileText, RotateCcw } from "lucide-react";
+import { X, Send, FileCode2, Save, Clock, Star, Loader2, FileSignature, FileText, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { getSendDelay, setSendDelay, SEND_DELAY_OPTIONS, formatDelay } from "@/lib/sendDelay";
 import { getDefaultAccountId, setDefaultAccountId } from "@/lib/defaultAccount";
@@ -149,6 +149,25 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
     setPendingDraft(null);
     setLastSavedAt(null);
     toast.info("Mentett piszkozat eldobva");
+  };
+
+  // Permanently discard the saved draft from localStorage and reset all
+  // composer fields. Suppresses the next autosave tick so the freshly cleared
+  // state can't immediately repopulate the storage entry.
+  const discardDraft = () => {
+    skipAutoSaveRef.current = true;
+    clearDraft();
+    setPendingDraft(null);
+    setLastSavedAt(null);
+    setTo("");
+    setCc("");
+    setBcc("");
+    setShowCc(false);
+    setSubject("");
+    const sig = getSignature(accountId ? getDefaultSignatureId(accountId) : null);
+    setBody(applySignatureToBody("", sig));
+    toast.success("Piszkozat törölve");
+    setTimeout(() => { skipAutoSaveRef.current = false; }, 50);
   };
 
   // Auto-save draft whenever editable fields change while the composer is open.
@@ -509,6 +528,20 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
             </DropdownMenu>
             <Button variant="outline" size="sm" onClick={() => setSaveTplOpen(true)}>
               <Save className="h-4 w-4 mr-1.5" /> Mentés sablonként
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={discardDraft}
+              disabled={!lastSavedAt && !pendingDraft}
+              title={
+                !lastSavedAt && !pendingDraft
+                  ? "Nincs mentett piszkozat"
+                  : "A mentett piszkozat törlése a tárolóból"
+              }
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 className="h-4 w-4 mr-1.5" /> Piszkozat törlése
             </Button>
           </div>
           <div className="flex items-center gap-2">
