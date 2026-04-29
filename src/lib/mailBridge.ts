@@ -199,6 +199,19 @@ export const mailAPI = {
     },
   },
 
+  mail: {
+    async setFlag(params: {
+      accountId: string;
+      mailbox: string;
+      uid: string | number;
+      patch: { flagged?: boolean; seen?: boolean };
+    }): Promise<{ ok: true; messages: MailMessage[]; updatedAt: number }> {
+      if (isElectron) return (window as any).mailAPI.mail.setFlag(params);
+      // Böngésző / demó: csak színlelt OK válasz, nincs szerver.
+      return { ok: true, messages: [], updatedAt: Date.now() };
+    },
+  },
+
   smtp: {
     async send(params: {
       accountId: string;
