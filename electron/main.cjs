@@ -543,7 +543,7 @@ async function loadOlder(account, logicalMailbox, pageSize) {
     const minUid = Math.min(...pageUids);
     const maxUid = Math.max(...pageUids);
 
-    const fetched = await fetchByUidRange(imap, `${minUid}:${maxUid}`);
+    const fetched = await fetchHeadersByUidRange(imap, `${minUid}:${maxUid}`);
     const wanted = new Set(pageUids);
     const filtered = fetched.filter((m) => wanted.has(m.uid));
 
