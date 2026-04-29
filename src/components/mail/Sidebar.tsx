@@ -123,7 +123,7 @@ export function Sidebar({
                         <StatusIcon className={cn("h-3.5 w-3.5 shrink-0", statusColor)} />
                       </TooltipTrigger>
                       <TooltipContent side="right" className="max-w-xs">
-                        <div className="text-xs">{statusLabel}</div>
+                        <div className="text-xs">{tooltipLabel}</div>
                       </TooltipContent>
                     </Tooltip>
                   </button>
