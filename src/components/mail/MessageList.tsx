@@ -68,6 +68,7 @@ export function MessageList({ messages, selectedSeqno, onSelect, onOpen, loading
         filtered={filtered}
         selectedSeqno={selectedSeqno}
         onSelect={onSelect}
+        onOpen={onOpen}
         onLoadMore={onLoadMore}
         loadingMore={loadingMore}
         exhausted={exhausted}
