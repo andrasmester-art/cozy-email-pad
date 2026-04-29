@@ -167,6 +167,8 @@ const Index = () => {
           onEditAccount={(a) => { setEditingAccount(a); setAccountDlgOpen(true); }}
           onDeleteAccount={(a) => setDeletingAccount(a)}
           onCompose={openCompose}
+          onSyncAll={syncAll}
+          syncing={syncing}
           onOpenTemplates={() => setTemplatesOpen(true)}
           onOpenSignatures={() => setSignaturesOpen(true)}
           onOpenSettings={() => {
