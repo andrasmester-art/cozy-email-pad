@@ -3,6 +3,13 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.12.0] – 2026-04-29
+
+### Új
+- **Levél megnyitása új ablakban** dupla kattintással: a lista bármely sorára duplán kattintva az adott levél külön natív ablakban nyílik meg, ahol ugyanúgy lehet **válaszolni**, **mindenkinek válaszolni**, **továbbítani**, és **piszkozat szerkesztése** gomb is megjelenik a Drafts mappa leveleinél. Több levelet is meg lehet nyitni párhuzamosan.
+- Új `/message` útvonal és `MessagePage` a renderelő oldalon, valamint új `window:openMessage` IPC végpont a main processben, ami egy önálló BrowserWindow-t indít a kiválasztott levél paramétereivel (accountId, mailbox, seqno, uid).
+- Az új ablak címe automatikusan a levél tárgya lesz.
+
 ## [1.11.0] – 2026-04-29
 
 ### Új
