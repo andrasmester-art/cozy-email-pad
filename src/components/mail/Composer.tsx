@@ -29,6 +29,7 @@ type Props = {
   accounts: Account[];
   defaultAccountId?: string | null;
   initial?: { to?: string; subject?: string; body?: string };
+  mode?: "new" | "reply" | "forward";
 };
 
 function htmlToText(html: string) {
