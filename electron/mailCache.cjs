@@ -115,6 +115,15 @@ function purgeAccount(userDataDir, accountId) {
   } catch { /* ignore */ }
 }
 
+// Egyetlen üzenet flag-jeit frissíti uid alapján a state-ben (in-place új objektum).
+function updateMessageFlags(state, uid, patch) {
+  const idx = state.messages.findIndex((m) => m.uid === uid);
+  if (idx < 0) return state;
+  const next = state.messages.slice();
+  next[idx] = { ...next[idx], ...patch };
+  return { ...state, messages: next, updatedAt: Date.now() };
+}
+
 module.exports = {
   MAX_PER_MAILBOX,
   INITIAL_PAGE_SIZE,
@@ -122,6 +131,7 @@ module.exports = {
   read,
   write,
   mergeNewMessages,
+  updateMessageFlags,
   reset,
   purgeAccount,
 };
