@@ -145,11 +145,13 @@ const Index = () => {
       subject: m.subject.startsWith("Re:") ? m.subject : `Re: ${m.subject}`,
       body: `<p></p><blockquote><p><em>${m.from} írta:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`,
     });
+    setComposerMode("reply");
     setComposerOpen(true);
   };
 
   const openCompose = () => {
     setComposerInitial(undefined);
+    setComposerMode("new");
     setComposerOpen(true);
   };
 
