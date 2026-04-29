@@ -37,6 +37,13 @@ const ToolbarBtn = ({
     // hívás új szelekcióval vagy hibásan futna, és pl. a H1/lista/link
     // formázás "nem csinálna semmit". A preventDefault megőrzi az editor
     // szelekcióját és fókuszát.
+    //
+    // Radix Dialog-on belül (pl. Aláírások / Sablonok szerkesztő) a Dialog
+    // saját pointerdown-listenere a fókuszt a Dialog content root-jára
+    // viszi vissza, ami szintén ki tudja lőni a TipTap szelekciót. Ezért a
+    // pointerDown-on is preventDefault-ot hívunk + stopPropagation-t, hogy
+    // a Dialog ne lássa az eseményt.
+    onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
     onMouseDown={(e) => e.preventDefault()}
     onClick={onClick}
     className={cn("h-8 w-8 p-0", active && "bg-accent text-accent-foreground")}
