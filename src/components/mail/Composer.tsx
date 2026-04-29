@@ -79,7 +79,21 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
     setBody((prev) => (prev && prev !== "<p></p>" ? prev + tpl.body : tpl.body));
   };
 
+  // Pending-send state for the undo countdown UI
+  const [pending, setPending] = useState<{
+    remaining: number;
+    total: number;
+    cancel: () => void;
+  } | null>(null);
+
+  // Cleanup any active countdown when the component unmounts
+  useEffect(() => {
+    return () => { pending?.cancel(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleSend = async () => {
+    if (sending || pending) return; // guard against double-click
     if (!accountId) return toast.error("Válassz fiókot");
     if (!to.trim()) return toast.error("Adj meg címzettet");
 
@@ -103,59 +117,50 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
       return;
     }
 
-    // Delayed send with undo
-    onClose();
+    // Delayed send with inline undo banner
     let cancelled = false;
     let remaining = delay;
-    const toastId = toast(`Küldés ${remaining} mp múlva…`, {
-      duration: delay * 1000 + 500,
-      action: {
-        label: "Visszavonás",
-        onClick: () => {
-          cancelled = true;
-          clearInterval(tick);
-          clearTimeout(timer);
-          toast.dismiss(toastId);
-          toast.info("Küldés visszavonva", {
-            description: `Tárgy: ${subject || "(nincs tárgy)"}`,
-          });
-        },
-      },
-    });
+    let tick: ReturnType<typeof setInterval>;
+    let timer: ReturnType<typeof setTimeout>;
 
-    const tick = setInterval(() => {
+    const cancel = () => {
+      if (cancelled) return;
+      cancelled = true;
+      clearInterval(tick);
+      clearTimeout(timer);
+      setPending(null);
+      toast.info("Küldés visszavonva", {
+        description: `Tárgy: ${subject || "(nincs tárgy)"}`,
+      });
+    };
+
+    setPending({ remaining, total: delay, cancel });
+
+    tick = setInterval(() => {
       remaining -= 1;
-      if (remaining > 0 && !cancelled) {
-        toast(`Küldés ${remaining} mp múlva…`, {
-          id: toastId,
-          duration: remaining * 1000 + 500,
-          action: {
-            label: "Visszavonás",
-            onClick: () => {
-              cancelled = true;
-              clearInterval(tick);
-              clearTimeout(timer);
-              toast.dismiss(toastId);
-              toast.info("Küldés visszavonva");
-            },
-          },
-        });
+      if (cancelled) return;
+      if (remaining > 0) {
+        setPending({ remaining, total: delay, cancel });
       } else {
         clearInterval(tick);
       }
     }, 1000);
 
-    const timer = setTimeout(async () => {
+    timer = setTimeout(async () => {
       clearInterval(tick);
       if (cancelled) return;
+      setPending(null);
+      setSending(true);
       try {
         await mailAPI.smtp.send(payload);
-        toast.success("Levél elküldve", { id: toastId });
+        toast.success("Levél elküldve");
+        onClose();
       } catch (e: any) {
         toast.error("Küldés sikertelen", {
-          id: toastId,
           description: String(e?.message || e),
         });
+      } finally {
+        setSending(false);
       }
     }, delay * 1000);
   };
