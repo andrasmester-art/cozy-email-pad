@@ -129,6 +129,23 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Prop
     },
   });
 
+  // A toolbar gombok (undo/redo disabled, aktív formázás) állapota az editor
+  // tranzakcióitól függ. A useEditor hook alapból csak akkor triggerel
+  // re-rendert, ha az editor példány maga változik. Ezért feliratkozunk a
+  // transaction/selectionUpdate eseményekre, és egy számláló növelésével
+  // kényszerítjük a komponens újrarajzolását.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!editor) return;
+    const rerender = () => setTick((t) => t + 1);
+    editor.on("transaction", rerender);
+    editor.on("selectionUpdate", rerender);
+    return () => {
+      editor.off("transaction", rerender);
+      editor.off("selectionUpdate", rerender);
+    };
+  }, [editor]);
+
   useEffect(() => {
     if (!editor) return;
     const incoming = value || "";
