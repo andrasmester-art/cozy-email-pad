@@ -3,6 +3,13 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.7.1] – 2026-04-29
+
+### Javítás
+- A rich text szerkesztő (üzenet szerkesztő, sablonok, aláírások) gombjai (H1/H2/H3, felsorolás, számozott lista, link, kép, idézet, kód blokk, vízszintes vonal) most ténylegesen működnek. Két ok együtt akadályozta őket:
+  1. A toolbar gombokra való kattintáskor a `mousedown` elvette az editor fókuszát — a kattintás-handler `chain().focus().toggleX()` futott, de a parent rögtön újrarenderelt és a `value` prop visszaírta az editor tartalmát, eltüntetve a hatást. **Megoldás:** minden gombra `onMouseDown={preventDefault}`, így a szelekció és fókusz megmarad.
+  2. A külső `value` prop minden parent-state-változáskor felülírta az editor tartalmát. **Megoldás:** egy `lastEmittedRef`-fel követjük, mit küldtünk ki utoljára `onUpdate`-ben, és csak akkor állítjuk vissza a tartalmat, ha valóban kívülről jött új érték (pl. „Sablon beszúrása" vagy új levél megnyitása).
+
 ## [1.7.0] – 2026-04-29
 
 ### Új
