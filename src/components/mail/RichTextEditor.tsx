@@ -501,12 +501,18 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Prop
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, editor]);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+
   return (
-    <div className={cn("border border-border rounded-md bg-surface flex flex-col", className)}>
+    <div
+      ref={containerRef}
+      className={cn("border border-border rounded-md bg-surface flex flex-col relative", className)}
+    >
       <Toolbar editor={editor} />
       <div className="flex-1 overflow-auto">
         <EditorContent editor={editor} />
       </div>
+      {editor && <ImageBubbleMenu editor={editor} containerRef={containerRef} />}
     </div>
   );
 }
