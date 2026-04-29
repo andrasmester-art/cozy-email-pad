@@ -6,9 +6,11 @@ import { format } from "date-fns";
 type Props = {
   message: MailMessage | null;
   onReply: (m: MailMessage) => void;
+  onReplyAll?: (m: MailMessage) => void;
+  onForward?: (m: MailMessage) => void;
 };
 
-export function MessageView({ message, onReply }: Props) {
+export function MessageView({ message, onReply, onReplyAll, onForward }: Props) {
   if (!message) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground bg-background">
@@ -25,8 +27,22 @@ export function MessageView({ message, onReply }: Props) {
         <Button size="sm" variant="ghost" onClick={() => onReply(message)}>
           <Reply className="h-4 w-4 mr-1.5" /> Válasz
         </Button>
-        <Button size="sm" variant="ghost"><ReplyAll className="h-4 w-4 mr-1.5" /> Mind</Button>
-        <Button size="sm" variant="ghost"><Forward className="h-4 w-4 mr-1.5" /> Tov.</Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => onReplyAll?.(message)}
+          disabled={!onReplyAll}
+        >
+          <ReplyAll className="h-4 w-4 mr-1.5" /> Mind
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => onForward?.(message)}
+          disabled={!onForward}
+        >
+          <Forward className="h-4 w-4 mr-1.5" /> Tov.
+        </Button>
         <Button size="sm" variant="ghost" className="text-muted-foreground"><Archive className="h-4 w-4" /></Button>
         <Button size="sm" variant="ghost" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
       </div>
