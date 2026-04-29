@@ -61,7 +61,12 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
   useEffect(() => {
     if (open) {
       mailAPI.templates.list().then(setTemplates);
-      setAccountId(defaultAccountId || accounts[0]?.id || "");
+      const saved = getDefaultAccountId();
+      const initId = saved && accounts.some((a) => a.id === saved)
+        ? saved
+        : (defaultAccountId || accounts[0]?.id || "");
+      setAccountId(initId);
+      setDefaultId(saved);
       setTo(initial?.to || "");
       setSubject(initial?.subject || "");
       setBody(initial?.body || "");
