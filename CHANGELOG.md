@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.16.2] – 2026-04-29
+
+### Javítás
+- **A számozott lista gomb most már akkor is működik, ha a kurzor épp sima felsorolásban van vagy abból váltanál át.** Korábban a `toggleOrderedList()` egyes listás kontextusokban némán `false`-t adott vissza, ezért a gomb úgy tűnt, mintha nem reagálna. Most a váltás először megpróbálja lezárni az aktuális listatípust, szükség esetén kiemeli a list itemet, és csak végső fallbackként törli a blokk-környezetet.
+
 ## [1.16.1] – 2026-04-29
 
 ### Javítás
