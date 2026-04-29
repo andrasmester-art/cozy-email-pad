@@ -309,6 +309,36 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
     }, delay * 1000);
   };
 
+  // Piszkozat mentése a szerver Drafts mappájába (IMAP APPEND).
+  // Ettől más kliensben (Gmail web, Mail.app) is megjelenik, és a saját
+  // appunkban is — a Piszkozatok mappa azonnal frissül.
+  const saveDraftToServer = async () => {
+    if (savingDraft) return;
+    if (!accountId) return toast.error("Válassz fiókot");
+    if (!subject.trim() && !body.trim()) {
+      return toast.error("A piszkozat üres");
+    }
+    setSavingDraft(true);
+    try {
+      await mailAPI.imap.appendDraft({
+        accountId,
+        to: to || undefined,
+        cc: cc || undefined,
+        bcc: bcc || undefined,
+        subject: subject || "(piszkozat)",
+        html: body,
+        text: htmlToText(body),
+      });
+      toast.success("Piszkozat mentve a szerverre");
+    } catch (e: any) {
+      toast.error("Piszkozat mentése sikertelen", {
+        description: String(e?.message || e),
+      });
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
   const saveAsTemplate = async () => {
     if (!tplName.trim()) return;
     const tpl: EmailTemplate = {
