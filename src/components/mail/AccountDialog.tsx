@@ -219,10 +219,6 @@ export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
         </div>
 
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" onClick={handleTest} disabled={testing} className="mr-auto">
-            <RefreshCw className={cn("h-4 w-4 mr-1.5", testing && "animate-spin")} />
-            {testing ? "Ellenőrzés…" : "Kapcsolat ellenőrzése"}
-          </Button>
           <Button variant="outline" onClick={onClose}>Mégse</Button>
           <Button onClick={handleSave}>Mentés</Button>
         </DialogFooter>
