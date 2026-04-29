@@ -9,6 +9,7 @@ import { RichTextEditor } from "./RichTextEditor";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { sanitizeEmailHtml } from "@/lib/sanitizeHtml";
 
 type Props = { open: boolean; onClose: () => void };
 
@@ -48,7 +49,15 @@ export function TemplatesDialog({ open, onClose }: Props) {
 
   const save = async () => {
     if (!active) return;
-    await mailAPI.templates.save(active);
+    // Mentés előtt megtisztítjuk a HTML-t, így a tárolóba (és minden későbbi
+    // beillesztésbe) már biztonságos, normalizált markup kerül.
+    const cleaned: EmailTemplate = {
+      ...active,
+      body: sanitizeEmailHtml(active.body || ""),
+      updatedAt: Date.now(),
+    };
+    await mailAPI.templates.save(cleaned);
+    setTemplates((list) => list.map((t) => (t.id === cleaned.id ? cleaned : t)));
     toast.success("Sablon mentve");
   };
 
