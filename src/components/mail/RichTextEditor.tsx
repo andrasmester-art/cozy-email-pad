@@ -112,19 +112,35 @@ function Toolbar({ editor }: { editor: Editor | null }) {
   const insertImage = () => {
     // Fájl választó: base64 data URL-ként ágyazzuk be a képet, így az
     // email küldéskor is megjelenik a címzettnél (nem szükséges külső host).
+    //
+    // FONTOS: az inputot CSATOLJUK a DOM-hoz (off-screen), mert Radix Dialog
+    // belsejéből hívva (Aláírások/Sablonok szerkesztő) a detached input
+    // .click()-je Electronban néma marad — a Dialog focus-trap-je elnyeli
+    // az eseményt. A document.body-hoz csatolva ez nem fordul elő.
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*";
+    input.style.position = "fixed";
+    input.style.left = "-9999px";
+    input.style.top = "-9999px";
+    input.style.opacity = "0";
+    document.body.appendChild(input);
+    const cleanup = () => { try { document.body.removeChild(input); } catch {} };
     input.onchange = () => {
       const file = input.files?.[0];
-      if (!file) return;
+      if (!file) { cleanup(); return; }
       const reader = new FileReader();
       reader.onload = () => {
         const src = reader.result as string;
         if (src) editor.chain().focus().setImage({ src }).run();
+        cleanup();
       };
+      reader.onerror = cleanup;
       reader.readAsDataURL(file);
     };
+    // Ha a felhasználó Mégse-t nyom, az onchange nem fut le — takarítsunk
+    // valamikor utána, hogy ne maradjon árva input a DOM-ban.
+    setTimeout(() => { if (!input.files || input.files.length === 0) cleanup(); }, 60_000);
     input.click();
   };
   return (
