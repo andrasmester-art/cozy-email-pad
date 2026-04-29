@@ -12,6 +12,7 @@ type Props = {
   selectedSeqno: number | null;
   onSelect: (m: MailMessage) => void;
   onOpen?: (m: MailMessage) => void;
+  onToggleFlag?: (m: MailMessage) => void;
   loading: boolean;
   onRefresh: () => void;
   mailbox: string;
