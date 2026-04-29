@@ -291,11 +291,27 @@ const Index = () => {
     applyFlagPatch(m, { seen: m.seen === false ? true : false });
   }, [applyFlagPatch]);
 
-  // Kiválasztáskor automatikusan jelöljük olvasottnak (ha még nem az).
+  // Kiválasztáskor: 1) automatikus \\Seen, 2) ha nincs még betöltve a body,
+  // lazy lekérjük a teljes szöveget/HTML-t (a sync csak fejléceket húz le).
   useEffect(() => {
-    if (!selected || !selected.uid) return;
+    if (!selected || !selected.uid || !activeAccountId) return;
     if (selected.seen === false) {
       applyFlagPatch(selected, { seen: true });
+    }
+    if (selected.bodyLoaded === false) {
+      let cancelled = false;
+      mailAPI.mail
+        .fetchBody({ accountId: activeAccountId, mailbox: activeMailbox, uid: selected.uid })
+        .then((r) => {
+          if (cancelled || !r?.ok || !r.message) return;
+          const fresh = r.message;
+          setSelected((s) => (s && s.uid === fresh.uid ? { ...s, ...fresh } : s));
+          setMessages((list) =>
+            list.map((m) => (m.uid === fresh.uid ? { ...m, ...fresh } : m)),
+          );
+        })
+        .catch(() => { /* csendes hiba — a UI így is működik üres body-val */ });
+      return () => { cancelled = true; };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.uid]);
