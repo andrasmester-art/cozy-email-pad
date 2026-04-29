@@ -492,7 +492,7 @@ async function syncMailbox(account, logicalMailbox) {
 
     const minUid = Math.min(...uidsToFetch);
     const maxUid = Math.max(...uidsToFetch);
-    const fetched = await fetchByUidRange(imap, `${minUid}:${maxUid}`);
+    const fetched = await fetchHeadersByUidRange(imap, `${minUid}:${maxUid}`);
     const wanted = new Set(uidsToFetch);
     const newOnly = fetched.filter((m) => wanted.has(m.uid) && m.uid > (state.lastUid || 0));
     const merged = cache.mergeNewMessages(state, newOnly);
