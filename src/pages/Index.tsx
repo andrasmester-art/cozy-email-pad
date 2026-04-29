@@ -1,16 +1,138 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useEffect, useState, useCallback } from "react";
+import { Account, MailMessage, mailAPI } from "@/lib/mailBridge";
+import { Sidebar } from "@/components/mail/Sidebar";
+import { MessageList } from "@/components/mail/MessageList";
+import { MessageView } from "@/components/mail/MessageView";
+import { Composer } from "@/components/mail/Composer";
+import { AccountDialog } from "@/components/mail/AccountDialog";
+import { TemplatesDialog } from "@/components/mail/TemplatesDialog";
+import { Button } from "@/components/ui/button";
+import { PenSquare, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
+const Index = () => {
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [activeAccountId, setActiveAccountId] = useState<string | null>(null);
+  const [activeMailbox, setActiveMailbox] = useState("INBOX");
+  const [messages, setMessages] = useState<MailMessage[]>([]);
+  const [selected, setSelected] = useState<MailMessage | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerInitial, setComposerInitial] = useState<{ to?: string; subject?: string; body?: string } | undefined>();
+  const [accountDlgOpen, setAccountDlgOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+
+  // Initial load
+  useEffect(() => {
+    (async () => {
+      const list = await mailAPI.accounts.list();
+      setAccounts(list);
+      if (list.length > 0) setActiveAccountId(list[0].id);
+      else if (!mailAPI.isElectron) {
+        // seed a demo account in browser preview
+        const demo: Account = {
+          id: "demo-account",
+          label: "Demó fiók",
+          user: "te@példa.hu",
+          imapHost: "imap.example.com",
+          smtpHost: "smtp.example.com",
+        };
+        await mailAPI.accounts.save(demo);
+        setAccounts([demo]);
+        setActiveAccountId(demo.id);
+      }
+    })();
+  }, []);
+
+  const loadMessages = useCallback(async () => {
+    if (!activeAccountId) return;
+    setLoading(true);
+    setSelected(null);
+    try {
+      const msgs = await mailAPI.imap.fetch({ accountId: activeAccountId, mailbox: activeMailbox, limit: 50 });
+      setMessages(msgs);
+    } catch (e: any) {
+      toast.error("Levelek betöltése sikertelen", { description: String(e?.message || e) });
+      setMessages([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeAccountId, activeMailbox]);
+
+  useEffect(() => { loadMessages(); }, [loadMessages]);
+
+  const handleReply = (m: MailMessage) => {
+    setComposerInitial({
+      to: m.from,
+      subject: m.subject.startsWith("Re:") ? m.subject : `Re: ${m.subject}`,
+      body: `<p></p><blockquote><p><em>${m.from} írta:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`,
+    });
+    setComposerOpen(true);
+  };
+
+  const openCompose = () => {
+    setComposerInitial(undefined);
+    setComposerOpen(true);
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
+      {!mailAPI.isElectron && (
+        <div className="bg-gradient-primary text-primary-foreground text-xs px-4 py-1.5 flex items-center justify-center gap-2">
+          <Sparkles className="h-3.5 w-3.5" />
+          Böngésző előnézet — demó adatokkal. A natív Mac appban valódi IMAP fiókokat tudsz hozzáadni.
+        </div>
+      )}
+      <div className="flex-1 flex min-h-0">
+        <Sidebar
+          accounts={accounts}
+          activeAccountId={activeAccountId}
+          activeMailbox={activeMailbox}
+          onSelectAccount={(id) => setActiveAccountId(id)}
+          onSelectMailbox={setActiveMailbox}
+          onAddAccount={() => setAccountDlgOpen(true)}
+          onOpenTemplates={() => setTemplatesOpen(true)}
+          onOpenSettings={() => setAccountDlgOpen(true)}
+        />
+
+        <MessageList
+          messages={messages}
+          selectedSeqno={selected?.seqno ?? null}
+          onSelect={setSelected}
+          loading={loading}
+          onRefresh={loadMessages}
+          mailbox={activeMailbox}
+        />
+
+        <div className="flex-1 flex flex-col min-w-0 relative">
+          <div className="absolute top-2 right-3 z-10">
+            <Button onClick={openCompose} className="bg-gradient-primary shadow-mac-md">
+              <PenSquare className="h-4 w-4 mr-1.5" /> Új levél
+            </Button>
+          </div>
+          <MessageView message={selected} onReply={handleReply} />
+        </div>
+      </div>
+
+      <Composer
+        open={composerOpen}
+        onClose={() => setComposerOpen(false)}
+        accounts={accounts}
+        defaultAccountId={activeAccountId}
+        initial={composerInitial}
+      />
+      <AccountDialog
+        open={accountDlgOpen}
+        onClose={() => setAccountDlgOpen(false)}
+        onSaved={async () => {
+          const list = await mailAPI.accounts.list();
+          setAccounts(list);
+        }}
+      />
+      <TemplatesDialog open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
     </div>
   );
 };
-
-const Index = PlaceholderIndex;
 
 export default Index;
