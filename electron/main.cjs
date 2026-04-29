@@ -136,9 +136,9 @@ function withImap(account, totalTimeoutMs, work) {
   });
 }
 
-function openBox(imap, name) {
+function openBox(imap, name, readOnly = true) {
   return new Promise((resolve, reject) => {
-    imap.openBox(name, true, (err, box) => (err ? reject(err) : resolve(box)));
+    imap.openBox(name, readOnly, (err, box) => (err ? reject(err) : resolve(box)));
   });
 }
 
