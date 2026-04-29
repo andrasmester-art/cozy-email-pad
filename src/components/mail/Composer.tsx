@@ -82,12 +82,6 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
       const saved = getDefaultAccountId();
       const hasInitial = !!(initial?.to || initial?.cc || initial?.bcc || initial?.subject || initial?.body);
       const draft = !hasInitial ? loadDraft() : null;
-  useEffect(() => {
-    if (open) {
-      mailAPI.templates.list().then(setTemplates);
-      const saved = getDefaultAccountId();
-      const hasInitial = !!(initial?.to || initial?.cc || initial?.bcc || initial?.subject || initial?.body);
-      const draft = !hasInitial ? loadDraft() : null;
       const offerDraft = draft && isDraftMeaningful(draft);
 
       const initId = saved && accounts.some((a) => a.id === saved)
