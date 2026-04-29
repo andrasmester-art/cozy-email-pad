@@ -347,15 +347,20 @@ ipcMain.handle("cache:loadOlder", async (_e, { accountId, mailbox, pageSize }) =
 // Egy fiók szinkronizálása. Csak az INBOX-ot húzzuk inkrementálisan, hogy
 // fiókváltás ne akadjon meg a többi mappa miatt — azokat csak akkor szinkronizáljuk,
 // amikor a felhasználó rákattint.
+// Egy fiók szinkronizálása. Az INBOX és a Drafts mindig friss legyen
+// fiókváltáskor (Piszkozatok mappában gyorsan akarunk visszanézni); a többi
+// mappa csak akkor szinkronizál, amikor a felhasználó rákattint.
 ipcMain.handle("cache:syncAccount", async (_e, { accountId }) => {
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("A fiók nem található.");
   const results = [];
-  try {
-    const r = await syncMailbox(account, "INBOX");
-    results.push({ mailbox: "INBOX", ok: true, added: r.added, missing: !!r.missing });
-  } catch (e) {
-    results.push({ mailbox: "INBOX", ok: false, error: String(e?.message || e) });
+  for (const mb of ["INBOX", "Drafts"]) {
+    try {
+      const r = await syncMailbox(account, mb);
+      results.push({ mailbox: mb, ok: true, added: r.added, missing: !!r.missing });
+    } catch (e) {
+      results.push({ mailbox: mb, ok: false, error: String(e?.message || e) });
+    }
   }
   return { ok: true, results };
 });
@@ -393,6 +398,56 @@ ipcMain.handle("smtp:send", async (_e, { accountId, to, cc, bcc, subject, html, 
     to, cc, bcc, subject, html, text,
   });
   return { ok: true, messageId: info.messageId };
+});
+
+// ---- IPC: Draft mentés a szerverre (IMAP APPEND a Drafts mappába) ----
+// Összeállítjuk a teljes RFC822 üzenetet a nodemailer MailComposerrel,
+// majd a node-imap `append` metódusával beletesszük a Drafts mappába
+// `\Draft` flag-gel és a jelenlegi időbélyegzővel. Sikeres APPEND után
+// inkrementálisan szinkronizáljuk a Drafts mappát, hogy azonnal megjelenjen
+// a UI-ban — és más kliensben (Gmail web, Mail.app) is látható legyen.
+function buildRawMime(account, payload) {
+  const MailComposer = require("nodemailer/lib/mail-composer");
+  const fromAddress = account.displayName
+    ? `"${String(account.displayName).replace(/"/g, '\\"')}" <${account.user}>`
+    : account.from || account.user;
+  const composer = new MailComposer({
+    from: fromAddress,
+    to: payload.to || undefined,
+    cc: payload.cc || undefined,
+    bcc: payload.bcc || undefined,
+    subject: payload.subject || "",
+    html: payload.html || undefined,
+    text: payload.text || undefined,
+  });
+  return new Promise((resolve, reject) => {
+    composer.compile().build((err, message) => {
+      if (err) reject(err); else resolve(message);
+    });
+  });
+}
+
+function appendToMailbox(imap, mailbox, raw, flags) {
+  return new Promise((resolve, reject) => {
+    imap.append(raw, { mailbox, flags: flags || [], date: new Date() }, (err) => {
+      if (err) reject(err); else resolve();
+    });
+  });
+}
+
+ipcMain.handle("imap:appendDraft", async (_e, { accountId, to, cc, bcc, subject, html, text }) => {
+  const account = loadAccounts().find((a) => a.id === accountId);
+  if (!account) throw new Error("A fiók nem található.");
+  const raw = await buildRawMime(account, { to, cc, bcc, subject, html, text });
+  await withImap(account, 60000, async (imap) => {
+    const realName = await resolveMailbox(imap, "Drafts");
+    if (!realName) throw new Error("Drafts mappa nem található a szerveren.");
+    await appendToMailbox(imap, realName, raw, ["\\Draft", "\\Seen"]);
+  });
+  // Inkrementális szinkron, hogy az új piszkozat azonnal megjelenjen.
+  try { await syncMailbox(account, "Drafts"); } catch { /* nem kritikus */ }
+  const state = cache.read(userDataDir(), accountId, "Drafts");
+  return { ok: true, messages: state.messages, updatedAt: state.updatedAt };
 });
 
 // ---- Window ----

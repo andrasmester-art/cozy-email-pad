@@ -152,6 +152,19 @@ export const mailAPI = {
       const acc = accounts.find((a) => a.id === accountId);
       return mailbox === "INBOX" ? demoMessages(acc?.label || "demo@local") : [];
     },
+    // Piszkozat mentése a szerver Drafts mappájába (IMAP APPEND).
+    async appendDraft(params: {
+      accountId: string;
+      to?: string; cc?: string; bcc?: string;
+      subject: string; html: string; text: string;
+    }): Promise<{ ok: true; messages?: MailMessage[] }> {
+      if (isElectron && (window as any).mailAPI.imap.appendDraft) {
+        return (window as any).mailAPI.imap.appendDraft(params);
+      }
+      // Demó / böngésző: nincs IMAP, csak visszajelzés.
+      await new Promise((r) => setTimeout(r, 300));
+      return { ok: true };
+    },
   },
 
   cache: {

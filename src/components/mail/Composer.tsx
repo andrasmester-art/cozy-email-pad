@@ -67,6 +67,7 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
   const [body, setBody] = useState(initial?.body || "");
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [sending, setSending] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const [saveTplOpen, setSaveTplOpen] = useState(false);
   const [tplName, setTplName] = useState("");
   const [delay, setDelay] = useState<number>(getSendDelay());
@@ -308,6 +309,36 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
     }, delay * 1000);
   };
 
+  // Piszkozat mentése a szerver Drafts mappájába (IMAP APPEND).
+  // Ettől más kliensben (Gmail web, Mail.app) is megjelenik, és a saját
+  // appunkban is — a Piszkozatok mappa azonnal frissül.
+  const saveDraftToServer = async () => {
+    if (savingDraft) return;
+    if (!accountId) return toast.error("Válassz fiókot");
+    if (!subject.trim() && !body.trim()) {
+      return toast.error("A piszkozat üres");
+    }
+    setSavingDraft(true);
+    try {
+      await mailAPI.imap.appendDraft({
+        accountId,
+        to: to || undefined,
+        cc: cc || undefined,
+        bcc: bcc || undefined,
+        subject: subject || "(piszkozat)",
+        html: body,
+        text: htmlToText(body),
+      });
+      toast.success("Piszkozat mentve a szerverre");
+    } catch (e: any) {
+      toast.error("Piszkozat mentése sikertelen", {
+        description: String(e?.message || e),
+      });
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
   const saveAsTemplate = async () => {
     if (!tplName.trim()) return;
     const tpl: EmailTemplate = {
@@ -545,6 +576,18 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={saveDraftToServer}
+              disabled={savingDraft || !accountId}
+              title="A piszkozat mentése a fiók szerverére (Drafts mappa) — más kliensekben is látható lesz"
+            >
+              {savingDraft
+                ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                : <FileText className="h-4 w-4 mr-1.5" />}
+              {savingDraft ? "Mentés…" : "Mentés piszkozatként"}
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setSaveTplOpen(true)}>
               <Save className="h-4 w-4 mr-1.5" /> Mentés sablonként
             </Button>
