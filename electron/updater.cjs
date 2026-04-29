@@ -111,6 +111,30 @@ function fetchLatestSha() {
   });
 }
 
+// Fetch the version field from the package.json on the default branch.
+function fetchRemoteVersion() {
+  return new Promise((resolve, reject) => {
+    const opts = {
+      host: "raw.githubusercontent.com",
+      path: `/${REPO_OWNER}/${REPO_NAME}/${DEFAULT_BRANCH}/package.json`,
+      headers: { "User-Agent": "MEpodMail-Updater" },
+    };
+    https.get(opts, (res) => {
+      let body = "";
+      res.on("data", (c) => (body += c));
+      res.on("end", () => {
+        if (res.statusCode !== 200) {
+          return reject(new Error(`GitHub raw ${res.statusCode}`));
+        }
+        try {
+          const j = JSON.parse(body);
+          resolve(j.version || null);
+        } catch (e) { reject(e); }
+      });
+    }).on("error", reject);
+  });
+}
+
 function readLocalSha(dir) {
   try {
     const head = fs.readFileSync(path.join(dir, ".git", "HEAD"), "utf-8").trim();
@@ -124,6 +148,19 @@ function readLocalSha(dir) {
   }
 }
 
+// Compare two semver-like strings ("1.2.3"). Returns -1, 0, 1.
+function compareVersions(a, b) {
+  if (!a || !b) return 0;
+  const pa = String(a).split(".").map((n) => parseInt(n, 10) || 0);
+  const pb = String(b).split(".").map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const x = pa[i] || 0, y = pb[i] || 0;
+    if (x < y) return -1;
+    if (x > y) return 1;
+  }
+  return 0;
+}
+
 ipcMain.handle("updater:info", async () => {
   const root = appRoot();
   const writable = isWritable(root);
@@ -131,19 +168,33 @@ ipcMain.handle("updater:info", async () => {
   const packaged = isPackagedBundle();
   let local = null;
   if (git) local = readLocalSha(root);
+
+  // Local installed version comes from the running app's package.json.
+  const localVersion = app.getVersion();
+
   let remote = null;
   let remoteError = null;
+  let remoteVersion = null;
   try {
     remote = await fetchLatestSha();
   } catch (e) {
     remoteError = String(e?.message || e);
   }
+  try {
+    remoteVersion = await fetchRemoteVersion();
+  } catch { /* non-fatal */ }
+
+  const versionCmp = compareVersions(localVersion, remoteVersion);
+  const upToDateByVersion = remoteVersion ? versionCmp >= 0 : null;
+
   return {
     appRoot: root,
-    writable: writable || packaged, // packaged builds also support self-update via bundle replacement
+    writable: writable || packaged,
     isGit: git,
     localSha: local,
+    localVersion,
     remoteSha: remote?.sha || null,
+    remoteVersion,
     remoteMessage: remote?.message || null,
     remoteDate: remote?.date || null,
     remoteError,
