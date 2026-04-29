@@ -3,6 +3,15 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.8.0] – 2026-04-29
+
+### Új
+- **Piszkozat mentése a szerverre** — a levélíró ablakban új „Mentés piszkozatként" gomb. Az üzenet a fiók IMAP **Drafts** mappájába kerül `\Draft` flag-gel, így más kliensekben (Gmail web, Mail.app, Outlook stb.) is megjelenik, és a saját appodban a Piszkozatok mappa azonnal frissül.
+- Fiókváltáskor háttérben már nem csak az **INBOX**, hanem a **Drafts** mappa is automatikusan szinkronizálódik, így a Piszkozatok mappára kattintva azonnal látod a szerveren tárolt piszkozatokat.
+
+### Változás
+- A Piszkozatok mappára kattintáskor a meglévő inkrementális szinkron hozza le a szerverről az új piszkozatokat (a 200-as lazy-load oldalakkal — régebbiekért lejjebb görgess).
+
 ## [1.7.1] – 2026-04-29
 
 ### Javítás

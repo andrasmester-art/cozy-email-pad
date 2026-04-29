@@ -576,6 +576,18 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={saveDraftToServer}
+              disabled={savingDraft || !accountId}
+              title="A piszkozat mentése a fiók szerverére (Drafts mappa) — más kliensekben is látható lesz"
+            >
+              {savingDraft
+                ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                : <FileText className="h-4 w-4 mr-1.5" />}
+              {savingDraft ? "Mentés…" : "Mentés piszkozatként"}
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setSaveTplOpen(true)}>
               <Save className="h-4 w-4 mr-1.5" /> Mentés sablonként
             </Button>
