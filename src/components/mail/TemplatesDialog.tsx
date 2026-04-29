@@ -9,6 +9,7 @@ import { RichTextEditor } from "./RichTextEditor";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { sanitizeEmailHtml } from "@/lib/sanitizeHtml";
 
 type Props = { open: boolean; onClose: () => void };
 
