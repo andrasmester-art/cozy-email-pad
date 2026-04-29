@@ -60,11 +60,10 @@ echo -e "${YELLOW}    Ez 1-3 percig tarthat, légy türelmes…${NC}"
 npm install
 echo -e "${GREEN}✓ Függőségek telepítve${NC}"
 
-# Electron + packager külön (ha még nincsenek)
-if [ ! -d "node_modules/electron" ] || [ ! -d "node_modules/@electron/packager" ]; then
-  echo -e "${YELLOW}→ Electron csomagok telepítése…${NC}"
-  npm install --save-dev electron @electron/packager
-fi
+# Electron + packager + IMAP/SMTP runtime függőségek
+echo -e "${YELLOW}→ Electron és levelező csomagok ellenőrzése…${NC}"
+npm install --save-dev electron @electron/packager
+npm install --save imap mailparser nodemailer
 
 # ─── 3. Build ─────────────────────────────────────────────────────
 echo ""
