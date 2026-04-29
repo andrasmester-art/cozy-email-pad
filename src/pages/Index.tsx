@@ -163,6 +163,7 @@ const Index = () => {
         }}
       />
       <TemplatesDialog open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
+      <SignaturesDialog open={signaturesOpen} onClose={() => setSignaturesOpen(false)} />
 
       <AlertDialog open={!!deletingAccount} onOpenChange={(o) => !o && setDeletingAccount(null)}>
         <AlertDialogContent>
