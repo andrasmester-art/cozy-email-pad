@@ -529,6 +529,20 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
             <Button variant="outline" size="sm" onClick={() => setSaveTplOpen(true)}>
               <Save className="h-4 w-4 mr-1.5" /> Mentés sablonként
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={discardDraft}
+              disabled={!lastSavedAt && !pendingDraft}
+              title={
+                !lastSavedAt && !pendingDraft
+                  ? "Nincs mentett piszkozat"
+                  : "A mentett piszkozat törlése a tárolóból"
+              }
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 className="h-4 w-4 mr-1.5" /> Piszkozat törlése
+            </Button>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
