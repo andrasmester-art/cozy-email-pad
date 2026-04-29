@@ -150,6 +150,7 @@ module.exports = {
   write,
   mergeNewMessages,
   updateMessageFlags,
+  applyFlagUpdates,
   reset,
   purgeAccount,
 };
