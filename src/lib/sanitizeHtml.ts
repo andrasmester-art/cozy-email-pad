@@ -66,6 +66,13 @@ export function sanitizeEmailHtml(input: string): string {
     ALLOW_DATA_ATTR: false,
     FORBID_TAGS: ["style", "script", "iframe", "object", "embed", "form", "input", "button", "meta", "link", "base"],
     FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover", "onfocus", "onblur", "onchange", "onsubmit", "srcset"],
+    // FONTOS: a `data:` URL séma alapból NINCS engedélyezve a DOMPurify-ban.
+    // Ez azt jelenti, hogy a beillesztett vagy beágyazott képek (a Tiptap
+    // editor `data:image/png;base64,…` formában mentett képei) sablon-mentés
+    // után eltűnnének. `ADD_DATA_URI_TAGS: ["img"]`-vel kifejezetten csak az
+    // <img> tag számára engedélyezzük a data URI-kat — más elemekre nem,
+    // így a `data:text/html` fajta XSS-vektor továbbra sem érvényesül.
+    ADD_DATA_URI_TAGS: ["img"],
     // Strip <html>/<head>/<body> shells from pasted email content
     WHOLE_DOCUMENT: false,
     RETURN_TRUSTED_TYPE: false,
@@ -91,7 +98,12 @@ export function sanitizeEmailHtml(input: string): string {
   });
   tmp.querySelectorAll("img[src]").forEach((img) => {
     const src = (img.getAttribute("src") || "").trim();
+    // Csak a tényleg veszélyes sémákat dobjuk el. A `data:image/*` (a
+    // beágyazott base64 képeink — sablonokba mentve, drag-and-drop, paste,
+    // fájl-választó) maradjon. A `data:text/html` és a `javascript:` viszont
+    // tilos.
     if (/^javascript:/i.test(src)) img.removeAttribute("src");
+    else if (/^data:(?!image\/)/i.test(src)) img.removeAttribute("src");
   });
 
   return tmp.innerHTML;

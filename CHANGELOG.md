@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.19.1] – 2026-04-29
+
+### Javítás
+- **A sablonok (és aláírások) most már megőrzik a beágyazott képeket.** Korábban a HTML-tisztító (DOMPurify) alapból nem engedte át a `data:image/...;base64,…` URL-eket, ezért a sablonba helyezett, beillesztett vagy drag-droppal bedobott képek `<img>` tagjei `src` nélkül maradtak — mentés/újratöltés után üres ikonok jelentek meg. A sanitizer mostantól kifejezetten engedélyezi a `data:image/*` URL-eket az `<img>` tagra (és csak arra), így a sablonok teljes vizuális tartalma megmarad. A `data:text/html` és `javascript:` továbbra is tilos.
+
 ## [1.19.0] – 2026-04-29
 
 ### Új
