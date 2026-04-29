@@ -27,7 +27,7 @@ const MessagePage = () => {
   const accountId = params.get("accountId") || "";
   const mailbox = params.get("mailbox") || "INBOX";
   const seqno = params.get("seqno") ? Number(params.get("seqno")) : null;
-  const uid = params.get("uid") ? Number(params.get("uid")) : null;
+  const uid = params.get("uid");
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [message, setMessage] = useState<MailMessage | null>(null);
