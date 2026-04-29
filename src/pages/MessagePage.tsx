@@ -48,8 +48,8 @@ const MessagePage = () => {
         if (cancelled) return;
         setAccounts(accs);
         const found =
-          list.find((m) => uid != null && m.uid === uid) ||
-          list.find((m) => seqno != null && m.seqno === seqno) ||
+          (uid ? list.find((m) => m.uid === uid) : null) ||
+          (seqno != null ? list.find((m) => m.seqno === seqno) : null) ||
           null;
         setMessage(found);
         if (!found) toast.error("A levél nem található a cache-ben");
