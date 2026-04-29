@@ -19,4 +19,13 @@ contextBridge.exposeInMainWorld("mailAPI", {
   smtp: {
     send: (params) => ipcRenderer.invoke("smtp:send", params),
   },
+  updater: {
+    info: () => ipcRenderer.invoke("updater:info"),
+    apply: () => ipcRenderer.invoke("updater:apply"),
+    onLog: (cb) => {
+      const handler = (_e, line) => cb(line);
+      ipcRenderer.on("updater:log", handler);
+      return () => ipcRenderer.removeListener("updater:log", handler);
+    },
+  },
 });

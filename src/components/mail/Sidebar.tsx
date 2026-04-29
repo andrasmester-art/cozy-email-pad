@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Account } from "@/lib/mailBridge";
 import { cn } from "@/lib/utils";
-import { Inbox, Send, FileText, Archive, Trash2, AlertOctagon, Plus, Settings, FileCode2, Pencil, X, AlertCircle, CheckCircle2, Circle, PenSquare, FileSignature, RefreshCw } from "lucide-react";
+import { Inbox, Send, FileText, Archive, Trash2, AlertOctagon, Plus, Settings, FileCode2, Pencil, X, AlertCircle, CheckCircle2, Circle, PenSquare, FileSignature, RefreshCw, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getAllAccountStatuses, formatRelative, formatCountdown, type AccountStatus } from "@/lib/accountStatus";
@@ -21,6 +21,7 @@ type Props = {
   onOpenTemplates: () => void;
   onOpenSignatures: () => void;
   onOpenSettings: () => void;
+  onOpenUpdater: () => void;
 };
 
 const MAILBOXES = [
@@ -36,7 +37,7 @@ const COLORS = ["bg-primary", "bg-success", "bg-warning", "bg-destructive", "bg-
 
 export function Sidebar({
   accounts, activeAccountId, activeMailbox,
-  onSelectAccount, onSelectMailbox, onAddAccount, onEditAccount, onDeleteAccount, onCompose, onSyncAll, syncing, onOpenTemplates, onOpenSignatures, onOpenSettings,
+  onSelectAccount, onSelectMailbox, onAddAccount, onEditAccount, onDeleteAccount, onCompose, onSyncAll, syncing, onOpenTemplates, onOpenSignatures, onOpenSettings, onOpenUpdater,
 }: Props) {
   const [statuses, setStatuses] = useState<Record<string, AccountStatus>>(() => getAllAccountStatuses());
 
@@ -197,6 +198,9 @@ export function Sidebar({
         </Button>
         <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={onOpenSettings}>
           <Settings className="h-4 w-4" /> Beállítások
+        </Button>
+        <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={onOpenUpdater}>
+          <Download className="h-4 w-4" /> App frissítése
         </Button>
       </div>
     </aside>

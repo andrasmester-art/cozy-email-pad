@@ -190,6 +190,55 @@ export const mailAPI = {
       return { ok: true, messageId: `demo-${Date.now()}` };
     },
   },
+
+  updater: {
+    async info(): Promise<UpdaterInfo> {
+      if (isElectron && (window as any).mailAPI.updater) {
+        return (window as any).mailAPI.updater.info();
+      }
+      return {
+        appRoot: "(böngésző)",
+        writable: false,
+        isGit: false,
+        localSha: null,
+        remoteSha: null,
+        remoteMessage: null,
+        remoteDate: null,
+        remoteError: "Az automatikus frissítés csak a Mac/Windows appban érhető el.",
+        repoUrl: "https://github.com/andrasmester-art/cozy-email-pad.git",
+        branch: "main",
+        upToDate: false,
+      };
+    },
+    async apply(): Promise<{ ok: true }> {
+      if (isElectron && (window as any).mailAPI.updater) {
+        return (window as any).mailAPI.updater.apply();
+      }
+      // Browser fallback: just hard-reload to fetch the newest assets.
+      window.location.reload();
+      return { ok: true };
+    },
+    onLog(cb: (line: string) => void): () => void {
+      if (isElectron && (window as any).mailAPI.updater?.onLog) {
+        return (window as any).mailAPI.updater.onLog(cb);
+      }
+      return () => {};
+    },
+  },
+};
+
+export type UpdaterInfo = {
+  appRoot: string;
+  writable: boolean;
+  isGit: boolean;
+  localSha: string | null;
+  remoteSha: string | null;
+  remoteMessage: string | null;
+  remoteDate: string | null;
+  remoteError: string | null;
+  repoUrl: string;
+  branch: string;
+  upToDate: boolean;
 };
 
 function defaultTemplates(): EmailTemplate[] {
