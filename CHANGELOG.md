@@ -3,6 +3,12 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.25.0] – 2026-04-29
+
+### Új
+- **A levéllista sortávolsága (sűrűsége) most állítható.** A lista címsorán új sor-ikon menüből választhatsz három mód közül: **Tömör**, **Kényelmes** (alapértelmezett), **Tágas**.
+- A választás a tárolóban megmarad — a `listWidth`-hez hasonlóan újraindítás után is ugyanúgy fog kinézni a lista.
+
 ## [1.24.0] – 2026-04-29
 
 ### Új

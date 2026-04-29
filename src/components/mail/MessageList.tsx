@@ -3,9 +3,40 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNowStrict } from "date-fns";
 import { hu } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
-import { Search, RefreshCw, Loader2, Star, Mail } from "lucide-react";
+import { Search, RefreshCw, Loader2, Star, Mail, Rows3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenuLabel, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { useState, useMemo, useRef, useEffect } from "react";
+
+// A levéllista sortávolsága (sűrűsége). A választás localStorage-ben
+// perzisztálódik, hogy újraindításkor is ugyanúgy nézzen ki.
+export type ListDensity = "compact" | "comfortable" | "relaxed";
+const DENSITY_KEY = "mw.layout.listDensity";
+function readDensity(): ListDensity {
+  try {
+    const v = localStorage.getItem(DENSITY_KEY);
+    if (v === "compact" || v === "comfortable" || v === "relaxed") return v;
+  } catch {}
+  return "comfortable";
+}
+function writeDensity(d: ListDensity) {
+  try { localStorage.setItem(DENSITY_KEY, d); } catch {}
+}
+// Az egyes sűrűségi módok Tailwind-stílusai: a függőleges padding és a
+// belső sorok közti rés állítja a tényleges „sortávolságot".
+const DENSITY_STYLES: Record<ListDensity, { padding: string; gap: string }> = {
+  compact:     { padding: "py-1.5", gap: "mt-0" },
+  comfortable: { padding: "py-3",   gap: "mt-0.5" },
+  relaxed:     { padding: "py-4",   gap: "mt-1" },
+};
+const DENSITY_LABEL: Record<ListDensity, string> = {
+  compact: "Tömör",
+  comfortable: "Kényelmes",
+  relaxed: "Tágas",
+};
 
 type Props = {
   messages: MailMessage[];
@@ -33,6 +64,8 @@ type FilterMode = "all" | "unread" | "flagged";
 export function MessageList({ messages, selectedSeqno, onSelect, onOpen, onToggleFlag, loading, onRefresh, mailbox, onLoadMore, loadingMore, exhausted, width }: Props) {
   const [q, setQ] = useState("");
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
+  const [density, setDensityState] = useState<ListDensity>(readDensity);
+  const setDensity = (d: ListDensity) => { setDensityState(d); writeDensity(d); };
 
   // Mappaváltáskor visszaállunk az "Összes" szűrőre, hogy ne maradjon rajta
   // egy üres találati lista egy másik mappában.
@@ -65,9 +98,36 @@ export function MessageList({ messages, selectedSeqno, onSelect, onOpen, onToggl
           <div className="text-sm font-semibold">{mailbox}</div>
           <div className="text-xs text-muted-foreground">{filtered.length} üzenet</div>
         </div>
-        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onRefresh} title="Frissítés">
-          <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-        </Button>
+        <div className="flex items-center gap-0.5">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8"
+                title={`Sortávolság: ${DENSITY_LABEL[density]}`}
+              >
+                <Rows3 className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Sortávolság</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {(["compact", "comfortable", "relaxed"] as ListDensity[]).map((d) => (
+                <DropdownMenuItem
+                  key={d}
+                  onClick={() => setDensity(d)}
+                  className={density === d ? "bg-accent text-accent-foreground" : ""}
+                >
+                  {DENSITY_LABEL[d]}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onRefresh} title="Frissítés">
+            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+          </Button>
+        </div>
       </div>
 
       <div className="px-3 pb-2 space-y-2">
@@ -117,6 +177,7 @@ export function MessageList({ messages, selectedSeqno, onSelect, onOpen, onToggl
         onLoadMore={onLoadMore}
         loadingMore={loadingMore}
         exhausted={exhausted}
+        density={density}
         searching={!!q.trim() || filterMode !== "all"}
         emptyHint={
           filterMode === "unread" ? "Nincs olvasatlan levél"
@@ -164,7 +225,7 @@ function FilterChip({
 }
 
 function ScrollList({
-  loading, messages, filtered, selectedSeqno, onSelect, onOpen, onToggleFlag, onLoadMore, loadingMore, exhausted, searching, emptyHint,
+  loading, messages, filtered, selectedSeqno, onSelect, onOpen, onToggleFlag, onLoadMore, loadingMore, exhausted, searching, emptyHint, density,
 }: {
   loading: boolean;
   messages: MailMessage[];
@@ -178,6 +239,7 @@ function ScrollList({
   exhausted?: boolean;
   searching: boolean;
   emptyHint?: string;
+  density: ListDensity;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -213,7 +275,8 @@ function ScrollList({
                     onClick={() => onSelect(m)}
                     onDoubleClick={() => onOpen?.(m)}
                     className={cn(
-                      "w-full text-left pl-4 pr-10 py-3 border-b border-border/60 transition-colors",
+                      "w-full text-left pl-4 pr-10 border-b border-border/60 transition-colors",
+                      DENSITY_STYLES[density].padding,
                       active ? "bg-accent" : "hover:bg-muted/60",
                       flagged && !active && "bg-amber-50/60 dark:bg-amber-950/20",
                     )}
@@ -236,8 +299,8 @@ function ScrollList({
                           : ""}
                       </span>
                     </div>
-                    <div className={cn("text-sm truncate mt-0.5", unread && "font-semibold")}>{m.subject}</div>
-                    <div className="text-xs text-muted-foreground truncate mt-0.5">{m.snippet}</div>
+                    <div className={cn("text-sm truncate", DENSITY_STYLES[density].gap, unread && "font-semibold")}>{m.subject}</div>
+                    <div className={cn("text-xs text-muted-foreground truncate", DENSITY_STYLES[density].gap)}>{m.snippet}</div>
                   </button>
                   {onToggleFlag && (
                     <button
