@@ -136,8 +136,46 @@ const Index = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeAccountId]);
 
+  // "Szinkronizálás" gomb: minden fiók összes mappáját inkrementálisan frissíti.
+  const syncAll = useCallback(async () => {
+    if (syncing || accounts.length === 0) {
+      if (accounts.length === 0) toast.info("Nincs fiók a szinkronizáláshoz");
+      return;
+    }
+    setSyncing(true);
+    const t = toast.loading(`Frissítés (${accounts.length} fiók)…`);
+    let totalAdded = 0;
+    let failCount = 0;
+    await Promise.all(
+      accounts.map(async (a) => {
+        try {
+          const r = await mailAPI.cache.syncAccount(a.id);
+          totalAdded += (r.results || []).reduce((s, x) => s + (x.added || 0), 0);
+        } catch {
+          failCount++;
+        }
+      }),
+    );
+    if (activeAccountId) {
+      const fresh = await mailAPI.imap.fetch({
+        accountId: activeAccountId,
+        mailbox: activeMailbox,
+        limit: 1000,
+      });
+      setMessages(fresh);
+    }
+    setSyncing(false);
+    toast.dismiss(t);
+    if (failCount === 0) {
+      toast.success(totalAdded > 0 ? `Frissítve — ${totalAdded} új levél` : "Minden naprakész");
+    } else {
+      toast.warning(`${accounts.length - failCount} sikeres, ${failCount} hiba`);
+    }
+  }, [accounts, syncing, activeAccountId, activeMailbox]);
+
   const quoteBody = (m: MailMessage) =>
     `<p></p><blockquote><p><em>${m.from} írta:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`;
+
 
   const handleReply = (m: MailMessage) => {
     setComposerInitial({
