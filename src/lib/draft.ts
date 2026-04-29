@@ -1,5 +1,6 @@
 // Persists the currently-edited (unsent) composer draft to localStorage so
 // it survives reloads, accidental closes, or app restarts.
+import { normalizeAddressField } from "./emailAddress";
 
 const KEY = "mw.composer.draft.v1";
 
