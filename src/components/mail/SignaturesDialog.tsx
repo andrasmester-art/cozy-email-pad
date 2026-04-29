@@ -181,7 +181,9 @@ export function SignaturesDialog({ open, onClose }: Props) {
                         <div
                           className="prose prose-sm max-w-none dark:prose-invert border-t border-border/60 pt-3 text-foreground"
                           dangerouslySetInnerHTML={{
-                            __html: selected.body || '<p class="text-muted-foreground italic">Üres aláírás</p>',
+                            __html: selected.body
+                              ? sanitizeEmailHtml(selected.body)
+                              : '<p class="text-muted-foreground italic">Üres aláírás</p>',
                           }}
                         />
                       </div>
