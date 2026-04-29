@@ -743,7 +743,13 @@ function buildRawMime(account, payload) {
 
 function appendToMailbox(imap, mailbox, raw, flags) {
   return new Promise((resolve, reject) => {
-    imap.append(raw, { mailbox, flags: flags || [], date: new Date() }, (err) => {
+    // FONTOS: a node-imap `append()` opciók közé NE tegyünk `date` mezőt.
+    // A node-imap belső `buildSearchQuery`/argument-formázója egy `isDate`
+    // helpert hív, ami egyes Node verziókban már nincs az `util` modulban
+    // (pl. Node 20+), és „TypeError: isDate is not a function" hibát dob.
+    // Date nélkül a szerver a saját aktuális idejét rendeli a levélhez,
+    // ami piszkozatnál teljesen elfogadható.
+    imap.append(raw, { mailbox, flags: flags || [] }, (err) => {
       if (err) reject(err); else resolve();
     });
   });
