@@ -67,6 +67,7 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
   const [body, setBody] = useState(initial?.body || "");
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [sending, setSending] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const [saveTplOpen, setSaveTplOpen] = useState(false);
   const [tplName, setTplName] = useState("");
   const [delay, setDelay] = useState<number>(getSendDelay());
