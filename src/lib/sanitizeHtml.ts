@@ -98,7 +98,12 @@ export function sanitizeEmailHtml(input: string): string {
   });
   tmp.querySelectorAll("img[src]").forEach((img) => {
     const src = (img.getAttribute("src") || "").trim();
+    // Csak a tényleg veszélyes sémákat dobjuk el. A `data:image/*` (a
+    // beágyazott base64 képeink — sablonokba mentve, drag-and-drop, paste,
+    // fájl-választó) maradjon. A `data:text/html` és a `javascript:` viszont
+    // tilos.
     if (/^javascript:/i.test(src)) img.removeAttribute("src");
+    else if (/^data:(?!image\/)/i.test(src)) img.removeAttribute("src");
   });
 
   return tmp.innerHTML;
