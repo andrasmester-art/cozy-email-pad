@@ -3,6 +3,12 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.20.1] – 2026-04-29
+
+### Javítás
+- **Egymásba ágyazott idézetek esetén az aláírás mostantól a *legfelső, legkülső* idézet fölé kerül.** Ha pl. továbbküldesz egy olyan választ, ami már tartalmazott egy korábbi reply-quote-ot, eddig előfordulhatott, hogy az aláírás egy belső, ágyazott `<blockquote>` elé csúszott — ezzel kettéhasítva az idézett szálat. Mostantól DOM-szinten kiszűrjük a top-level quote-blokkot (azt, aminek nincs `data-mwquote` őse), és kifejezetten AZ ELÉ szúrjuk az aláírást. Az idézett szál belső struktúrája érintetlen marad.
+- A „valós idejű aláírás-előnézet" sáv (v1.20.0) ezt a viselkedést is helyesen tükrözi: **Tartalom → Aláírás → Idézett előzmény**, akkor is, ha az idézet több szintű.
+
 ## [1.20.0] – 2026-04-29
 
 ### Új
