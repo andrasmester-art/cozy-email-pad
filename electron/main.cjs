@@ -86,7 +86,7 @@ ipcMain.handle("templates:delete", (_e, id) => {
 // IPC: IMAP
 function imapConfigFor(account) {
   return new Imap({
-    user: account.user,
+    user: account.authUser || account.user,
     password: decryptPassword(account.password),
     host: account.imapHost,
     port: account.imapPort || 993,
