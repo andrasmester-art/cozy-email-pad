@@ -130,7 +130,8 @@ const Index = () => {
       />
       <AccountDialog
         open={accountDlgOpen}
-        onClose={() => setAccountDlgOpen(false)}
+        onClose={() => { setAccountDlgOpen(false); setEditingAccount(null); }}
+        initial={editingAccount}
         onSaved={async () => {
           const list = await mailAPI.accounts.list();
           setAccounts(list);
