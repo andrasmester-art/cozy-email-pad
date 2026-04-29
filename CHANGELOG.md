@@ -3,6 +3,13 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.4.1] – 2026-04-29
+
+### Javítás
+- Rich text szerkesztő (aláírás + sablon): a H1/H2/H3, kép beszúrás és link gombok most ténylegesen működnek. Tiptap v3 alatt a `Link` extension duplán volt regisztrálva (StarterKit + külön `Link.configure`), ami „Duplicate extension names" figyelmeztetést és néma parancs-ütközést okozott — most a StarterKit Link-je le van tiltva, és csak a saját, biztonságos verzió fut.
+- Image extension explicit konfigurációt kapott (`inline: false`, `allowBase64: true`), így a beillesztett képek megjelennek.
+- A szerkesztő külső `value` szinkronizációja már nem írja felül a tartalmat gépelés/formázás közben (csak ha az editor nincs fókuszban), így a H1/H2 váltás nem „pattan vissza".
+
 ## [1.3.1] – 2026-04-29
 
 ### Változás
@@ -25,8 +32,6 @@ A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 - Szándékosan nincs cache, nincs UID-alapú inkrementális szinkron, nincs background sync, nincs auto-retry, nincs mailbox-felderítés. Minden hívás egyszer fut le és véget ér.
 - Egyelőre csak az INBOX mappa él valós szervernél; a Sent / Drafts / Archive üres listát ad.
 - A Gmail továbbra is sima IMAP/SMTP-vel csatlakozik, app-specifikus jelszóval (Google OAuth nincs).
-
-
 ## [1.2.0] – 2026-04-29
 
 ### Változás
