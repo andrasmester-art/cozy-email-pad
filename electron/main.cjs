@@ -334,8 +334,29 @@ async function syncMailbox(account, logicalMailbox) {
       uidsToFetch = allUids.slice(-cache.INITIAL_PAGE_SIZE);
     }
 
+    // Visszafelé szinkron: a már cache-elt UID-ok szerverbeli flag-jeit (\\Flagged,
+    // \\Seen) frissítjük, hogy más kliensben tett változások is megjelenjenek.
+    async function resyncFlags(currentState) {
+      const cachedUids = currentState.messages
+        .map((m) => (typeof m.uid === "number" ? m.uid : null))
+        .filter((u) => u != null);
+      if (cachedUids.length === 0) return currentState;
+      try {
+        const minU = Math.min(...cachedUids);
+        const maxU = Math.max(...cachedUids);
+        const flagsList = await fetchFlagsByUidRange(imap, `${minU}:${maxU}`);
+        const updates = new Map();
+        for (const f of flagsList) updates.set(f.uid, { flagged: f.flagged, seen: f.seen });
+        const { state: nextState, changed } = cache.applyFlagUpdates(currentState, updates);
+        return changed > 0 ? nextState : currentState;
+      } catch {
+        return currentState;
+      }
+    }
+
     if (uidsToFetch.length === 0) {
-      cache.write(userDataDir(), account.id, logicalMailbox, { ...state, updatedAt: Date.now() });
+      const synced = await resyncFlags(state);
+      cache.write(userDataDir(), account.id, logicalMailbox, { ...synced, updatedAt: Date.now() });
       return { added: 0, total: box.messages.total, mailbox: logicalMailbox };
     }
 
@@ -344,7 +365,8 @@ async function syncMailbox(account, logicalMailbox) {
     const fetched = await fetchByUidRange(imap, `${minUid}:${maxUid}`);
     const wanted = new Set(uidsToFetch);
     const newOnly = fetched.filter((m) => wanted.has(m.uid) && m.uid > (state.lastUid || 0));
-    const next = cache.mergeNewMessages(state, newOnly);
+    const merged = cache.mergeNewMessages(state, newOnly);
+    const next = await resyncFlags(merged);
     cache.write(userDataDir(), account.id, logicalMailbox, next);
     return { added: newOnly.length, total: box.messages.total, mailbox: logicalMailbox };
   });
