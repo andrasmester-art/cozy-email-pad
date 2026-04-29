@@ -74,7 +74,9 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
   const [pendingDraft, setPendingDraft] = useState<Draft | null>(null); // shown as a banner on open
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   const [savedTick, setSavedTick] = useState(0); // forces relative-time refresh
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const skipAutoSaveRef = useRef(false); // suppress autosave while we (re)hydrate fields
+  const savedFlashRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const handler = (e: Event) => setDelay((e as CustomEvent<number>).detail);
