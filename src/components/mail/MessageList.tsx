@@ -26,18 +26,32 @@ function senderName(from: string) {
   return (m ? m[1] : from).trim() || from;
 }
 
+type FilterMode = "all" | "unread" | "flagged";
+
 export function MessageList({ messages, selectedSeqno, onSelect, onOpen, onToggleFlag, loading, onRefresh, mailbox, onLoadMore, loadingMore, exhausted }: Props) {
   const [q, setQ] = useState("");
+  const [filterMode, setFilterMode] = useState<FilterMode>("all");
+
+  // Mappaváltáskor visszaállunk az "Összes" szűrőre, hogy ne maradjon rajta
+  // egy üres találati lista egy másik mappában.
+  useEffect(() => { setFilterMode("all"); }, [mailbox]);
+
+  const unreadCount = useMemo(() => messages.filter((m) => m.seen === false).length, [messages]);
+  const flaggedCount = useMemo(() => messages.filter((m) => !!m.flagged).length, [messages]);
+
   const filtered = useMemo(() => {
-    if (!q.trim()) return messages;
+    let list = messages;
+    if (filterMode === "unread") list = list.filter((m) => m.seen === false);
+    else if (filterMode === "flagged") list = list.filter((m) => !!m.flagged);
+    if (!q.trim()) return list;
     const needle = q.toLowerCase();
-    return messages.filter(
+    return list.filter(
       (m) =>
         m.subject.toLowerCase().includes(needle) ||
         m.from.toLowerCase().includes(needle) ||
         m.snippet.toLowerCase().includes(needle),
     );
-  }, [messages, q]);
+  }, [messages, q, filterMode]);
 
   return (
     <div className="w-[340px] shrink-0 border-r border-border bg-surface flex flex-col h-full">
@@ -51,7 +65,7 @@ export function MessageList({ messages, selectedSeqno, onSelect, onOpen, onToggl
         </Button>
       </div>
 
-      <div className="px-3 pb-2">
+      <div className="px-3 pb-2 space-y-2">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -59,6 +73,30 @@ export function MessageList({ messages, selectedSeqno, onSelect, onOpen, onToggl
             onChange={(e) => setQ(e.target.value)}
             placeholder="Keresés"
             className="pl-8 h-8 bg-muted/60 border-transparent focus-visible:bg-surface"
+          />
+        </div>
+
+        <div className="flex items-center gap-1" role="tablist" aria-label="Lista szűrő">
+          <FilterChip
+            active={filterMode === "all"}
+            onClick={() => setFilterMode("all")}
+            label="Összes"
+            count={messages.length}
+          />
+          <FilterChip
+            active={filterMode === "unread"}
+            onClick={() => setFilterMode(filterMode === "unread" ? "all" : "unread")}
+            label="Olvasatlan"
+            count={unreadCount}
+            icon={<Mail className="h-3 w-3" />}
+          />
+          <FilterChip
+            active={filterMode === "flagged"}
+            onClick={() => setFilterMode(filterMode === "flagged" ? "all" : "flagged")}
+            label="Csillagos"
+            count={flaggedCount}
+            icon={<Star className={cn("h-3 w-3", filterMode === "flagged" && "fill-current")} />}
+            accent="amber"
           />
         </div>
       </div>
@@ -74,9 +112,49 @@ export function MessageList({ messages, selectedSeqno, onSelect, onOpen, onToggl
         onLoadMore={onLoadMore}
         loadingMore={loadingMore}
         exhausted={exhausted}
-        searching={!!q.trim()}
+        searching={!!q.trim() || filterMode !== "all"}
+        emptyHint={
+          filterMode === "unread" ? "Nincs olvasatlan levél"
+          : filterMode === "flagged" ? "Nincs megjelölt levél"
+          : undefined
+        }
       />
     </div>
+  );
+}
+
+function FilterChip({
+  active, onClick, label, count, icon, accent,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  count: number;
+  icon?: React.ReactNode;
+  accent?: "amber";
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-1.5 px-2.5 h-7 rounded-full text-xs font-medium transition-colors border",
+        active
+          ? accent === "amber"
+            ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700"
+            : "bg-primary text-primary-foreground border-primary"
+          : "bg-transparent text-muted-foreground border-border hover:bg-muted/60",
+      )}
+    >
+      {icon}
+      <span>{label}</span>
+      <span className={cn(
+        "tabular-nums px-1 rounded text-[10px]",
+        active ? "bg-background/20" : "bg-muted/60",
+      )}>
+        {count}
+      </span>
+    </button>
   );
 }
 
