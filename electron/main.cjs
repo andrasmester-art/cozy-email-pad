@@ -52,10 +52,15 @@ ipcMain.handle("accounts:list", () => {
 ipcMain.handle("accounts:save", (_e, account) => {
   const accounts = loadAccounts();
   const idx = accounts.findIndex((a) => a.id === account.id);
+  const existing = idx >= 0 ? accounts[idx] : null;
   const stored = {
     ...account,
-    password: account.password ? encryptPassword(account.password) : undefined,
-    smtpPassword: account.smtpPassword ? encryptPassword(account.smtpPassword) : undefined,
+    password: account.password
+      ? encryptPassword(account.password)
+      : existing?.password,
+    smtpPassword: account.smtpPassword
+      ? encryptPassword(account.smtpPassword)
+      : existing?.smtpPassword,
   };
   if (idx >= 0) accounts[idx] = { ...accounts[idx], ...stored };
   else accounts.push(stored);
