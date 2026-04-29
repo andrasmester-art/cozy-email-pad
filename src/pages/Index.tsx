@@ -30,6 +30,7 @@ const Index = () => {
 
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerInitial, setComposerInitial] = useState<{ to?: string; subject?: string; body?: string } | undefined>();
+  const [composerMode, setComposerMode] = useState<"new" | "reply" | "forward">("new");
   const [accountDlgOpen, setAccountDlgOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
