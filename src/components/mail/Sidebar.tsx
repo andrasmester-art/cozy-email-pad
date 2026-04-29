@@ -69,6 +69,13 @@ export function Sidebar({
               >
                 <Pencil className="h-3.5 w-3.5" />
               </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onDeleteAccount(a); }}
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 hover:text-destructive"
+                title="Fiók törlése"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
             </div>
           ))}
           <Button
