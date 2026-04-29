@@ -114,6 +114,32 @@ function openInbox(imap, mailbox) {
   });
 }
 
+function withTimeout(work, timeoutMs, message) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error(message));
+    }, timeoutMs);
+
+    Promise.resolve()
+      .then(work)
+      .then((result) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(result);
+      })
+      .catch((error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        reject(error);
+      });
+  });
+}
+
 function verifyImapConnection(account, { timeoutMs = 12000 } = {}) {
   const imap = imapConfigFor(account);
   return new Promise((resolve, reject) => {
@@ -177,10 +203,25 @@ function pickMailbox(boxes, specialUse, namePatterns) {
   return null;
 }
 
-function getBoxesAsync(imap) {
-  return new Promise((resolve, reject) => {
-    imap.getBoxes((err, boxes) => (err ? reject(err) : resolve(boxes)));
-  });
+function getBoxesAsync(imap, { timeoutMs = 12000 } = {}) {
+  return withTimeout(
+    () => new Promise((resolve, reject) => {
+      imap.getBoxes((err, boxes) => (err ? reject(err) : resolve(boxes)));
+    }),
+    timeoutMs,
+    `Időtúllépés (${Math.ceil(timeoutMs / 1000)}s) — a mappalista lekérése túl sokáig tart.`,
+  );
+}
+
+function isMailboxNotFoundError(error) {
+  const msg = String(error?.message || error || "").toLowerCase();
+  return (
+    msg.includes("nonexistent")
+    || msg.includes("does not exist")
+    || msg.includes("unknown mailbox")
+    || msg.includes("invalid mailbox")
+    || msg.includes("namespace")
+  );
 }
 
 ipcMain.handle("imap:listMailboxes", async (_e, accountId) => {
@@ -213,13 +254,22 @@ ipcMain.handle("imap:testConnection", async (_e, { accountId, timeoutMs = 12000 
 // Resolve the actual mailbox names (Inbox / Sent / Drafts) for an account.
 // Caches the result on the account object once per process run.
 const mailboxResolveCache = new Map(); // accountId -> { inbox, sent, drafts }
+function getResolvedMailboxName(accountId, mailbox) {
+  const resolved = mailboxResolveCache.get(accountId);
+  if (!resolved) return mailbox;
+  if (mailbox === "INBOX") return resolved.inbox || mailbox;
+  if (mailbox === "Sent") return resolved.sent || mailbox;
+  if (mailbox === "Drafts") return resolved.drafts || mailbox;
+  return mailbox;
+}
+
 async function resolveAccountMailboxes(account) {
   if (mailboxResolveCache.has(account.id)) return mailboxResolveCache.get(account.id);
   const imap = imapConfigFor(account);
   const result = await new Promise((resolve, reject) => {
     imap.once("ready", async () => {
       try {
-        const raw = await getBoxesAsync(imap);
+        const raw = await getBoxesAsync(imap, { timeoutMs: 12000 });
         imap.end();
         const flat = flattenBoxes(raw);
         const inbox = pickMailbox(flat, "\\Inbox", ["INBOX", "Inbox"]) || "INBOX";
@@ -286,7 +336,11 @@ async function syncMailbox(account, mailbox, { batchSize = 200 } = {}) {
   return new Promise((resolve, reject) => {
     imap.once("ready", async () => {
       try {
-        const box = await openMailbox(imap, mailbox);
+        const box = await withTimeout(
+          () => openMailbox(imap, mailbox),
+          12000,
+          `Időtúllépés (12s) — a(z) ${mailbox} mappa megnyitása túl sokáig tart.`,
+        );
         const meta = cache.getMeta(account.id, mailbox) || { last_uid: 0, uidvalidity: null };
 
         // UIDVALIDITY changed → wipe cache for this mailbox and start fresh.
@@ -350,7 +404,8 @@ async function syncMailbox(account, mailbox, { batchSize = 200 } = {}) {
 
 // imap:fetch — return cached messages immediately (no network call).
 ipcMain.handle("imap:fetch", async (_e, { accountId, mailbox = "INBOX", limit = 200 }) => {
-  return cache.listMessages(accountId, mailbox, limit);
+  const resolvedMailbox = getResolvedMailboxName(accountId, mailbox);
+  return cache.listMessages(accountId, resolvedMailbox, limit);
 });
 
 // imap:sync — pull only new messages from the server into the cache.
@@ -368,7 +423,17 @@ ipcMain.handle("imap:sync", async (_e, { accountId, mailbox = "INBOX", limit = 2
       /* fall back to "INBOX" */
     }
   }
-  const added = await syncMailbox(account, realMailbox);
+  let added;
+  try {
+    added = await syncMailbox(account, realMailbox);
+  } catch (error) {
+    if (realMailbox !== mailbox && isMailboxNotFoundError(error)) {
+      realMailbox = mailbox;
+      added = await syncMailbox(account, realMailbox);
+    } else {
+      throw error;
+    }
+  }
   return {
     added,
     messages: cache.listMessages(account.id, realMailbox, limit),
@@ -406,9 +471,10 @@ ipcMain.handle("imap:syncAll", async (_e, { accountId }) => {
 });
 
 ipcMain.handle("imap:cacheInfo", async (_e, { accountId, mailbox = "INBOX" }) => {
+  const resolvedMailbox = getResolvedMailboxName(accountId, mailbox);
   return {
-    meta: cache.getMeta(accountId, mailbox),
-    count: cache.countMessages(accountId, mailbox),
+    meta: cache.getMeta(accountId, resolvedMailbox),
+    count: cache.countMessages(accountId, resolvedMailbox),
   };
 });
 
