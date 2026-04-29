@@ -370,6 +370,7 @@ const Index = () => {
           messages={messages}
           selectedSeqno={selected?.seqno ?? null}
           onSelect={setSelected}
+          onOpen={openInNewWindow}
           loading={loading}
           onRefresh={loadMessages}
           mailbox={activeMailbox}
