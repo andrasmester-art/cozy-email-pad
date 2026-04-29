@@ -82,38 +82,69 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
       const saved = getDefaultAccountId();
       const hasInitial = !!(initial?.to || initial?.cc || initial?.bcc || initial?.subject || initial?.body);
       const draft = !hasInitial ? loadDraft() : null;
-      const useDraft = draft && isDraftMeaningful(draft);
+  useEffect(() => {
+    if (open) {
+      mailAPI.templates.list().then(setTemplates);
+      const saved = getDefaultAccountId();
+      const hasInitial = !!(initial?.to || initial?.cc || initial?.bcc || initial?.subject || initial?.body);
+      const draft = !hasInitial ? loadDraft() : null;
+      const offerDraft = draft && isDraftMeaningful(draft);
 
-      const initId = useDraft && draft && accounts.some((a) => a.id === draft.accountId)
-        ? draft!.accountId
-        : (saved && accounts.some((a) => a.id === saved)
-          ? saved
-          : (defaultAccountId || accounts[0]?.id || ""));
+      const initId = saved && accounts.some((a) => a.id === saved)
+        ? saved
+        : (defaultAccountId || accounts[0]?.id || "");
+
+      // Suppress autosave during initial hydration so we don't bump `lastSavedAt`
+      // immediately on open and so the offered draft isn't overwritten before
+      // the user decides whether to restore it.
+      skipAutoSaveRef.current = true;
       setAccountId(initId);
       setDefaultId(saved);
+      setTo(initial?.to || "");
+      setCc(initial?.cc || "");
+      setBcc(initial?.bcc || "");
+      setShowCc(!!initial?.cc || !!initial?.bcc);
+      setSubject(initial?.subject || "");
+      const sig = getSignature(initId ? getDefaultSignatureId(initId) : null);
+      setBody(applySignatureToBody(initial?.body || "", sig));
 
-      if (useDraft && draft) {
-        setTo(draft.to || "");
-        setCc(draft.cc || "");
-        setBcc(draft.bcc || "");
-        setShowCc(!!draft.showCc || !!draft.cc || !!draft.bcc);
-        setSubject(draft.subject || "");
-        setBody(draft.body || "");
-        toast.info("Piszkozat visszaállítva", {
-          description: "Az utoljára szerkesztett levél folytatható.",
-        });
-      } else {
-        setTo(initial?.to || "");
-        setCc(initial?.cc || "");
-        setBcc(initial?.bcc || "");
-        setShowCc(!!initial?.cc || !!initial?.bcc);
-        setSubject(initial?.subject || "");
-        // Apply default signature for the initial account on open
-        const sig = getSignature(initId ? getDefaultSignatureId(initId) : null);
-        setBody(applySignatureToBody(initial?.body || "", sig));
-      }
+      // Show the recovery banner if a meaningful draft exists; otherwise track
+      // the last-saved timestamp from the loaded draft (if any).
+      setPendingDraft(offerDraft && draft ? draft : null);
+      setLastSavedAt(draft?.updatedAt ?? null);
+
+      // Re-enable autosave on the next tick so the hydration setStates settle.
+      const re = setTimeout(() => { skipAutoSaveRef.current = false; }, 50);
+      return () => clearTimeout(re);
     }
   }, [open, defaultAccountId, accounts, initial?.to, initial?.cc, initial?.bcc, initial?.subject, initial?.body]);
+
+  // Apply the offered draft into the editor when the user clicks "Visszaállítás".
+  const restorePendingDraft = () => {
+    if (!pendingDraft) return;
+    skipAutoSaveRef.current = true;
+    if (pendingDraft.accountId && accounts.some((a) => a.id === pendingDraft.accountId)) {
+      setAccountId(pendingDraft.accountId);
+    }
+    setTo(pendingDraft.to || "");
+    setCc(pendingDraft.cc || "");
+    setBcc(pendingDraft.bcc || "");
+    setShowCc(!!pendingDraft.showCc || !!pendingDraft.cc || !!pendingDraft.bcc);
+    setSubject(pendingDraft.subject || "");
+    setBody(pendingDraft.body || "");
+    setLastSavedAt(pendingDraft.updatedAt);
+    setPendingDraft(null);
+    toast.success("Piszkozat visszaállítva");
+    setTimeout(() => { skipAutoSaveRef.current = false; }, 50);
+  };
+
+  const dismissPendingDraft = () => {
+    // User chose not to restore — discard so it doesn't keep popping up.
+    clearDraft();
+    setPendingDraft(null);
+    setLastSavedAt(null);
+    toast.info("Mentett piszkozat eldobva");
+  };
 
   // Auto-save draft whenever editable fields change while the composer is open.
   useEffect(() => {
