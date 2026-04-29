@@ -143,18 +143,29 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
   // Auto-save draft whenever editable fields change while the composer is open.
   useEffect(() => {
     if (!open) return;
+    if (skipAutoSaveRef.current) return; // hydration / restore in progress
     const t = setTimeout(() => {
+      const now = Date.now();
       const draft = {
-        accountId, to, cc, bcc, showCc, subject, body, updatedAt: Date.now(),
+        accountId, to, cc, bcc, showCc, subject, body, updatedAt: now,
       };
       if (isDraftMeaningful(draft)) {
         saveDraft(draft);
+        setLastSavedAt(now);
       } else {
         clearDraft();
+        setLastSavedAt(null);
       }
     }, 400);
     return () => clearTimeout(t);
   }, [open, accountId, to, cc, bcc, showCc, subject, body]);
+
+  // Tick every 30s so "x perce mentve" stays accurate without re-rendering on every keystroke.
+  useEffect(() => {
+    if (!open) return;
+    const id = setInterval(() => setSavedTick((n) => n + 1), 30_000);
+    return () => clearInterval(id);
+  }, [open]);
 
   // Swap default signature whenever the account changes (after the dialog is open)
   useEffect(() => {
