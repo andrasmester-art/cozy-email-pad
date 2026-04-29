@@ -5,6 +5,7 @@ import { Inbox, Send, FileText, Archive, Trash2, AlertOctagon, Plus, Settings, F
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getAllAccountStatuses, formatRelative, formatCountdown, type AccountStatus } from "@/lib/accountStatus";
+import { ThemeToggle } from "./ThemeToggle";
 
 const WIDTH_KEY = "mailwise.sidebarWidth";
 const MIN_WIDTH = 200;
