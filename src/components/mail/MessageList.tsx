@@ -225,7 +225,7 @@ function FilterChip({
 }
 
 function ScrollList({
-  loading, messages, filtered, selectedSeqno, onSelect, onOpen, onToggleFlag, onLoadMore, loadingMore, exhausted, searching, emptyHint,
+  loading, messages, filtered, selectedSeqno, onSelect, onOpen, onToggleFlag, onLoadMore, loadingMore, exhausted, searching, emptyHint, density,
 }: {
   loading: boolean;
   messages: MailMessage[];
@@ -239,6 +239,7 @@ function ScrollList({
   exhausted?: boolean;
   searching: boolean;
   emptyHint?: string;
+  density: ListDensity;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
