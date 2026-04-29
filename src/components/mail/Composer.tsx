@@ -28,7 +28,7 @@ type Props = {
   onClose: () => void;
   accounts: Account[];
   defaultAccountId?: string | null;
-  initial?: { to?: string; subject?: string; body?: string };
+  initial?: { to?: string; cc?: string; bcc?: string; subject?: string; body?: string };
   mode?: "new" | "reply" | "forward";
 };
 
