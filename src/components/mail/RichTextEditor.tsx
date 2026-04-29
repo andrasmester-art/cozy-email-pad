@@ -37,6 +37,13 @@ const ToolbarBtn = ({
     // hívás új szelekcióval vagy hibásan futna, és pl. a H1/lista/link
     // formázás "nem csinálna semmit". A preventDefault megőrzi az editor
     // szelekcióját és fókuszát.
+    //
+    // Radix Dialog-on belül (pl. Aláírások / Sablonok szerkesztő) a Dialog
+    // saját pointerdown-listenere a fókuszt a Dialog content root-jára
+    // viszi vissza, ami szintén ki tudja lőni a TipTap szelekciót. Ezért a
+    // pointerDown-on is preventDefault-ot hívunk + stopPropagation-t, hogy
+    // a Dialog ne lássa az eseményt.
+    onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
     onMouseDown={(e) => e.preventDefault()}
     onClick={onClick}
     className={cn("h-8 w-8 p-0", active && "bg-accent text-accent-foreground")}
@@ -105,19 +112,35 @@ function Toolbar({ editor }: { editor: Editor | null }) {
   const insertImage = () => {
     // Fájl választó: base64 data URL-ként ágyazzuk be a képet, így az
     // email küldéskor is megjelenik a címzettnél (nem szükséges külső host).
+    //
+    // FONTOS: az inputot CSATOLJUK a DOM-hoz (off-screen), mert Radix Dialog
+    // belsejéből hívva (Aláírások/Sablonok szerkesztő) a detached input
+    // .click()-je Electronban néma marad — a Dialog focus-trap-je elnyeli
+    // az eseményt. A document.body-hoz csatolva ez nem fordul elő.
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*";
+    input.style.position = "fixed";
+    input.style.left = "-9999px";
+    input.style.top = "-9999px";
+    input.style.opacity = "0";
+    document.body.appendChild(input);
+    const cleanup = () => { try { document.body.removeChild(input); } catch {} };
     input.onchange = () => {
       const file = input.files?.[0];
-      if (!file) return;
+      if (!file) { cleanup(); return; }
       const reader = new FileReader();
       reader.onload = () => {
         const src = reader.result as string;
         if (src) editor.chain().focus().setImage({ src }).run();
+        cleanup();
       };
+      reader.onerror = cleanup;
       reader.readAsDataURL(file);
     };
+    // Ha a felhasználó Mégse-t nyom, az onchange nem fut le — takarítsunk
+    // valamikor utána, hogy ne maradjon árva input a DOM-ban.
+    setTimeout(() => { if (!input.files || input.files.length === 0) cleanup(); }, 60_000);
     input.click();
   };
   return (
@@ -185,6 +208,7 @@ function Toolbar({ editor }: { editor: Editor | null }) {
             variant="ghost"
             size="sm"
             title="Link"
+            onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
             onMouseDown={(e) => e.preventDefault()}
             onClick={openLinkEditor}
             className={cn("h-8 w-8 p-0", editor.isActive("link") && "bg-accent text-accent-foreground")}
@@ -192,7 +216,18 @@ function Toolbar({ editor }: { editor: Editor | null }) {
             <LinkIcon className="h-4 w-4" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-80 p-3" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+        <PopoverContent
+          className="w-80 p-3"
+          align="start"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onCloseAutoFocus={(e) => {
+            // Ne hagyjuk, hogy a Popover/Dialog visszadobja a fókuszt a
+            // trigger gombra — ehelyett magunk fókuszálunk az editorra,
+            // hogy a beszúrt link/szöveg után rögtön gépelhetőek legyünk.
+            e.preventDefault();
+            requestAnimationFrame(() => editor?.commands.focus());
+          }}
+        >
           <div className="space-y-2">
             <label className="text-xs font-medium text-muted-foreground">Link URL</label>
             <Input

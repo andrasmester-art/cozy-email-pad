@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.16.5] – 2026-04-29
+
+### Javítás
+- **A formázó gombok (lista, link, kép, idézet, kódblokk stb.) most már az aláírás- és sablon-szerkesztőben is működnek.** A szerkesztők Radix `Dialog`-ban élnek, és a Dialog `pointerdown`-listenere visszavette a fókuszt a Dialog content root-jára, mielőtt a TipTap parancs lefutott — emiatt a kattintás "nem csinált semmit". Mostantól a toolbar gombok `pointerDown` szinten is leállítják az eseményt (preventDefault + stopPropagation), így a Dialog focus-trap nem zavarja az editor szelekcióját. A Link popover bezáráskor explicit visszafókuszál az editorra. A kép-fájlválasztó input mostantól a DOM-hoz csatolva nyílik, mert Electron Dialog alól a detached input `.click()`-je néma maradt.
+
 ## [1.16.4] – 2026-04-29
 
 ### Javítás
