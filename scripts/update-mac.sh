@@ -27,7 +27,7 @@ REPO_URL="https://github.com/andrasmester-art/cozy-email-pad.git"
 APP_NAME="MepodMail"
 BRANCH="${BRANCH:-main}"
 WORKDIR="${WORKDIR:-$HOME/cozy-email-pad}"
-APPLICATIONS_DIR="/Applications"
+APPLICATIONS_DIR="${APPLICATIONS_DIR:-/Applications}"
 
 # ---- Színes log ------------------------------------------------------------
 log()  { printf "\033[1;36m▶ %s\033[0m\n" "$*"; }
@@ -120,12 +120,14 @@ if [[ ! -d "$APP_PATH" ]]; then
 fi
 ok ".app elkészült: $APP_PATH"
 
-# ---- 4) Telepítés az /Applications-be -------------------------------------
+# ---- 4) Telepítés az Applications mappába ---------------------------------
 if [[ "${SKIP_INSTALL_TO_APPLICATIONS:-0}" == "1" ]]; then
   warn "SKIP_INSTALL_TO_APPLICATIONS=1 — kihagyom a kicserélést."
   ok "Manuális telepítés:  cp -R \"$APP_PATH\" \"$APPLICATIONS_DIR/\""
   exit 0
 fi
+
+mkdir -p "$APPLICATIONS_DIR"
 
 log "Futó $APP_NAME bezárása (ha nyitva van)…"
 osascript -e "tell application \"$APP_NAME\" to quit" >/dev/null 2>&1 || true
@@ -140,7 +142,7 @@ DEST="$APPLICATIONS_DIR/$APP_NAME.app"
 if [[ -d "$DEST" ]]; then
   log "Régi verzió eltávolítása: $DEST"
   if ! rm -rf "$DEST" 2>/dev/null; then
-    warn "Jogosultság szükséges a /Applications írásához — sudo jön."
+    warn "Jogosultság szükséges a $APPLICATIONS_DIR írásához — sudo jön."
     sudo rm -rf "$DEST"
     log "Új verzió másolása (sudo)…"
     sudo cp -R "$APP_PATH" "$APPLICATIONS_DIR/"
