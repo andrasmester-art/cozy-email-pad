@@ -109,11 +109,21 @@ export function UpdaterDialog({ open, onClose }: Props) {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground text-xs">Telepített verzió</span>
-              <span className="text-xs font-mono">{shortSha(info?.localSha || null)}</span>
+              <span className="text-sm font-mono font-semibold">
+                {info?.localVersion || "—"}
+              </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground text-xs">Elérhető verzió</span>
-              <span className="text-xs font-mono">{shortSha(info?.remoteSha || null)}</span>
+              <span className="text-sm font-mono font-semibold">
+                {info?.remoteVersion || "—"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground text-xs">Commit</span>
+              <span className="text-xs font-mono opacity-70">
+                {shortSha(info?.localSha || null)} → {shortSha(info?.remoteSha || null)}
+              </span>
             </div>
             {info?.remoteMessage && (
               <div className="text-xs text-muted-foreground border-t border-border pt-2">
