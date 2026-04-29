@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { Inbox, Send, FileText, Archive, Trash2, AlertOctagon, Plus, Settings, FileCode2, Pencil, X, AlertCircle, CheckCircle2, Circle, PenSquare, FileSignature, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { getAllAccountStatuses, formatRelative, type AccountStatus } from "@/lib/accountStatus";
+import { getAllAccountStatuses, formatRelative, formatCountdown, type AccountStatus } from "@/lib/accountStatus";
 
 type Props = {
   accounts: Account[];
@@ -44,7 +44,7 @@ export function Sidebar({
     const refresh = () => setStatuses(getAllAccountStatuses());
     refresh();
     window.addEventListener("accountStatusChanged", refresh);
-    const t = setInterval(refresh, 30000); // re-render relative time
+    const t = setInterval(refresh, 1000); // 1s tick so retry countdown stays accurate
     return () => {
       window.removeEventListener("accountStatusChanged", refresh);
       clearInterval(t);
@@ -91,11 +91,17 @@ export function Sidebar({
               : st.ok
               ? "text-success"
               : "text-destructive";
+            const retryCountdown = !st || st.ok ? "" : formatCountdown(st.nextRetryAt);
             const statusLabel = !st
               ? "Nincs ellenőrzés"
               : st.ok
               ? `Csatlakozva · ${formatRelative(st.lastChecked)}`
-              : `Hiba · ${st.error || "ismeretlen"}`;
+              : retryCountdown
+                ? `Hiba · újra ${retryCountdown} múlva`
+                : `Hiba · ${st.error || "ismeretlen"}`;
+            const tooltipLabel = !st || st.ok
+              ? statusLabel
+              : `${st.error || "Ismeretlen hiba"}${retryCountdown ? ` · újrapróbálkozás ${retryCountdown} múlva` : ""}`;
             return (
               <div key={a.id} className="space-y-0.5">
                 <div
@@ -117,7 +123,7 @@ export function Sidebar({
                         <StatusIcon className={cn("h-3.5 w-3.5 shrink-0", statusColor)} />
                       </TooltipTrigger>
                       <TooltipContent side="right" className="max-w-xs">
-                        <div className="text-xs">{statusLabel}</div>
+                        <div className="text-xs">{tooltipLabel}</div>
                       </TooltipContent>
                     </Tooltip>
                   </button>

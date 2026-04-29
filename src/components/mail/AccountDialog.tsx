@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { CheckCircle2, AlertCircle, Circle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getAccountStatus, setAccountStatus, formatRelative, type AccountStatus } from "@/lib/accountStatus";
+import { getAccountStatus, setAccountStatus, formatRelative, formatCountdown, type AccountStatus } from "@/lib/accountStatus";
 
 type Props = {
   open: boolean;
@@ -37,6 +37,19 @@ export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
       setA(initial || blank());
       setStatus(initial ? getAccountStatus(initial.id) : null);
     }
+  }, [open, initial]);
+
+  // Live-refresh status (so the auto-retry countdown updates each second
+  // and reflects external changes like a successful background retry).
+  useEffect(() => {
+    if (!open || !initial) return;
+    const refresh = () => setStatus(getAccountStatus(initial.id));
+    window.addEventListener("accountStatusChanged", refresh);
+    const t = setInterval(refresh, 1000);
+    return () => {
+      window.removeEventListener("accountStatusChanged", refresh);
+      clearInterval(t);
+    };
   }, [open, initial]);
 
   const update = (patch: Partial<Account>) => setA((prev) => ({ ...prev, ...patch }));
@@ -111,6 +124,14 @@ export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
                   ? `Utolsó ellenőrzés: ${formatRelative(status.lastChecked)}`
                   : `${status.error || "Ismeretlen hiba"} · ${formatRelative(status.lastChecked)}`}
               </div>
+              {status && !status.ok && status.nextRetryAt && (
+                <div className="mt-1 font-medium">
+                  Automatikus újrapróbálkozás: {formatCountdown(status.nextRetryAt)}
+                  {typeof status.attempt === "number" && status.attempt > 0 && (
+                    <span className="opacity-70"> · {status.attempt}. próbálkozás után</span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}

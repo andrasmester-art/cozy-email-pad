@@ -1,6 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { Account, MailMessage, mailAPI } from "@/lib/mailBridge";
-import { setAccountStatus, clearAccountStatus } from "@/lib/accountStatus";
+
+import {
+  startRetryScheduler, setKnownAccounts, markSuccess, markFailure, clearRetryFor,
+} from "@/lib/accountRetry";
 import { Sidebar } from "@/components/mail/Sidebar";
 import { MessageList } from "@/components/mail/MessageList";
 import { MessageView } from "@/components/mail/MessageView";
@@ -37,7 +40,7 @@ const Index = () => {
     if (!deletingAccount) return;
     const id = deletingAccount.id;
     await mailAPI.accounts.delete(id);
-    clearAccountStatus(id);
+    clearRetryFor(id);
     const list = await mailAPI.accounts.list();
     setAccounts(list);
     if (activeAccountId === id) {
@@ -71,6 +74,11 @@ const Index = () => {
     })();
   }, []);
 
+  // Auto-retry: keep the scheduler in sync with the current account list.
+  useEffect(() => {
+    setKnownAccounts(accounts);
+    startRetryScheduler();
+  }, [accounts]);
   const loadMessages = useCallback(async () => {
     if (!activeAccountId) return;
     setLoading(true);
@@ -78,10 +86,10 @@ const Index = () => {
     try {
       const msgs = await mailAPI.imap.fetch({ accountId: activeAccountId, mailbox: activeMailbox, limit: 50 });
       setMessages(msgs);
-      setAccountStatus(activeAccountId, { lastChecked: Date.now(), ok: true });
+      markSuccess(activeAccountId);
     } catch (e: any) {
       const msg = String(e?.message || e);
-      setAccountStatus(activeAccountId, { lastChecked: Date.now(), ok: false, error: msg });
+      markFailure(activeAccountId, msg);
       toast.error("Levelek betöltése sikertelen", { description: msg });
       setMessages([]);
     } finally {
@@ -111,14 +119,10 @@ const Index = () => {
           try {
             await mailAPI.imap.fetch({ accountId: a.id, mailbox: "Sent", limit: 50 });
           } catch { /* Sent folder may not exist on every server */ }
-          setAccountStatus(a.id, { lastChecked: Date.now(), ok: true });
+          markSuccess(a.id);
           okCount++;
         } catch (e: any) {
-          setAccountStatus(a.id, {
-            lastChecked: Date.now(),
-            ok: false,
-            error: String(e?.message || e),
-          });
+          markFailure(a.id, String(e?.message || e));
           failCount++;
         }
       }),

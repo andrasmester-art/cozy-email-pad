@@ -1,11 +1,12 @@
-// Per-account sync status: last successful check, last error.
-// Stored in localStorage so the UI can show it across reloads in both
-// Electron and browser preview modes.
+// Per-account sync status: last successful check, last error,
+// retry attempt count and next scheduled retry timestamp.
 
 export type AccountStatus = {
   lastChecked: number | null; // epoch ms of last attempt
   ok: boolean;                // result of last attempt
   error?: string;             // error message if !ok
+  attempt?: number;           // consecutive failures since last success
+  nextRetryAt?: number | null;// epoch ms when an automatic retry is queued
 };
 
 const KEY = "mailwise.accountStatus";
@@ -61,4 +62,15 @@ export function formatRelative(ts: number | null): string {
   const day = Math.floor(hr / 24);
   if (day < 7) return `${day} napja`;
   return new Date(ts).toLocaleDateString("hu-HU");
+}
+
+// "1:25" / "32 mp" — countdown to a future timestamp
+export function formatCountdown(ts: number | null | undefined): string {
+  if (!ts) return "";
+  const diff = Math.max(0, ts - Date.now());
+  const sec = Math.ceil(diff / 1000);
+  if (sec < 60) return `${sec} mp`;
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
 }
