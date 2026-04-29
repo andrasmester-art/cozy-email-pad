@@ -43,6 +43,13 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
   const [sending, setSending] = useState(false);
   const [saveTplOpen, setSaveTplOpen] = useState(false);
   const [tplName, setTplName] = useState("");
+  const [delay, setDelay] = useState<number>(getSendDelay());
+
+  useEffect(() => {
+    const handler = (e: Event) => setDelay((e as CustomEvent<number>).detail);
+    window.addEventListener("sendDelayChanged", handler);
+    return () => window.removeEventListener("sendDelayChanged", handler);
+  }, []);
 
   useEffect(() => {
     if (open) {
