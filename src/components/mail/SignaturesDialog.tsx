@@ -222,7 +222,7 @@ export function SignaturesDialog({ open, onClose }: Props) {
                     placeholder="Pl. Munkahelyi"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3 flex-1 min-h-[220px]">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1 min-h-[220px]">
                   <div className="flex flex-col min-w-0">
                     <Label className="text-xs">Tartalom</Label>
                     <RichTextEditor
@@ -236,16 +236,16 @@ export function SignaturesDialog({ open, onClose }: Props) {
                     <Label className="text-xs flex items-center justify-between">
                       <span>Élő előnézet</span>
                       <span className="text-[10px] font-normal text-muted-foreground">
-                        a levél stílusával
+                        a teljes levél stílusával
                       </span>
                     </Label>
                     <div className="h-[260px] rounded-md border border-border bg-background overflow-hidden flex flex-col">
-                      {/* Levél fejléc — pontosan a MessageView stílusát követi (px-8 py-6, 2xl title, kis from/to). */}
-                      <div className="px-8 py-4 border-b border-border bg-background">
-                        <h1 className="text-2xl font-semibold leading-tight truncate">
+                      {/* Levél fejléc — a MessageView stílusát követi, reszponzív paddinggal. */}
+                      <div className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 border-b border-border bg-background">
+                        <h1 className="text-lg sm:text-xl md:text-2xl font-semibold leading-tight truncate">
                           Példa üzenet
                         </h1>
-                        <div className="mt-2 flex items-start justify-between gap-4">
+                        <div className="mt-1.5 sm:mt-2 flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <div className="text-sm font-medium truncate">neved@példa.hu</div>
                             <div className="text-xs text-muted-foreground mt-0.5 truncate">
@@ -255,18 +255,25 @@ export function SignaturesDialog({ open, onClose }: Props) {
                           <div className="text-xs text-muted-foreground shrink-0">most</div>
                         </div>
                       </div>
-                      {/* Törzs — a MessageView body-jával azonos paddingek és prose beállítások. */}
-                      <div className="flex-1 overflow-y-auto px-8 py-6 bg-background">
-                        <div className="prose prose-sm max-w-none dark:prose-invert">
-                          <p>Kedves Címzett!</p>
-                          <p>Ez egy minta üzenet, hogy lásd hogyan néz ki az aláírásod a kész levélben.</p>
-                        </div>
+                      {/* Törzs — egyetlen prose blokk, hogy a sortávolság és betűtípus
+                          a teljes levélben (üdvözlés + aláírás) egységes legyen, ahogy
+                          az elküldött levélben is megjelenik. */}
+                      <div
+                        className="flex-1 overflow-y-auto px-4 sm:px-6 md:px-8 py-4 sm:py-6 bg-background"
+                        style={{
+                          fontFamily:
+                            '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif',
+                        }}
+                      >
                         <div
-                          className="prose prose-sm max-w-none dark:prose-invert mt-4 pt-3 border-t border-border/60"
+                          className="prose prose-sm max-w-none dark:prose-invert text-[15px] leading-relaxed"
                           dangerouslySetInnerHTML={{
-                            __html: selected.body
-                              ? sanitizeEmailHtml(selected.body)
-                              : '<p class="text-muted-foreground italic">Üres aláírás</p>',
+                            __html:
+                              `<p>Kedves Címzett!</p>` +
+                              `<p>Ez egy minta üzenet, hogy lásd hogyan néz ki az aláírásod a kész levélben.</p>` +
+                              (selected.body
+                                ? sanitizeEmailHtml(selected.body)
+                                : '<p class="text-muted-foreground italic">Üres aláírás</p>'),
                           }}
                         />
                       </div>
