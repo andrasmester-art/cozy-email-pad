@@ -1,4 +1,4 @@
-# Mailwise — Mac email kliens
+# MEpodMail — Mac email kliens
 
 Egy letisztult, Mac-stílusú email kliens több IMAP fiók kezelésére, gazdag (Tiptap) szövegszerkesztővel és menthető sablonokkal.
 
@@ -35,7 +35,7 @@ A `"scripts"` blokkba másold be:
 
 ```json
 "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:8080 && ELECTRON_DEV_URL=http://localhost:8080 electron electron/main.cjs\"",
-"electron:build": "vite build && electron-packager . Mailwise --platform=darwin --arch=arm64 --out=release --overwrite --icon=public/favicon.ico"
+"electron:build": "vite build && electron-packager . MEpodMail --platform=darwin --arch=arm64 --out=release --overwrite --icon=public/favicon.ico"
 ```
 
 (Ha Intel Mac-en vagy: `--arch=x64`. Mindkettőhöz: futtasd kétszer.)
@@ -52,7 +52,7 @@ Az Electron `file://` betöltéshez a `vite.config.ts`-ben `base: './'` kell. (H
 ### 5. Indítás
 
 - **Fejlesztés** (hot reload): `npm run electron:dev`
-- **Csomagolás** (`.app`): `npm run electron:build` → a kész alkalmazás a `release/Mailwise-darwin-arm64/Mailwise.app` mappában lesz.
+- **Csomagolás** (`.app`): `npm run electron:build` → a kész alkalmazás a `release/MEpodMail-darwin-arm64/MEpodMail.app` mappában lesz.
 
 A `.app` mappát egyszerűen áthúzhatod az `Applications`-be.
 
