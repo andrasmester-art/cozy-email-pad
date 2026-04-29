@@ -3,6 +3,18 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.5.0] – 2026-04-29
+
+### Változás
+- Email letöltés átállítva lazy-load modellre: első szinkronnál csak a legfrissebb **200 levél** töltődik le mappánként. A régebbiek automatikusan jönnek le, amikor lejjebb görgetsz a listában (200-as oldalakban).
+- Fiókváltáskor most már csak az **INBOX** szinkronizálódik a háttérben — a többi mappa (Sent / Drafts / Archive / Spam / Trash) csak akkor töltődik le, ha rákattintasz. Ez megszünteti a fiókváltáskori akadást és az időtúllépést.
+- IMAP timeout 60s → **120s** nagy postafiókokhoz.
+- Lokális cache mérete 1000 → 5000 levél/mappa, hogy a görgetve betöltött régi levelek is megmaradjanak.
+
+### Új
+- `cache:loadOlder` IPC végpont: a `oldestUid` alatti UID tartományból tölt le egy oldalnyi régebbi levelet.
+- A levéllistában „Régebbi levelek betöltése…" / „Nincs több régebbi levél" jelzés a lista alján.
+
 ## [1.4.1] – 2026-04-29
 
 ### Javítás
