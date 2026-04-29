@@ -114,6 +114,7 @@ const Index = () => {
           onSelectMailbox={setActiveMailbox}
           onAddAccount={() => { setEditingAccount(null); setAccountDlgOpen(true); }}
           onEditAccount={(a) => { setEditingAccount(a); setAccountDlgOpen(true); }}
+          onDeleteAccount={(a) => setDeletingAccount(a)}
           onOpenTemplates={() => setTemplatesOpen(true)}
           onOpenSettings={() => {
             const current = accounts.find((x) => x.id === activeAccountId) || null;
