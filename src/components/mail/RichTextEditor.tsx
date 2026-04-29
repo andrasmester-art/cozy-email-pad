@@ -4,7 +4,7 @@ import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import Typography from "@tiptap/extension-typography";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -29,6 +29,12 @@ const ToolbarBtn = ({
     variant="ghost"
     size="sm"
     title={title}
+    // FONTOS: a mousedown alapértelmezett viselkedése elvenné a fókuszt az
+    // editorról, mire a kattintás-handler lefut. Ettől a chain().focus()
+    // hívás új szelekcióval vagy hibásan futna, és pl. a H1/lista/link
+    // formázás "nem csinálna semmit". A preventDefault megőrzi az editor
+    // szelekcióját és fókuszát.
+    onMouseDown={(e) => e.preventDefault()}
     onClick={onClick}
     className={cn("h-8 w-8 p-0", active && "bg-accent text-accent-foreground")}
   >
@@ -76,6 +82,11 @@ function Toolbar({ editor }: { editor: Editor | null }) {
 }
 
 export function RichTextEditor({ value, onChange, placeholder, className }: Props) {
+  // A legutóbb kibocsátott (saját) HTML — így meg tudjuk különböztetni a
+  // belső (gépelés/formázás) és külső (parent által szándékosan adott)
+  // értékváltozást. Belsőre nem nyúlunk az editor-hoz.
+  const lastEmittedRef = useRef<string>(value || "");
+
   const editor = useEditor({
     extensions: [
       // Tiptap v3 StarterKit már tartalmazza a Link-et és az Underline-t.
@@ -97,7 +108,11 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Prop
       Placeholder.configure({ placeholder: placeholder || "Írj ide…" }),
     ],
     content: value,
-    onUpdate: ({ editor }) => onChange(editor.getHTML()),
+    onUpdate: ({ editor }) => {
+      const html = editor.getHTML();
+      lastEmittedRef.current = html;
+      onChange(html);
+    },
     editorProps: {
       attributes: {
         class: "px-4 py-3 min-h-[260px] focus:outline-none",
@@ -107,15 +122,16 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Prop
 
   useEffect(() => {
     if (!editor) return;
-    // Csak akkor írjuk felül a tartalmat kívülről, ha tényleg eltér ÉS az
-    // editor épp nincs fókuszban. Különben minden gépelés után a parent által
-    // visszaadott (esetleg normalizált) HTML resetelné a kurzort és a
-    // formázási állapotot — pl. a H1/H2 gomb megnyomása "nem csinálna semmit",
-    // mert a setContent rögtön visszaállítaná a régi blokkot.
-    if (editor.isFocused) return;
-    const current = editor.getHTML();
-    if ((value || "") === current) return;
-    editor.commands.setContent(value || "", { emitUpdate: false });
+    const incoming = value || "";
+    // Csak akkor reseteljük az editor tartalmát, ha a kívülről jövő érték
+    // tényleg eltér attól, amit mi legutóbb kiküldtünk. Így a parent által
+    // visszahívott setBody(html) → újrarender → ugyanaz a value NEM fogja
+    // a kurzort és a formázási szelekciót szétlőni — emiatt nem működtek
+    // korábban a H1/H2, listák, link/kép gombok.
+    if (incoming === lastEmittedRef.current) return;
+    if (incoming === editor.getHTML()) return;
+    lastEmittedRef.current = incoming;
+    editor.commands.setContent(incoming, { emitUpdate: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, editor]);
 
