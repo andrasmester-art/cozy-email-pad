@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.10.4] – 2026-04-29
+
+### Javítás
+- **Legfrissebb levelek szinkronja** megbízhatóbb lett: az IMAP fetch eddig hamarabb adhatott vissza eredményt, mint ahogy a levelek parserelése ténylegesen befejeződött, ezért az újonnan érkezett üzenetek néha kimaradtak a frissítésből. Most a szinkron megvárja, hogy minden letöltött levél teljesen feldolgozódjon, és csak utána írja a cache-be és küldi vissza a listát a felületnek.
+
 ## [1.10.3] – 2026-04-29
 
 ### Változás
