@@ -3,6 +3,12 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.10.2] – 2026-04-29
+
+### Javítás
+- **Régebbi levelek letöltése** nem működött rendesen: a lazy-load egy egyszerű `lower:upper` UID-tartományt kért, de a UID-ok nem összefüggőek (a törölt levelek hézagokat hagynak), így gyakran üres választ kapott vagy beragadt ugyanazon a ponton. Mostantól `UID SEARCH`-csel kérdezzük le a szervertől, mely UID-ok léteznek `oldestUid` alatt, és csak a tényleg meglévőket fetcheljük lapokban (200/oldal).
+- A „nincs több régebbi levél" jelzés mostantól pontos: csak akkor jelenik meg, ha a szerver szerint tényleg nincs több régebbi UID.
+
 ## [1.10.1] – 2026-04-29
 
 ### Javítás
