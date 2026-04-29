@@ -72,7 +72,18 @@ export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
     setTesting(true);
     try {
       await mailAPI.accounts.save(a);
-      await mailAPI.imap.sync({ accountId: a.id, mailbox: "INBOX", limit: 1 });
+      // Hard timeout so the UI never hangs on a misbehaving IMAP server
+      // (e.g. Hostinger when INBOX doesn't exist or the connection stalls).
+      const TIMEOUT_MS = 25_000;
+      await Promise.race([
+        mailAPI.imap.sync({ accountId: a.id, mailbox: "INBOX", limit: 1 }),
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`Időtúllépés (${TIMEOUT_MS / 1000}s) — a szerver nem válaszol. Ellenőrizd a host/port/TLS beállításokat.`)),
+            TIMEOUT_MS,
+          ),
+        ),
+      ]);
       const next: AccountStatus = { lastChecked: Date.now(), ok: true };
       setAccountStatus(a.id, next);
       setStatus(next);

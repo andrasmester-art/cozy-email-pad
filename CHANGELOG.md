@@ -3,6 +3,13 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.1.2] – 2026-04-29
+
+### Javítás
+- A „Kapcsolat ellenőrzése" gomb többé nem akad be vég nélküli „Ellenőrzés…" állapotban: 25 másodperces időtúllépés után érthető hibaüzenettel leáll.
+- IMAP kapcsolat-, és socket-timeout (15s / 30s) hozzáadva, hogy a süket szerverek ne fagyaszthassák be a műveleteket.
+- Az `INBOX` szinkron is a szerver által felismert valódi mappanevet használja (pl. Hostingernél), nem csak a `syncAll`.
+
 ## [1.1.1] – 2026-04-29
 
 ### Javítás
