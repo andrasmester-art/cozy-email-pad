@@ -71,7 +71,7 @@ export function AccountDialog({ open, onClose, onSaved, initial }: Props) {
     setTesting(true);
     try {
       await mailAPI.accounts.save(a);
-      await mailAPI.imap.fetch({ accountId: a.id, mailbox: "INBOX", limit: 1 });
+      await mailAPI.imap.sync({ accountId: a.id, mailbox: "INBOX", limit: 1 });
       const next: AccountStatus = { lastChecked: Date.now(), ok: true };
       setAccountStatus(a.id, next);
       setStatus(next);
