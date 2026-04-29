@@ -312,6 +312,7 @@ const Index = () => {
           onOpenTemplates={() => setTemplatesOpen(true)}
           onOpenSignatures={() => setSignaturesOpen(true)}
           onOpenUpdater={() => setUpdaterOpen(true)}
+          onReorderAccounts={reorderAccounts}
           onOpenSettings={() => {
             const current = accounts.find((x) => x.id === activeAccountId) || null;
             setEditingAccount(current);
