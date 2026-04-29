@@ -200,7 +200,10 @@ ipcMain.handle("updater:info", async () => {
     remoteError,
     repoUrl: REPO_URL,
     branch: DEFAULT_BRANCH,
-    upToDate: !!(local && remote?.sha && local === remote.sha),
+    upToDate: upToDateByVersion !== null
+      ? upToDateByVersion
+      : !!(local && remote?.sha && local === remote.sha),
+    versionDelta: remoteVersion ? -versionCmp : 0, // 1 = új elérhető, 0 = naprakész, -1 = előrébb vagy
   };
 });
 
