@@ -190,32 +190,43 @@ async function resolveMailbox(imap, logical) {
 function fetchByUidRange(imap, range) {
   return new Promise((resolve, reject) => {
     const out = [];
+    const pending = [];
     const f = imap.fetch(range, { bodies: "", struct: true });
     f.on("message", (msg) => {
-      let raw = "";
-      let attrs = null;
-      msg.on("body", (stream) => {
-        stream.on("data", (chunk) => (raw += chunk.toString("utf8")));
-      });
-      msg.once("attributes", (a) => { attrs = a; });
-      msg.once("end", async () => {
-        try {
-          const parsed = await simpleParser(raw);
-          out.push({
-            uid: attrs?.uid,
-            from: parsed.from?.text || "",
-            to: parsed.to?.text || "",
-            subject: parsed.subject || "(nincs tárgy)",
-            date: parsed.date?.toISOString() || null,
-            text: parsed.text || "",
-            html: parsed.html || "",
-            snippet: (parsed.text || "").slice(0, 140),
-          });
-        } catch { /* skip unparseable message */ }
-      });
+      pending.push(new Promise((done) => {
+        let raw = "";
+        let attrs = null;
+        msg.on("body", (stream) => {
+          stream.on("data", (chunk) => (raw += chunk.toString("utf8")));
+        });
+        msg.once("attributes", (a) => { attrs = a; });
+        msg.once("end", () => {
+          Promise.resolve(simpleParser(raw))
+            .then((parsed) => {
+              out.push({
+                uid: attrs?.uid,
+                from: parsed.from?.text || "",
+                to: parsed.to?.text || "",
+                subject: parsed.subject || "(nincs tárgy)",
+                date: parsed.date?.toISOString() || null,
+                text: parsed.text || "",
+                html: parsed.html || "",
+                snippet: (parsed.text || "").slice(0, 140),
+              });
+            })
+            .catch(() => {
+              // skip unparseable message
+            })
+            .finally(done);
+        });
+      }));
     });
     f.once("error", reject);
-    f.once("end", () => resolve(out));
+    f.once("end", () => {
+      Promise.allSettled(pending)
+        .then(() => resolve(out))
+        .catch(reject);
+    });
   });
 }
 
