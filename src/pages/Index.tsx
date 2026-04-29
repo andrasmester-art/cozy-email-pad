@@ -26,7 +26,7 @@ const Index = () => {
   const [messages, setMessages] = useState<MailMessage[]>([]);
   const [selected, setSelected] = useState<MailMessage | null>(null);
   const [loading, setLoading] = useState(false);
-  const [syncing] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerInitial, setComposerInitial] = useState<{ to?: string; cc?: string; bcc?: string; subject?: string; body?: string } | undefined>();
