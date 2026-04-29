@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.25.1] – 2026-04-29
+
+### Javítás
+- **A levéltest teljes magassága újra helyesen látszik.** Egyes HTML leveleknél az iframe túl korán mérte le a tartalom magasságát, ezért úgy tűnt, mintha csak egy kis ablakban látnád a levelet. A magasságmérés most a teljes dokumentumot figyeli, ismételten újramér betöltés után, és a később érkező képek / layout-változások esetén is követi a tényleges méretet.
+
 ## [1.25.0] – 2026-04-29
 
 ### Új

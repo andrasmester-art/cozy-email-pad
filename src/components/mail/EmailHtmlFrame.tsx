@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Props = {
   html: string;
@@ -34,6 +34,7 @@ type Props = {
 export function EmailHtmlFrame({ html, className }: Props) {
   const ref = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState(200);
+  const observerRef = useRef<ResizeObserver | null>(null);
 
   // A beágyazott dokumentumot egy minimális reset + szellős alap-tipográfia
   // wrap-pelt köré tesszük, hogy a `<body>` margók és a default linkszín a
@@ -70,38 +71,63 @@ export function EmailHtmlFrame({ html, className }: Props) {
 <body>${html}</body>
 </html>`;
 
+  const updateHeight = useCallback(() => {
+    const iframe = ref.current;
+    const doc = iframe?.contentDocument;
+    if (!doc?.body) return;
+
+    const next = Math.max(
+      doc.body.scrollHeight,
+      doc.body.offsetHeight,
+      doc.documentElement.scrollHeight,
+      doc.documentElement.offsetHeight,
+    );
+
+    setHeight(Math.max(next + 2, 200));
+  }, []);
+
+  const attachObservers = useCallback(() => {
+    const iframe = ref.current;
+    const doc = iframe?.contentDocument;
+    if (!doc?.body) return;
+
+    observerRef.current?.disconnect();
+    if ("ResizeObserver" in window) {
+      observerRef.current = new ResizeObserver(updateHeight);
+      observerRef.current.observe(doc.body);
+      observerRef.current.observe(doc.documentElement);
+    }
+
+    doc.querySelectorAll("img").forEach((img) => {
+      if (!img.complete) img.addEventListener("load", updateHeight, { once: true });
+    });
+
+    requestAnimationFrame(() => {
+      updateHeight();
+      requestAnimationFrame(updateHeight);
+    });
+  }, [updateHeight]);
+
   useEffect(() => {
     const iframe = ref.current;
     if (!iframe) return;
-    let observer: ResizeObserver | null = null;
-    const update = () => {
-      const doc = iframe.contentDocument;
-      if (!doc?.body) return;
-      const next = Math.max(
-        doc.body.scrollHeight,
-        doc.documentElement.scrollHeight,
-      );
-      // +2 px védelem a görgetősáv ellen kerekítési hibák esetén.
-      setHeight(next + 2);
-    };
+
     const onLoad = () => {
-      update();
-      const doc = iframe.contentDocument;
-      if (doc && "ResizeObserver" in window) {
-        observer = new ResizeObserver(update);
-        observer.observe(doc.body);
-      }
-      // Képek később töltődhetnek be, frissítsünk akkor is.
-      doc?.querySelectorAll("img").forEach((img) => {
-        if (!img.complete) img.addEventListener("load", update, { once: true });
-      });
+      attachObservers();
     };
+
     iframe.addEventListener("load", onLoad);
+
+    if (iframe.contentDocument?.readyState === "complete") {
+      attachObservers();
+    }
+
     return () => {
       iframe.removeEventListener("load", onLoad);
-      observer?.disconnect();
+      observerRef.current?.disconnect();
+      observerRef.current = null;
     };
-  }, [srcDoc]);
+  }, [srcDoc, attachObservers]);
 
   return (
     <iframe
