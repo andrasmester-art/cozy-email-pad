@@ -3,6 +3,16 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.19.4] – 2026-04-29
+
+### Javítás
+- **A felsorolás és számozott lista gomb most minden környezetben megbízhatóan működik.** Korábban a gomb gyakran „nem csinált semmit" — főleg válaszlevélben (idézett blokk után), aláírás közelében, vagy ha a kurzor egy speciális blokkban (kódblokk, idézet) volt. Mostantól a hivatalos TipTap `toggleList` parancsot használjuk, ami egyetlen lépésben kapcsol át a két lista típus között, és ha a környezet blokkolná, automatikus `clearNodes()` előkészítéssel állítja vissza paragrafussá, majd alkalmazza a listát.
+- **Hozzáadtuk a hivatalos TipTap `ListKeymap` extensiont.** Ennek köszönhetően:
+  - **Tab** behúzza a kurzor alatti lista-elemet (almenü szint).
+  - **Shift+Tab** kihúzza egy szintet.
+  - **Backspace** üres listaelemen kilép a listából (a korábbi „beragadás" helyett).
+  - **Dupla Enter** záró üres listaelemen szintén kilép a listából — ez a megszokott szövegszerkesztő-viselkedés.
+
 ## [1.19.3] – 2026-04-29
 
 ### Javítás

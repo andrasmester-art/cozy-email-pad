@@ -4,6 +4,11 @@ import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import Typography from "@tiptap/extension-typography";
+// A ListKeymap a TipTap hivatalos megoldása a megbízható lista-kezelésre:
+// Tab/Shift-Tab indent, Backspace üres listaelemen kilép a listából,
+// Enter dupla nyomás záró elemen kilép. Enélkül a felsorolás "ragad" és
+// több környezetben (signature, blockquote után) használhatatlan.
+import ListKeymap from "@tiptap/extension-list-keymap";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -103,38 +108,32 @@ const ToolbarBtn = ({
 
 function Toolbar({ editor }: { editor: Editor | null }) {
   if (!editor) return null;
-  const toggleBulletListSafely = () => {
-    if (editor.isActive("bulletList")) {
-      editor.chain().focus().toggleBulletList().run();
+  // A felsorolás/számozott lista bekapcsolásához mindig ugyanazt a stratégiát
+  // követjük: ha már aktív → kikapcs; ha másik lista típusban van → átvált
+  // (toggle a régit, toggle az újat); ha bármelyik nem-paragrafus blokkban
+  // (idézet, signature, code) van a kurzor, előbb `clearNodes()` alapra
+  // hozza a környezetet, majd alkalmazza a listát. Ez biztosítja, hogy a
+  // gomb minden környezetben látható eredményt ad — a korábbi „némán false"
+  // ágak helyett. (TipTap forum: ez a hivatalosan ajánlott pattern.)
+  const toggleListReliably = (kind: "bulletList" | "orderedList") => {
+    const other = kind === "bulletList" ? "orderedList" : "bulletList";
+    const chain = editor.chain().focus();
+    if (editor.isActive(kind)) {
+      chain.toggleList(kind, "listItem").run();
       return;
     }
-    if (editor.isActive("orderedList") && editor.chain().focus().toggleOrderedList().toggleBulletList().run()) {
+    if (editor.isActive(other)) {
+      // Átváltás másik lista-típusra a hivatalos toggleList paranccsal.
+      editor.chain().focus().toggleList(kind, "listItem").run();
       return;
     }
-    if (editor.chain().focus().toggleBulletList().run()) {
-      return;
-    }
-    if (editor.chain().focus().liftListItem("listItem").toggleBulletList().run()) {
-      return;
-    }
-    editor.chain().focus().clearNodes().toggleBulletList().run();
+    if (editor.chain().focus().toggleList(kind, "listItem").run()) return;
+    // Fallback: ha a környezet (signature/blockquote/code) blokkolja,
+    // előbb visszaalakítjuk paragraph-okká.
+    editor.chain().focus().clearNodes().toggleList(kind, "listItem").run();
   };
-  const toggleOrderedListSafely = () => {
-    if (editor.isActive("orderedList")) {
-      editor.chain().focus().toggleOrderedList().run();
-      return;
-    }
-    if (editor.isActive("bulletList") && editor.chain().focus().toggleBulletList().toggleOrderedList().run()) {
-      return;
-    }
-    if (editor.chain().focus().toggleOrderedList().run()) {
-      return;
-    }
-    if (editor.chain().focus().liftListItem("listItem").toggleOrderedList().run()) {
-      return;
-    }
-    editor.chain().focus().clearNodes().toggleOrderedList().run();
-  };
+  const toggleBulletListSafely = () => toggleListReliably("bulletList");
+  const toggleOrderedListSafely = () => toggleListReliably("orderedList");
   // A link szerkesztését popoverrel oldjuk meg, mert a `window.prompt`
   // Electron alatt sok esetben nem fókuszál vissza az editorra (vagy
   // azonnal becsukódik), ezért a Link gomb gyakorlatilag nem működött.
@@ -455,6 +454,10 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Prop
       ResizableImage.configure({ allowBase64: true }),
       Typography,
       Placeholder.configure({ placeholder: placeholder || "Írj ide…" }),
+      // Hivatalos TipTap lista-keymap: Tab indent / Shift-Tab outdent /
+      // Backspace üres `<li>`-n kilépés / dupla Enter záró elemen kilépés.
+      // Ez teszi a felsorolást valóban használhatóvá emailszerkesztésnél.
+      ListKeymap,
     ],
     content: value,
     onUpdate: ({ editor }) => {
