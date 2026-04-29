@@ -1,15 +1,15 @@
 // Bridge between the React app and the Electron main process.
-// In Electron, calls go via window.mailAPI (IPC).
-// In the browser preview, we use localStorage + demo IMAP data so the UI
-// remains fully usable for design and template editing.
+// Az IMAP/SMTP hálózati logika el lett távolítva (1.2.0). A `mailAPI.imap`
+// és `mailAPI.smtp` továbbra is létezik no-op formában, hogy a UI ne törjön —
+// minden hívás üres adatot vagy "nem támogatott" hibát ad vissza.
 
 export type Account = {
   id: string;
-  label: string;        // Megjelenített név (pl. "Munka")
-  displayName?: string; // A kimenő levelek "From" nevében megjelenő név (pl. "Kovács János")
+  label: string;
+  displayName?: string;
   from?: string;
-  user: string;         // E-mail cím (pl. te@hoating.eu)
-  authUser?: string;    // Hitelesítési felhasználónév, ha eltér az e-mail címtől (pl. cPanel mailbox név)
+  user: string;
+  authUser?: string;
   password?: string;
   imapHost: string;
   imapPort?: number;
@@ -26,7 +26,7 @@ export type EmailTemplate = {
   id: string;
   name: string;
   subject: string;
-  body: string; // HTML from Tiptap
+  body: string;
   updatedAt: number;
 };
 
@@ -44,7 +44,6 @@ export type MailMessage = {
 
 const isElectron = typeof window !== "undefined" && (window as any).mailAPI?.isElectron;
 
-// ---- localStorage helpers (browser fallback) ----
 const LS = {
   get<T>(key: string, fallback: T): T {
     try {
@@ -59,64 +58,11 @@ const LS = {
   },
 };
 
-// ---- Demo data for browser preview ----
-const demoMessages = (accountLabel: string): MailMessage[] => [
-  {
-    seqno: 5,
-    from: `Apple <noreply@apple.com>`,
-    to: accountLabel,
-    subject: "Az új iCloud+ funkciók most elérhetőek",
-    date: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-    text: "Fedezd fel a Privát Relé és a Hide My Email legújabb fejlesztéseit...",
-    html: "<p>Fedezd fel a <strong>Privát Relé</strong> és a Hide My Email legújabb fejlesztéseit...</p>",
-    snippet: "Fedezd fel a Privát Relé és a Hide My Email legújabb fejlesztéseit...",
-  },
-  {
-    seqno: 4,
-    from: "GitHub <noreply@github.com>",
-    to: accountLabel,
-    subject: "[your-repo] Pull request #42 ready for review",
-    date: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
-    text: "@you opened a pull request to merge feature/inbox into main.",
-    html: "<p><strong>@you</strong> opened a pull request to merge <code>feature/inbox</code> into <code>main</code>.</p>",
-    snippet: "@you opened a pull request to merge feature/inbox into main.",
-  },
-  {
-    seqno: 3,
-    from: "Lovable <hello@lovable.dev>",
-    to: accountLabel,
-    subject: "Üdv a saját email kliensedben! ✉️",
-    date: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString(),
-    text: "Ez egy demó üzenet a böngésző előnézethez. A natív Mac appban valódi IMAP fiókok jelennek meg.",
-    html: "<p>Ez egy <em>demó üzenet</em> a böngésző előnézethez. A natív Mac appban valódi IMAP fiókok jelennek meg.</p><p>Próbáld ki az új levél írását a jobb felső sarokban!</p>",
-    snippet: "Ez egy demó üzenet a böngésző előnézethez...",
-  },
-  {
-    seqno: 2,
-    from: "Anna Kovács <anna@example.com>",
-    to: accountLabel,
-    subject: "Re: Heti egyeztetés",
-    date: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
-    text: "Szia! Csütörtök 10:00 jó? Küldök naptármeghívót.",
-    html: "<p>Szia!</p><p>Csütörtök <strong>10:00</strong> jó? Küldök naptármeghívót.</p><p>Üdv,<br>Anna</p>",
-    snippet: "Szia! Csütörtök 10:00 jó? Küldök naptármeghívót.",
-  },
-  {
-    seqno: 1,
-    from: "Newsletter <news@techweekly.com>",
-    to: accountLabel,
-    subject: "🚀 Tech Weekly — A 7 legjobb DevTool ezen a héten",
-    date: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString(),
-    text: "Heti összefoglaló a fejlesztői világból...",
-    html: "<h2>Tech Weekly</h2><p>Heti összefoglaló a fejlesztői világból...</p>",
-    snippet: "Heti összefoglaló a fejlesztői világból...",
-  },
-];
+const NOT_SUPPORTED = "Az e-mail küldés és fogadás el lett távolítva ebből a verzióból.";
 
-// ---- API ----
 export const mailAPI = {
   isElectron: !!isElectron,
-  platform: isElectron ? "Electron (Mac native)" : "Browser preview (demo mode)",
+  platform: isElectron ? "Electron (Mac native)" : "Browser preview",
 
   accounts: {
     async list(): Promise<Account[]> {
@@ -163,36 +109,27 @@ export const mailAPI = {
     },
   },
 
+  // No-op IMAP/SMTP implementation. Kept so the existing UI code doesn't crash.
   imap: {
-    async listMailboxes(accountId: string): Promise<string[]> {
-      if (isElectron) return (window as any).mailAPI.imap.listMailboxes(accountId);
+    async listMailboxes(_accountId: string): Promise<string[]> {
       return ["INBOX", "Sent", "Drafts", "Archive", "Spam", "Trash"];
     },
-    async testConnection(params: { accountId: string; timeoutMs?: number }): Promise<{ ok: true }> {
-      if (isElectron) return (window as any).mailAPI.imap.testConnection(params);
-      await new Promise((r) => setTimeout(r, 500));
-      return { ok: true };
+    async testConnection(_params: { accountId: string; timeoutMs?: number }): Promise<{ ok: true }> {
+      throw new Error(NOT_SUPPORTED);
     },
-    async fetch(params: { accountId: string; mailbox?: string; limit?: number }): Promise<MailMessage[]> {
-      if (isElectron) return (window as any).mailAPI.imap.fetch(params);
-      const accounts = await mailAPI.accounts.list();
-      const acc = accounts.find((a) => a.id === params.accountId);
-      return demoMessages(acc?.label || "demo@local");
+    async fetch(_params: { accountId: string; mailbox?: string; limit?: number }): Promise<MailMessage[]> {
+      return [];
     },
-    async sync(params: { accountId: string; mailbox?: string; limit?: number }): Promise<{ added: number; messages: MailMessage[] }> {
-      if (isElectron) return (window as any).mailAPI.imap.sync(params);
-      const accounts = await mailAPI.accounts.list();
-      const acc = accounts.find((a) => a.id === params.accountId);
-      return { added: 0, messages: demoMessages(acc?.label || "demo@local") };
+    async sync(_params: { accountId: string; mailbox?: string; limit?: number }): Promise<{ added: number; messages: MailMessage[] }> {
+      return { added: 0, messages: [] };
     },
-    async syncAll(params: { accountId: string }): Promise<Record<string, number | { error: string }>> {
-      if (isElectron) return (window as any).mailAPI.imap.syncAll(params);
-      return { INBOX: 0, Sent: 0, Drafts: 0 };
+    async syncAll(_params: { accountId: string }): Promise<Record<string, number | { error: string }>> {
+      return {};
     },
   },
 
   smtp: {
-    async send(params: {
+    async send(_params: {
       accountId: string;
       to: string;
       cc?: string;
@@ -201,10 +138,7 @@ export const mailAPI = {
       html: string;
       text: string;
     }) {
-      if (isElectron) return (window as any).mailAPI.smtp.send(params);
-      console.info("[demo] sendMail", params);
-      await new Promise((r) => setTimeout(r, 600));
-      return { ok: true, messageId: `demo-${Date.now()}` };
+      throw new Error(NOT_SUPPORTED);
     },
   },
 
@@ -231,7 +165,6 @@ export const mailAPI = {
       if (isElectron && (window as any).mailAPI.updater) {
         return (window as any).mailAPI.updater.apply();
       }
-      // Browser fallback: just hard-reload to fetch the newest assets.
       window.location.reload();
       return { ok: true };
     },
@@ -244,11 +177,7 @@ export const mailAPI = {
   },
 };
 
-export type ReleaseNote = {
-  version: string;
-  date: string;
-  body: string;
-};
+export type ReleaseNote = { version: string; date: string; body: string };
 
 export type UpdaterInfo = {
   appRoot: string;
@@ -264,7 +193,7 @@ export type UpdaterInfo = {
   repoUrl: string;
   branch: string;
   upToDate: boolean;
-  versionDelta?: number; // 1 = update available, 0 = up to date
+  versionDelta?: number;
   releaseNotes?: ReleaseNote[];
 };
 
@@ -274,21 +203,14 @@ function defaultTemplates(): EmailTemplate[] {
       id: "tpl-welcome",
       name: "Üdvözlő levél",
       subject: "Üdv nálunk!",
-      body: "<p>Kedves <strong>Címzett</strong>,</p><p>Köszönjük, hogy regisztráltál! Ha bármi kérdésed van, írj nyugodtan.</p><p>Üdvözlettel,<br>A csapat</p>",
+      body: "<p>Kedves <strong>Címzett</strong>,</p><p>Köszönjük, hogy regisztráltál!</p><p>Üdvözlettel,<br>A csapat</p>",
       updatedAt: Date.now(),
     },
     {
       id: "tpl-meeting",
       name: "Megbeszélés egyeztetés",
       subject: "Egyeztetés időpontja",
-      body: "<p>Szia!</p><p>Az alábbi időpontok közül melyik felelne meg neked?</p><ul><li>Hétfő 10:00</li><li>Kedd 14:00</li><li>Szerda 9:00</li></ul><p>Üdv</p>",
-      updatedAt: Date.now(),
-    },
-    {
-      id: "tpl-followup",
-      name: "Follow-up",
-      subject: "Visszajelzés kérése",
-      body: "<p>Szia!</p><p>Csak finoman rákérdeznék, sikerült-e ránézned az előző levelemre. Köszönöm előre is!</p><p>Üdv</p>",
+      body: "<p>Szia!</p><p>Az alábbi időpontok közül melyik felelne meg neked?</p><ul><li>Hétfő 10:00</li><li>Kedd 14:00</li></ul><p>Üdv</p>",
       updatedAt: Date.now(),
     },
   ];
