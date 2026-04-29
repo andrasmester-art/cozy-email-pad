@@ -89,7 +89,7 @@ export function SignaturesDialog({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-5xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSignature className="h-4 w-4" /> Email aláírások
@@ -147,14 +147,45 @@ export function SignaturesDialog({ open, onClose }: Props) {
                     placeholder="Pl. Munkahelyi"
                   />
                 </div>
-                <div className="flex-1 min-h-[160px]">
-                  <Label className="text-xs">Tartalom</Label>
-                  <RichTextEditor
-                    value={selected.body}
-                    onChange={(html) => updateSelected({ body: html })}
-                    placeholder="Üdvözlettel, …"
-                    className="h-[200px]"
-                  />
+                <div className="grid grid-cols-2 gap-3 flex-1 min-h-[220px]">
+                  <div className="flex flex-col min-w-0">
+                    <Label className="text-xs">Tartalom</Label>
+                    <RichTextEditor
+                      value={selected.body}
+                      onChange={(html) => updateSelected({ body: html })}
+                      placeholder="Üdvözlettel, …"
+                      className="h-[260px]"
+                    />
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <Label className="text-xs flex items-center justify-between">
+                      <span>Élő előnézet</span>
+                      <span className="text-[10px] font-normal text-muted-foreground">
+                        a levél stílusával
+                      </span>
+                    </Label>
+                    <div className="h-[260px] rounded-md border border-border bg-background overflow-hidden flex flex-col">
+                      {/* Mini levél fejléc, hogy a megjelenés a MessageView-hoz hasonlítson */}
+                      <div className="px-4 py-2 border-b border-border bg-surface-elevated">
+                        <div className="text-xs font-medium truncate">Tárgy: Példa üzenet</div>
+                        <div className="text-[11px] text-muted-foreground truncate">
+                          neved@példa.hu → címzett@példa.hu
+                        </div>
+                      </div>
+                      <div className="flex-1 overflow-y-auto px-4 py-3">
+                        <div className="text-sm mb-3">
+                          <p>Kedves Címzett!</p>
+                          <p>Ez egy minta üzenet, hogy lásd hogyan néz ki az aláírásod a kész levélben.</p>
+                        </div>
+                        <div
+                          className="prose prose-sm max-w-none dark:prose-invert border-t border-border/60 pt-3 text-foreground"
+                          dangerouslySetInnerHTML={{
+                            __html: selected.body || '<p class="text-muted-foreground italic">Üres aláírás</p>',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </>
             ) : (
