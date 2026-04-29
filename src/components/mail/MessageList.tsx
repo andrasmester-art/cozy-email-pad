@@ -26,7 +26,7 @@ function senderName(from: string) {
   return (m ? m[1] : from).trim() || from;
 }
 
-export function MessageList({ messages, selectedSeqno, onSelect, onOpen, loading, onRefresh, mailbox, onLoadMore, loadingMore, exhausted }: Props) {
+export function MessageList({ messages, selectedSeqno, onSelect, onOpen, onToggleFlag, loading, onRefresh, mailbox, onLoadMore, loadingMore, exhausted }: Props) {
   const [q, setQ] = useState("");
   const filtered = useMemo(() => {
     if (!q.trim()) return messages;
