@@ -224,6 +224,7 @@ const Index = () => {
           syncing={syncing}
           onOpenTemplates={() => setTemplatesOpen(true)}
           onOpenSignatures={() => setSignaturesOpen(true)}
+          onOpenUpdater={() => setUpdaterOpen(true)}
           onOpenSettings={() => {
             const current = accounts.find((x) => x.id === activeAccountId) || null;
             setEditingAccount(current);
