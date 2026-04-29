@@ -109,28 +109,87 @@ export function stripSignature(body: string): string {
  * - **New email** (no quoted previous message): signature is appended to the
  *   very end of the body.
  * - **Reply / forward** (body contains a `data-mwquote` block): signature is
- *   inserted **right before** the quoted block, so the recipient sees:
- *   `[user's reply] [signature] [previous email quote]` — matching how
+ *   inserted **right before the OUTERMOST quote**, so the recipient sees:
+ *   `[user's reply] [signature] [previous email quote(s)]` — matching how
  *   Apple Mail / Gmail / Outlook lay out replies.
+ *
+ *   Egymásba ágyazott idézetek (pl. forward-olt reply, ami egy korábbi reply
+ *   quote-ot is tartalmaz, vagy több egymás utáni `data-mwquote` blokk)
+ *   esetén DOM-szinten keressük meg a *legkülső, legkorábban előforduló*
+ *   quote-blokkot, és AZ ELÉ tesszük az aláírást — így a belső, ágyazott
+ *   idézetek érintetlenül maradnak a quote-blokkon belül.
  */
 export function applySignatureToBody(body: string, sig: Signature | null): string {
   const stripped = stripSignature(body || "");
   if (!sig) return stripped;
 
+  // DOM-alapú megközelítés: megbízhatóan kezeli az egymásba ágyazott
+  // idézeteket. Ha nincs `document` (SSR/test), regex-fallback-re vált.
+  if (typeof document !== "undefined") {
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = stripped;
+
+    // Az ÖSSZES quote-jelölt elem közül azokat tartjuk meg, amelyeknek
+    // nincs `[data-mwquote="1"]` ősük a wrapper-en belül — ezek a
+    // „top-level" quote-ok. Közülük a DOM-sorrendben legelsőt vesszük.
+    const allQuotes = Array.from(
+      wrapper.querySelectorAll<HTMLElement>(`[${QUOTE_MARKER}="1"]`),
+    );
+    const topLevelQuotes = allQuotes.filter(
+      (el) => !el.parentElement?.closest(`[${QUOTE_MARKER}="1"]`),
+    );
+
+    if (topLevelQuotes.length > 0) {
+      const firstTop = topLevelQuotes[0];
+      // Aláírás-csomag DOM-node-ként, hogy az `insertBefore` natívan kezelje.
+      const sigHolder = document.createElement("div");
+      sigHolder.innerHTML = wrapSignature(sig.body);
+      const sigNode = sigHolder.firstElementChild;
+      if (sigNode) {
+        // Esztétikai elválasztó: üres bekezdés a tartalom és aláírás közé,
+        // hogy ne tapadjon hozzá az utolsó sor.
+        const hasContentBefore = (() => {
+          // Van-e nem-üres szöveg vagy elem a quote ELŐTT a wrapperben?
+          let n: Node | null = firstTop.previousSibling;
+          while (n) {
+            if (n.nodeType === Node.TEXT_NODE && (n.textContent || "").trim()) return true;
+            if (n.nodeType === Node.ELEMENT_NODE) {
+              const html = (n as HTMLElement).outerHTML;
+              if (html && html !== "<p></p>") return true;
+            }
+            n = n.previousSibling;
+          }
+          return false;
+        })();
+        if (hasContentBefore) {
+          const sep = document.createElement("p");
+          sep.innerHTML = "<br>";
+          firstTop.parentNode?.insertBefore(sep, firstTop);
+        }
+        firstTop.parentNode?.insertBefore(sigNode, firstTop);
+        return wrapper.innerHTML;
+      }
+    }
+
+    // Nincs quote-blokk → új levél: aláírás a végére.
+    const sep = stripped && stripped !== "<p></p>" ? "<p><br></p>" : "";
+    return `${stripped}${sep}${wrapSignature(sig.body)}`;
+  }
+
+  // ---- SSR/test fallback: az eredeti regex-alapú logika (string-pozíció
+  // szerinti első quote — egymás utáni quote-oknál ez is helyes). ----
   const quoteRe = new RegExp(
     `<(blockquote|div)[^>]*${QUOTE_MARKER}=["']1["'][\\s\\S]*`,
     "i",
   );
   const match = stripped.match(quoteRe);
   if (match && match.index !== undefined) {
-    // Reply / forward: split at the quote and insert the signature in front.
     const before = stripped.slice(0, match.index);
     const quote = stripped.slice(match.index);
     const sep = before && before !== "<p></p>" ? "<p><br></p>" : "";
     return `${before}${sep}${wrapSignature(sig.body)}${quote}`;
   }
 
-  // Plain new email: append at the very end.
   const sep = stripped && stripped !== "<p></p>" ? "<p><br></p>" : "";
   return `${stripped}${sep}${wrapSignature(sig.body)}`;
 }
