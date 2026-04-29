@@ -1,10 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Account } from "@/lib/mailBridge";
 import { cn } from "@/lib/utils";
 import { Inbox, Send, FileText, Archive, Trash2, AlertOctagon, Plus, Settings, FileCode2, Pencil, X, AlertCircle, CheckCircle2, Circle, PenSquare, FileSignature, RefreshCw, Download, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getAllAccountStatuses, formatRelative, formatCountdown, type AccountStatus } from "@/lib/accountStatus";
+
+const WIDTH_KEY = "mailwise.sidebarWidth";
+const MIN_WIDTH = 200;
+const MAX_WIDTH = 480;
+const DEFAULT_WIDTH = 240;
 
 type Props = {
   accounts: Account[];
