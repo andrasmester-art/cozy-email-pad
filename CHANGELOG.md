@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.16.3] – 2026-04-29
+
+### Javítás
+- **Kép beillesztése a levélszerkesztőben most már működik.** Korábban a gomb egy URL-t kérő `prompt` ablakot dobott fel, ami Electron alatt sok esetben azonnal becsukódott vagy nem fogadta el a beírt címet, ezért gyakorlatilag használhatatlan volt. Mostantól a gomb natív fájlválasztót nyit meg: a kiválasztott képet base64 data URL-ként ágyazza be a levélbe, így a címzettnél is megjelenik küldés után, külön képhost nélkül.
+
 ## [1.16.2] – 2026-04-29
 
 ### Javítás
