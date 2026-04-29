@@ -19,6 +19,7 @@ import {
   type Signature,
 } from "@/lib/signatures";
 import { loadDraft, saveDraft, clearDraft, isDraftMeaningful, type Draft } from "@/lib/draft";
+import { sanitizeEmailHtml } from "@/lib/sanitizeHtml";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
