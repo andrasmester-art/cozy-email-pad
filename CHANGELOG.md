@@ -3,6 +3,16 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.19.2] – 2026-04-29
+
+### Javítás
+- **A beérkező levelek formázása megmarad.** Korábban sok formázott levél (HTML hírlevelek, számlák, kampányok, táblázatos layoutok) „puszta szövegként" jelent meg, mert a levél HTML-jét közvetlenül a Tailwind `prose` osztály alá ágyaztuk be — a `prose` reset és a Tailwind utility-k pedig csendben felülírták a levél saját szövegszínét, méretét, listáit, link-stílusát. Mostantól a beérkező leveleket egy izolált `<iframe srcDoc>`-ba rendereljük (sandbox=""), pont mint az Apple Mail vagy a Gmail. A levél saját CSS-e érvényesül, az alkalmazás stílusai nem szivárognak be — a layout torzítatlan marad.
+- A frame magassága a levél tartalmához igazodik (ResizeObserver + képek `load` eseménye), így nincs belső görgetősáv: az egész nézet együtt görgethető, ahogy eddig.
+
+### Biztonság
+- A frame `sandbox=""` attribútummal indul: a levélben lévő scriptek nem futnak, formok nem küldődnek, a frame nem éri el az alkalmazás cookie-jait, ablakát vagy IPC-jét.
+- A linkek `target="_blank"` alá nyílnak (a `<base>` tag állítja be), így a rendelő ablak nem kerül ismeretlen oldalra.
+
 ## [1.19.1] – 2026-04-29
 
 ### Javítás

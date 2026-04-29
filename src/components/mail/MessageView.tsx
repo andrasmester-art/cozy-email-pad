@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Reply, ReplyAll, Forward, Trash2, Archive, Star, Mail, MailOpen } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { EmailHtmlFrame } from "./EmailHtmlFrame";
 
 type Props = {
   message: MailMessage | null;
@@ -97,10 +98,12 @@ export function MessageView({ message, onReply, onReplyAll, onForward, onToggleF
             Levél tartalmának betöltése…
           </div>
         ) : message.html ? (
-          <div
-            className="prose prose-sm max-w-none dark:prose-invert"
-            dangerouslySetInnerHTML={{ __html: message.html }}
-          />
+          // A levél HTML-jét izolált iframe-be tesszük, hogy a benne lévő
+          // `<style>` blokkok és inline szabályok ne ütközzenek a Tailwind
+          // reset / `prose` stílusokkal — különben a komplexebb levelek
+          // (HTML kampányok, számlák, hírlevelek) „puszta szövegként"
+          // jelennek meg.
+          <EmailHtmlFrame html={message.html} />
         ) : (
           <pre className="whitespace-pre-wrap font-sans text-sm">{message.text}</pre>
         )}
