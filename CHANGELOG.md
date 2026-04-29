@@ -10,6 +10,13 @@ A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 - IMAP kapcsolat-, és socket-timeout (15s / 30s) hozzáadva, hogy a süket szerverek ne fagyaszthassák be a műveleteket.
 - Az `INBOX` szinkron is a szerver által felismert valódi mappanevet használja (pl. Hostingernél), nem csak a `syncAll`.
 
+## [1.1.3] – 2026-04-29
+
+### Javítás
+- A Hostinger / Titan presetek javítva a hivatalos szerverekre: `imap.titan.email` és `smtp.titan.email`.
+- A korábban hibás `imap.hostinger.com` / `smtp.hostinger.com` hostokkal mentett fiókok mentéskor automatikusan a helyes Titan hostokra normalizálódnak.
+- A Hostinger súgó pontosítva: teljes e-mail címes felhasználónév, mailbox-jelszó, és bekapcsolt third-party app hozzáférés szükséges.
+
 ## [1.1.1] – 2026-04-29
 
 ### Javítás
