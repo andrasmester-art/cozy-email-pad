@@ -40,7 +40,7 @@ const Index = () => {
     if (!deletingAccount) return;
     const id = deletingAccount.id;
     await mailAPI.accounts.delete(id);
-    clearAccountStatus(id);
+    clearRetryFor(id);
     const list = await mailAPI.accounts.list();
     setAccounts(list);
     if (activeAccountId === id) {
