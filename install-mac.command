@@ -1,5 +1,5 @@
 #!/bin/bash
-# Mailwise — Egykattintásos Mac telepítő
+# MEpodMail — Egykattintásos Mac telepítő
 # Dupla klikkel futtatható (.command fájl). Mindent magától elintéz:
 #  1. Ellenőrzi a Node.js-t, ha nincs, telepíti (Homebrew-val)
 #  2. npm install
@@ -20,7 +20,7 @@ cd "$(dirname "$0")"
 
 echo ""
 echo -e "${BLUE}╔═══════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║   Mailwise — Mac telepítő                 ║${NC}"
+echo -e "${BLUE}║   MEpodMail — Mac telepítő                 ║${NC}"
 echo -e "${BLUE}╚═══════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "Projekt mappa: ${YELLOW}$(pwd)${NC}"
@@ -89,7 +89,7 @@ else
 fi
 
 # Electron csomagolás
-npx @electron/packager . "Mailwise" \
+npx @electron/packager . "MEpodMail" \
   --platform=darwin \
   --arch=$PACKAGER_ARCH \
   --out=dist-mac \
@@ -103,9 +103,9 @@ echo -e "${GREEN}✓ Build kész${NC}"
 
 # ─── 4. Megnyitás ─────────────────────────────────────────────────
 echo ""
-echo -e "${BLUE}[4/4]${NC} Mailwise.app indítása…"
+echo -e "${BLUE}[4/4]${NC} MEpodMail.app indítása…"
 
-APP_PATH="dist-mac/Mailwise-darwin-$PACKAGER_ARCH/Mailwise.app"
+APP_PATH="dist-mac/MEpodMail-darwin-$PACKAGER_ARCH/MEpodMail.app"
 
 if [ -d "$APP_PATH" ]; then
   # macOS quarantine attribútum eltávolítása (hogy ne kelljen jobb klikk → Megnyitás)
@@ -123,14 +123,14 @@ if [ -d "$APP_PATH" ]; then
   echo ""
   if [[ $REPLY =~ ^[IiYy]$ ]]; then
     cp -R "$APP_PATH" /Applications/
-    echo -e "${GREEN}✓ Telepítve: /Applications/Mailwise.app${NC}"
-    open "/Applications/Mailwise.app"
+    echo -e "${GREEN}✓ Telepítve: /Applications/MEpodMail.app${NC}"
+    open "/Applications/MEpodMail.app"
   else
     open "$APP_PATH"
   fi
 
   echo ""
-  echo -e "${GREEN}A Mailwise most elindul. Jó használatot!${NC}"
+  echo -e "${GREEN}A MEpodMail most elindul. Jó használatot!${NC}"
 else
   echo -e "${RED}✗ Hiba: $APP_PATH nem található${NC}"
   exit 1
