@@ -177,6 +177,7 @@ export function MessageList({ messages, selectedSeqno, onSelect, onOpen, onToggl
         onLoadMore={onLoadMore}
         loadingMore={loadingMore}
         exhausted={exhausted}
+        density={density}
         searching={!!q.trim() || filterMode !== "all"}
         emptyHint={
           filterMode === "unread" ? "Nincs olvasatlan levél"
