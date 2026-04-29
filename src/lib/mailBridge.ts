@@ -5,9 +5,11 @@
 
 export type Account = {
   id: string;
-  label: string;
+  label: string;        // Megjelenített név (pl. "Munka")
+  displayName?: string; // A kimenő levelek "From" nevében megjelenő név (pl. "Kovács János")
   from?: string;
-  user: string;
+  user: string;         // E-mail cím (pl. te@hoating.eu)
+  authUser?: string;    // Hitelesítési felhasználónév, ha eltér az e-mail címtől (pl. cPanel mailbox név)
   password?: string;
   imapHost: string;
   imapPort?: number;

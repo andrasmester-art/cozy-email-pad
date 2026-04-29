@@ -86,7 +86,7 @@ ipcMain.handle("templates:delete", (_e, id) => {
 // IPC: IMAP
 function imapConfigFor(account) {
   return new Imap({
-    user: account.user,
+    user: account.authUser || account.user,
     password: decryptPassword(account.password),
     host: account.imapHost,
     port: account.imapPort || 993,
@@ -191,13 +191,16 @@ ipcMain.handle("smtp:send", async (_e, { accountId, to, cc, bcc, subject, html, 
     port: account.smtpPort || 465,
     secure: account.smtpSecure !== false,
     auth: {
-      user: account.smtpUser || account.user,
+      user: account.smtpUser || account.authUser || account.user,
       pass: decryptPassword(account.smtpPassword || account.password),
     },
     tls: { rejectUnauthorized: false },
   });
+  const fromAddress = account.displayName
+    ? `"${String(account.displayName).replace(/"/g, '\\"')}" <${account.user}>`
+    : account.from || account.user;
   const info = await transporter.sendMail({
-    from: account.from || account.user,
+    from: fromAddress,
     to, cc, bcc, subject, html, text,
   });
   return { ok: true, messageId: info.messageId };
