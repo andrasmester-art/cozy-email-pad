@@ -1,10 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Account } from "@/lib/mailBridge";
 import { cn } from "@/lib/utils";
 import { Inbox, Send, FileText, Archive, Trash2, AlertOctagon, Plus, Settings, FileCode2, Pencil, X, AlertCircle, CheckCircle2, Circle, PenSquare, FileSignature, RefreshCw, Download, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getAllAccountStatuses, formatRelative, formatCountdown, type AccountStatus } from "@/lib/accountStatus";
+
+const WIDTH_KEY = "mailwise.sidebarWidth";
+const MIN_WIDTH = 200;
+const MAX_WIDTH = 480;
+const DEFAULT_WIDTH = 240;
 
 type Props = {
   accounts: Account[];
@@ -43,6 +48,14 @@ export function Sidebar({
   const [statuses, setStatuses] = useState<Record<string, AccountStatus>>(() => getAllAccountStatuses());
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [width, setWidth] = useState<number>(() => {
+    try {
+      const v = parseInt(localStorage.getItem(WIDTH_KEY) || "", 10);
+      if (!isNaN(v) && v >= MIN_WIDTH && v <= MAX_WIDTH) return v;
+    } catch { /* ignore */ }
+    return DEFAULT_WIDTH;
+  });
+  const resizingRef = useRef(false);
 
   useEffect(() => {
     const refresh = () => setStatuses(getAllAccountStatuses());
@@ -55,9 +68,41 @@ export function Sidebar({
     };
   }, []);
 
+  // Drag-to-resize a sidebar jobb széléről.
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!resizingRef.current) return;
+      const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, e.clientX));
+      setWidth(next);
+    };
+    const onUp = () => {
+      if (!resizingRef.current) return;
+      resizingRef.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      try { localStorage.setItem(WIDTH_KEY, String(Math.round(width))); } catch { /* ignore */ }
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [width]);
+
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    resizingRef.current = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  };
+
   return (
     <TooltipProvider delayDuration={200}>
-    <aside className="w-60 shrink-0 bg-gradient-sidebar border-r border-sidebar-border flex flex-col h-full">
+    <aside
+      className="shrink-0 bg-gradient-sidebar border-r border-sidebar-border flex flex-col h-full relative"
+      style={{ width: `${width}px` }}
+    >
       <div className="mac-titlebar shrink-0" />
 
       <div className="px-3 pb-2 space-y-1.5">
@@ -247,6 +292,16 @@ export function Sidebar({
           <Download className="h-4 w-4" /> App frissítése
         </Button>
       </div>
+      {/* Átméretező fogantyú a jobb szélen */}
+      <div
+        onMouseDown={startResize}
+        onDoubleClick={() => {
+          setWidth(DEFAULT_WIDTH);
+          try { localStorage.setItem(WIDTH_KEY, String(DEFAULT_WIDTH)); } catch { /* ignore */ }
+        }}
+        title="Húzd a szélesség módosításához (dupla kattintás: alaphelyzet)"
+        className="absolute top-0 right-0 h-full w-1.5 -mr-0.5 cursor-col-resize hover:bg-primary/40 active:bg-primary/60 transition-colors z-10"
+      />
     </aside>
     </TooltipProvider>
   );
