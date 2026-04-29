@@ -10,7 +10,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { X, Send, FileCode2, Save, Clock, Star } from "lucide-react";
+import { X, Send, FileCode2, Save, Clock, Star, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { getSendDelay, setSendDelay, SEND_DELAY_OPTIONS, formatDelay } from "@/lib/sendDelay";
 import { getDefaultAccountId, setDefaultAccountId } from "@/lib/defaultAccount";
@@ -79,7 +79,21 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
     setBody((prev) => (prev && prev !== "<p></p>" ? prev + tpl.body : tpl.body));
   };
 
+  // Pending-send state for the undo countdown UI
+  const [pending, setPending] = useState<{
+    remaining: number;
+    total: number;
+    cancel: () => void;
+  } | null>(null);
+
+  // Cleanup any active countdown when the component unmounts
+  useEffect(() => {
+    return () => { pending?.cancel(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleSend = async () => {
+    if (sending || pending) return; // guard against double-click
     if (!accountId) return toast.error("Válassz fiókot");
     if (!to.trim()) return toast.error("Adj meg címzettet");
 
@@ -103,59 +117,50 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
       return;
     }
 
-    // Delayed send with undo
-    onClose();
+    // Delayed send with inline undo banner
     let cancelled = false;
     let remaining = delay;
-    const toastId = toast(`Küldés ${remaining} mp múlva…`, {
-      duration: delay * 1000 + 500,
-      action: {
-        label: "Visszavonás",
-        onClick: () => {
-          cancelled = true;
-          clearInterval(tick);
-          clearTimeout(timer);
-          toast.dismiss(toastId);
-          toast.info("Küldés visszavonva", {
-            description: `Tárgy: ${subject || "(nincs tárgy)"}`,
-          });
-        },
-      },
-    });
+    let tick: ReturnType<typeof setInterval>;
+    let timer: ReturnType<typeof setTimeout>;
 
-    const tick = setInterval(() => {
+    const cancel = () => {
+      if (cancelled) return;
+      cancelled = true;
+      clearInterval(tick);
+      clearTimeout(timer);
+      setPending(null);
+      toast.info("Küldés visszavonva", {
+        description: `Tárgy: ${subject || "(nincs tárgy)"}`,
+      });
+    };
+
+    setPending({ remaining, total: delay, cancel });
+
+    tick = setInterval(() => {
       remaining -= 1;
-      if (remaining > 0 && !cancelled) {
-        toast(`Küldés ${remaining} mp múlva…`, {
-          id: toastId,
-          duration: remaining * 1000 + 500,
-          action: {
-            label: "Visszavonás",
-            onClick: () => {
-              cancelled = true;
-              clearInterval(tick);
-              clearTimeout(timer);
-              toast.dismiss(toastId);
-              toast.info("Küldés visszavonva");
-            },
-          },
-        });
+      if (cancelled) return;
+      if (remaining > 0) {
+        setPending({ remaining, total: delay, cancel });
       } else {
         clearInterval(tick);
       }
     }, 1000);
 
-    const timer = setTimeout(async () => {
+    timer = setTimeout(async () => {
       clearInterval(tick);
       if (cancelled) return;
+      setPending(null);
+      setSending(true);
       try {
         await mailAPI.smtp.send(payload);
-        toast.success("Levél elküldve", { id: toastId });
+        toast.success("Levél elküldve");
+        onClose();
       } catch (e: any) {
         toast.error("Küldés sikertelen", {
-          id: toastId,
           description: String(e?.message || e),
         });
+      } finally {
+        setSending(false);
       }
     }, delay * 1000);
   };
@@ -182,11 +187,44 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
       <div className="bg-surface rounded-xl shadow-mac-lg w-full max-w-3xl h-[85vh] flex flex-col overflow-hidden border border-border">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <h2 className="text-sm font-semibold">Új levél</h2>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
+          <h2 className="text-sm font-semibold">
+            {pending ? "Tart a küldés…" : sending ? "Küldés folyamatban…" : "Új levél"}
+          </h2>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={onClose}
+            disabled={!!pending || sending}
+            title={pending ? "Vond vissza vagy várd meg a küldést" : "Bezárás"}
+          >
             <X className="h-4 w-4" />
           </Button>
         </div>
+
+        {pending && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="px-4 py-2.5 bg-primary/10 border-b border-primary/20 flex items-center gap-3"
+          >
+            <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-foreground">
+                Tart a küldés — {pending.remaining} mp múlva indul
+              </div>
+              <div className="h-1 mt-1.5 bg-primary/15 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all duration-1000 ease-linear"
+                  style={{ width: `${((pending.total - pending.remaining) / pending.total) * 100}%` }}
+                />
+              </div>
+            </div>
+            <Button size="sm" variant="outline" onClick={pending.cancel}>
+              Visszavonás
+            </Button>
+          </div>
+        )}
 
         <div className="px-4 py-3 space-y-2 border-b border-border">
           <div className="flex items-center gap-2">
@@ -306,8 +344,28 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial }:
                 ))}
               </SelectContent>
             </Select>
-            <Button onClick={handleSend} disabled={sending} className="bg-gradient-primary">
-              <Send className="h-4 w-4 mr-1.5" /> {sending ? "Küldés…" : "Küldés"}
+            <Button
+              onClick={handleSend}
+              disabled={sending || !!pending}
+              aria-busy={sending || !!pending}
+              className="bg-gradient-primary min-w-[120px]"
+            >
+              {pending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  Küldés {pending.remaining} mp
+                </>
+              ) : sending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  Küldés…
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4 mr-1.5" />
+                  Küldés
+                </>
+              )}
             </Button>
           </div>
         </div>
