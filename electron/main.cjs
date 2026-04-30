@@ -916,18 +916,43 @@ ipcMain.handle("imap:listInbox", async (_e, { accountId } = {}) => {
 
 // ---- IPC: SMTP ----
 ipcMain.handle("smtp:send", async (_e, { accountId, to, cc, bcc, subject, html, text }) => {
+  const tStart = Date.now();
   const account = loadAccounts().find((a) => a.id === accountId);
-  if (!account) throw new Error("A fiók nem található.");
-  if (!account.smtpHost) throw new Error("Hiányzó SMTP szerver — szerkeszd a fiókot.");
+  if (!account) {
+    console.warn(`[smtp] missing account ${accountId}`);
+    throw new Error("A fiók nem található.");
+  }
+  if (!account.smtpHost) {
+    console.warn(`[smtp] account ${account.id} has no smtpHost configured`);
+    throw new Error("Hiányzó SMTP szerver — szerkeszd a fiókot.");
+  }
   const smtpUser = account.smtpUser || account.authUser || account.user;
   const smtpPass = decryptPassword(account.smtpPassword || account.password);
   if (!smtpUser || !smtpPass) {
+    console.warn(`[smtp] account ${account.id} missing credentials (user=${!!smtpUser} pass=${!!smtpPass})`);
     throw new Error("Hiányzó SMTP felhasználónév vagy jelszó — szerkeszd a fiókot és add meg újra a jelszót.");
   }
   // STARTTLS heurisztika: 587-es port → secure=false + requireTLS, 465 → secure=true.
   const port = account.smtpPort || 465;
   const explicitSecure = typeof account.smtpSecure === "boolean";
   const secure = explicitSecure ? account.smtpSecure : port === 465;
+
+  const countAddr = (s) => (s ? String(s).split(",").map((x) => x.trim()).filter(Boolean).length : 0);
+  const subjectPreview = (subject || "").slice(0, 80).replace(/\s+/g, " ");
+  console.log(
+    `[smtp] send begin acct=${account.id} host=${account.smtpHost}:${port} secure=${secure} requireTLS=${!secure} user=${smtpUser} to=${countAddr(to)} cc=${countAddr(cc)} bcc=${countAddr(bcc)} subject="${subjectPreview}"`,
+  );
+
+  // Nodemailer belső naplójának átkötése a saját [smtp] csatornánkra, hogy
+  // a teljes SMTP-párbeszéd (EHLO/STARTTLS/AUTH/MAIL FROM/RCPT/DATA) is
+  // bekerüljön a Hibanapló fájlba. A jelszót/AUTH base64 sorokat redaktáljuk.
+  const smtpLogger = {
+    debug: (entry, ...args) => console.log(`[smtp] dbg ${redactSmtp(formatSmtpEntry(entry, args))}`),
+    info:  (entry, ...args) => console.log(`[smtp] inf ${redactSmtp(formatSmtpEntry(entry, args))}`),
+    warn:  (entry, ...args) => console.warn(`[smtp] wrn ${redactSmtp(formatSmtpEntry(entry, args))}`),
+    error: (entry, ...args) => console.error(`[smtp] err ${redactSmtp(formatSmtpEntry(entry, args))}`),
+  };
+
   const transporter = nodemailer.createTransport({
     host: account.smtpHost,
     port,
@@ -938,6 +963,8 @@ ipcMain.handle("smtp:send", async (_e, { accountId, to, cc, bcc, subject, html, 
     connectionTimeout: 30000,
     greetingTimeout: 20000,
     socketTimeout: 60000,
+    logger: smtpLogger,
+    debug: true,
   });
   const fromAddress = account.displayName
     ? `"${String(account.displayName).replace(/"/g, '\\"')}" <${account.user}>`
@@ -947,18 +974,60 @@ ipcMain.handle("smtp:send", async (_e, { accountId, to, cc, bcc, subject, html, 
       from: fromAddress,
       to, cc, bcc, subject, html, text,
     });
-    console.log(`[smtp] sent ${info.messageId} via ${account.smtpHost}:${port} (secure=${secure})`);
+    const dur = Date.now() - tStart;
+    const accepted = (info.accepted || []).length;
+    const rejected = (info.rejected || []).length;
+    const response = String(info.response || "").slice(0, 200);
+    console.log(
+      `[smtp] sent acct=${account.id} ${account.smtpHost}:${port} secure=${secure} messageId=${info.messageId} accepted=${accepted} rejected=${rejected} response="${response}" duration=${dur}ms`,
+    );
+    if (rejected > 0) {
+      console.warn(`[smtp] partial reject acct=${account.id} rejected=${JSON.stringify(info.rejected)}`);
+    }
     return { ok: true, messageId: info.messageId };
   } catch (err) {
     const code = err?.code || err?.responseCode || "?";
+    const command = err?.command || "?";
+    const responseCode = err?.responseCode || "";
     const detail = err?.response || err?.message || String(err);
-    console.error(`[smtp] FAILED (${code}) ${account.smtpHost}:${port} secure=${secure} — ${detail}`);
+    const stack = err?.stack ? String(err.stack).split("\n").slice(0, 4).join(" | ") : "";
+    const dur = Date.now() - tStart;
+    console.error(
+      `[smtp] FAILED acct=${account.id} ${account.smtpHost}:${port} secure=${secure} code=${code} responseCode=${responseCode} command=${command} duration=${dur}ms — ${detail}`,
+    );
+    if (stack) console.error(`[smtp] stack: ${stack}`);
     // Részletesebb hibaüzenet a felhasználónak
     throw new Error(`SMTP hiba (${code}): ${detail}`);
   } finally {
     try { transporter.close(); } catch { /* ignore */ }
   }
 });
+
+// Nodemailer logger payload formázása emberi sorrá. Az `entry` általában
+// `{ tnx, sid, cid }` típusú metaadat, az args az üzenet darabjai.
+function formatSmtpEntry(entry, args) {
+  let prefix = "";
+  if (entry && typeof entry === "object") {
+    const parts = [];
+    if (entry.tnx) parts.push(`tnx=${entry.tnx}`);
+    if (entry.sid) parts.push(`sid=${entry.sid}`);
+    if (entry.cid) parts.push(`cid=${entry.cid}`);
+    if (parts.length) prefix = `[${parts.join(" ")}] `;
+  } else if (typeof entry === "string") {
+    return [entry, ...args].join(" ");
+  }
+  return prefix + args.map((a) => (typeof a === "string" ? a : (() => { try { return JSON.stringify(a); } catch { return String(a); } })())).join(" ");
+}
+
+// Érzékeny sorok redaktálása az SMTP párbeszédből (AUTH base64, jelszó).
+function redactSmtp(line) {
+  if (!line) return line;
+  return String(line)
+    .replace(/(AUTH\s+\S+\s+)\S+/gi, "$1[REDACTED]")
+    .replace(/(AUTH\s+PLAIN\s+)\S+/gi, "$1[REDACTED]")
+    .replace(/(AUTH\s+LOGIN[\s\S]*?\n)[A-Za-z0-9+/=]{8,}/g, "$1[REDACTED]")
+    .replace(/(pass(?:word)?["':=\s]+)["']?[^"'\s,}]+/gi, "$1[REDACTED]");
+}
 
 // ---- IPC: Draft mentés a szerverre (IMAP APPEND a Drafts mappába) ----
 // Összeállítjuk a teljes RFC822 üzenetet a nodemailer MailComposerrel,
