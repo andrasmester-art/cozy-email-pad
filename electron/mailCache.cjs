@@ -41,7 +41,14 @@ function mailboxFile(userDataDir, accountId, mailbox) {
 
 function emptyState() {
   // oldestUid: a legrégebbi UID, amit már lehúztunk; ennél kisebbeket lazy-load tölt
-  return { uidvalidity: null, lastUid: 0, oldestUid: 0, updatedAt: 0, messages: [] };
+  return {
+    uidvalidity: null,
+    lastUid: 0,
+    oldestUid: 0,
+    updatedAt: 0,
+    attachmentMetaVersion: 0,
+    messages: [],
+  };
 }
 
 function read(userDataDir, accountId, mailbox) {
@@ -58,6 +65,7 @@ function read(userDataDir, accountId, mailbox) {
       lastUid: typeof parsed.lastUid === "number" ? parsed.lastUid : 0,
       oldestUid: typeof parsed.oldestUid === "number" ? parsed.oldestUid : 0,
       updatedAt: typeof parsed.updatedAt === "number" ? parsed.updatedAt : 0,
+      attachmentMetaVersion: typeof parsed.attachmentMetaVersion === "number" ? parsed.attachmentMetaVersion : 0,
       messages: Array.isArray(parsed.messages) ? parsed.messages : [],
     };
     const ageMs = state.updatedAt ? (Date.now() - state.updatedAt) : -1;
@@ -83,6 +91,7 @@ function write(userDataDir, accountId, mailbox, state) {
     lastUid: state.lastUid || 0,
     oldestUid: state.oldestUid || 0,
     updatedAt: state.updatedAt || Date.now(),
+    attachmentMetaVersion: state.attachmentMetaVersion || 0,
     messages: (state.messages || []).slice(0, MAX_PER_MAILBOX),
   };
   const file = mailboxFile(userDataDir, accountId, mailbox);
@@ -132,6 +141,7 @@ function reset(uidvalidity) {
     lastUid: 0,
     oldestUid: 0,
     updatedAt: Date.now(),
+    attachmentMetaVersion: 0,
     messages: [],
   };
 }
