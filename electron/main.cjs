@@ -52,6 +52,17 @@ const MAILBOX_ALIASES = {
   Trash: ["Trash", "Deleted", "Deleted Items", "INBOX.Trash", "[Gmail]/Trash", "[Google Mail]/Trash"],
 };
 
+// Per-session mappafeloldás cache: accountId → { logicalName → realName }
+const resolvedMailboxCache = new Map();
+
+function getCachedMailbox(accountId, logical) {
+  return resolvedMailboxCache.get(accountId)?.get(logical) ?? null;
+}
+function setCachedMailbox(accountId, logical, real) {
+  if (!resolvedMailboxCache.has(accountId)) resolvedMailboxCache.set(accountId, new Map());
+  resolvedMailboxCache.get(accountId).set(logical, real);
+}
+
 // ---- IPC: accounts ----
 ipcMain.handle("accounts:list", () =>
   loadAccounts().map((a) => ({ ...a, password: undefined, smtpPassword: undefined })),
@@ -75,6 +86,7 @@ ipcMain.handle("accounts:save", (_e, account) => {
 ipcMain.handle("accounts:delete", (_e, id) => {
   saveAccounts(loadAccounts().filter((a) => a.id !== id));
   cache.purgeAccount(userDataDir(), id);
+  resolvedMailboxCache.delete(id);
   return { ok: true };
 });
 
