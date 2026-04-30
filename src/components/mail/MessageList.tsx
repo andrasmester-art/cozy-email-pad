@@ -196,6 +196,7 @@ export function MessageList({ messages, selectedSeqno, onSelect, onOpen, onToggl
         onReply={onReply}
         onReplyAll={onReplyAll}
         onForward={onForward}
+        onDelete={onDelete}
         onLoadMore={onLoadMore}
         loadingMore={loadingMore}
         exhausted={exhausted}
@@ -263,6 +264,7 @@ const ScrollList = React.forwardRef<HTMLDivElement, {
   onReply?: (m: MailMessage) => void;
   onReplyAll?: (m: MailMessage) => void;
   onForward?: (m: MailMessage) => void;
+  onDelete?: (m: MailMessage) => void;
   onLoadMore?: () => void;
   loadingMore?: boolean;
   exhausted?: boolean;
@@ -270,7 +272,7 @@ const ScrollList = React.forwardRef<HTMLDivElement, {
   emptyHint?: string;
   density: ListDensity;
 }>(function ScrollList({
-  loading, messages, filtered, selectedSeqno, onSelect, onOpen, onToggleFlag, onToggleSeen, onReply, onReplyAll, onForward, onLoadMore, loadingMore, exhausted, searching, emptyHint, density,
+  loading, messages, filtered, selectedSeqno, onSelect, onOpen, onToggleFlag, onToggleSeen, onReply, onReplyAll, onForward, onDelete, onLoadMore, loadingMore, exhausted, searching, emptyHint, density,
 }, forwardedRef) {
   const ref = useRef<HTMLDivElement>(null);
   // A belső ref-et és a kívülről kapott ref-et ugyanarra a DOM-elemre kötjük.
