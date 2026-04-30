@@ -389,7 +389,7 @@ const Index = () => {
   // adott levél visszaáll. A Sidebar Mappa context menüből hívható.
   const markAllReadInActiveMailbox = useCallback(async () => {
     if (!activeAccountId) return;
-    const unread = messages.filter((m) => m.seen === false && typeof m.uid === "number");
+    const unread = messages.filter((m) => m.seen === false && m.uid != null);
     if (unread.length === 0) {
       toast.info("Nincs olvasatlan levél ebben a mappában");
       return;
