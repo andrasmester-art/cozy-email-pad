@@ -45,18 +45,33 @@ function emptyState() {
 }
 
 function read(userDataDir, accountId, mailbox) {
+  const file = mailboxFile(userDataDir, accountId, mailbox);
   try {
-    const raw = fs.readFileSync(mailboxFile(userDataDir, accountId, mailbox), "utf-8");
+    const raw = fs.readFileSync(file, "utf-8");
     const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return emptyState();
-    return {
+    if (!parsed || typeof parsed !== "object") {
+      console.warn(`[cache.read] MISS (invalid JSON shape) ${accountId}/${mailbox} file=${file}`);
+      return emptyState();
+    }
+    const state = {
       uidvalidity: parsed.uidvalidity ?? null,
       lastUid: typeof parsed.lastUid === "number" ? parsed.lastUid : 0,
       oldestUid: typeof parsed.oldestUid === "number" ? parsed.oldestUid : 0,
       updatedAt: typeof parsed.updatedAt === "number" ? parsed.updatedAt : 0,
       messages: Array.isArray(parsed.messages) ? parsed.messages : [],
     };
-  } catch {
+    const ageMs = state.updatedAt ? (Date.now() - state.updatedAt) : -1;
+    console.log(
+      `[cache.read] HIT ${accountId}/${mailbox} msgs=${state.messages.length} lastUid=${state.lastUid} oldestUid=${state.oldestUid} uidvalidity=${state.uidvalidity} updatedAt=${state.updatedAt}(age=${ageMs}ms)`,
+    );
+    return state;
+  } catch (err) {
+    const code = err && err.code;
+    if (code === "ENOENT") {
+      console.log(`[cache.read] MISS (no file) ${accountId}/${mailbox}`);
+    } else {
+      console.warn(`[cache.read] MISS (${code || "parse error"}) ${accountId}/${mailbox}: ${err && err.message}`);
+    }
     return emptyState();
   }
 }
@@ -70,10 +85,21 @@ function write(userDataDir, accountId, mailbox, state) {
     updatedAt: state.updatedAt || Date.now(),
     messages: (state.messages || []).slice(0, MAX_PER_MAILBOX),
   };
+  const file = mailboxFile(userDataDir, accountId, mailbox);
+  const t0 = Date.now();
+  console.log(
+    `[cache.write] start ${accountId}/${mailbox} msgs=${trimmed.messages.length} lastUid=${trimmed.lastUid} oldestUid=${trimmed.oldestUid} updatedAt=${trimmed.updatedAt}`,
+  );
   fs.writeFile(
-    mailboxFile(userDataDir, accountId, mailbox),
+    file,
     JSON.stringify(trimmed),
-    () => {},
+    (err) => {
+      if (err) {
+        console.error(`[cache.write] FAIL ${accountId}/${mailbox} (${err.code || "?"}): ${err.message}`);
+      } else {
+        console.log(`[cache.write] ok ${accountId}/${mailbox} in ${Date.now() - t0}ms`);
+      }
+    },
   );
 }
 
