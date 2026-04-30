@@ -681,6 +681,10 @@ const Index = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Lebegő küldési-állapot panel a jobb alsó sarokban — csak akkor látszik,
+          ha van aktív vagy nemrég lezárult küldési job. */}
+      <SendStatusOverlay />
     </div>
   );
 };
