@@ -670,6 +670,7 @@ async function syncMailbox(account, logicalMailbox) {
       const freshState = cache.read(userDataDir(), account.id, logicalMailbox);
       const useFresh = (freshState.uidvalidity === state.uidvalidity && freshState.lastUid >= state.lastUid);
       if (!useFresh) {
+        warn(`Cache race detektálva — a diszk közben frissült (disk.lastUid=${freshState.lastUid}, mem.lastUid=${state.lastUid}). A memóriabeli állapotot használjuk.`);
         console.warn(`[syncMailbox] RACE: disk diverged ${account.id}/${logicalMailbox} — disk.lastUid=${freshState.lastUid} mem.lastUid=${state.lastUid} — using in-memory state`);
       }
       const baseState = useFresh ? freshState : state;
@@ -677,7 +678,7 @@ async function syncMailbox(account, logicalMailbox) {
       const next = (flagSyncNeeded || newOnly.length > 0) ? await resyncFlags(merged) : merged;
       cache.write(userDataDir(), account.id, logicalMailbox, next);
       console.log(`[syncMailbox] DONE ${account.id}/${logicalMailbox} added=${newOnly.length} returning msgs=${next.messages.length} (+${Date.now() - tStart}ms)`);
-      return { added: newOnly.length, total: box.messages.total, mailbox: logicalMailbox, messages: next.messages, updatedAt: next.updatedAt };
+      return { added: newOnly.length, total: box.messages.total, mailbox: logicalMailbox, messages: next.messages, updatedAt: next.updatedAt, warnings };
     }),
   );
 }
