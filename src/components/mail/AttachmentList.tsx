@@ -68,17 +68,24 @@ function makeBlobUrl(att: MailAttachment): string | null {
 
 export function AttachmentList({ attachments }: Props) {
   // A csatolmányok közül azokat mutatjuk, amelyek a felhasználó számára
-  // önállóan értelmezhetők (van saját fájlnév vagy tartalom). Az inline
-  // ágyazott KÉPEKET is megjelenítjük — a HTML-ben már láthatók ugyan, de a
-  // user gyakran szeretné külön elmenteni / letölteni őket. Csak a tisztán
-  // belső, üres cid-referenciás részeket szűrjük ki.
+  // önállóan értelmezhetők. Az inline ágyazott KÉPEKET is megjelenítjük — a
+  // HTML-ben már láthatók ugyan, de a user gyakran szeretné külön elmenteni
+  // őket.
+  //
+  // Szűrési szabályok:
+  //   • image/* inline kép → MINDIG mutatjuk (akkor is, ha még tölt és nincs
+  //     se filename, se data — a sor maga jelzi, hogy érkezik csatolmány,
+  //     a Letöltés gomb pedig disabled marad amíg a `data` meg nem jön).
+  //   • egyéb inline rész (pl. multipart/related text/html, üres cid-ref) →
+  //     elrejtjük: a user számára nincs önálló értelme.
+  //   • nem-inline csatolmány → mutatjuk, ha van neve, mérete vagy tartalma.
   const visible = useMemo(
     () => (attachments || []).filter((a) => {
+      const ct = (a.contentType || "").toLowerCase();
+      if (a.inline) return ct.startsWith("image/");
       const hasName = !!(a.filename && a.filename !== "melléklet");
       const hasSize = (a.size || 0) > 0;
       const hasData = !!a.data;
-      // Inline kép → mutatjuk, ha van neve VAGY tartalma.
-      if (a.inline) return (hasName || hasData) && (a.contentType || "").startsWith("image/");
       return hasName || hasSize || hasData;
     }),
     [attachments],
