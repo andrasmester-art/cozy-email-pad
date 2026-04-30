@@ -251,6 +251,18 @@ export const mailAPI = {
       if (isElectron) return (window as any).mailAPI.mail.fetchBody(params);
       return { ok: false, reason: "not-electron" };
     },
+    async delete(params: {
+      accountId: string;
+      mailbox: string;
+      uid?: string | number;
+      uids?: Array<string | number>;
+    }): Promise<{ ok: true; mode: "move" | "expunge"; removedUids: number[]; messages: MailMessage[]; updatedAt: number }> {
+      if (isElectron && (window as any).mailAPI.mail.delete) {
+        return (window as any).mailAPI.mail.delete(params);
+      }
+      // Demó / böngésző: csak színlelt OK
+      return { ok: true, mode: "move", removedUids: [], messages: [], updatedAt: Date.now() };
+    },
   },
 
   smtp: {

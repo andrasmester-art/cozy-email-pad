@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld("mailAPI", {
   mail: {
     setFlag: (params) => ipcRenderer.invoke("mail:setFlag", params),
     fetchBody: (params) => ipcRenderer.invoke("mail:fetchBody", params),
+    delete: (params) => ipcRenderer.invoke("mail:delete", params),
   },
   cache: {
     read: (params) => ipcRenderer.invoke("cache:read", params),
