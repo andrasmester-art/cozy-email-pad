@@ -387,6 +387,8 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
       setSending(true);
       try {
         await mailAPI.smtp.send(payload);
+        // Tanuljuk meg a most használt címeket az autocomplete-hez.
+        rememberAddresses([to, cc, bcc].filter(Boolean).join(","));
         clearDraft();
         toast.success("Levél elküldve");
         onClose();
@@ -423,6 +425,7 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
       setSending(true);
       try {
         await mailAPI.smtp.send(payload);
+        rememberAddresses([to, cc, bcc].filter(Boolean).join(","));
         clearDraft();
         toast.success("Levél elküldve");
         onClose();
