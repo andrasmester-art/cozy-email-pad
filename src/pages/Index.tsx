@@ -581,6 +581,10 @@ const Index = () => {
           onSelect={setSelected}
           onOpen={openInNewWindow}
           onToggleFlag={toggleFlag}
+          onToggleSeen={toggleSeen}
+          onReply={handleReply}
+          onReplyAll={handleReplyAll}
+          onForward={handleForward}
           loading={loading}
           onRefresh={loadMessages}
           mailbox={activeMailbox}
