@@ -22,7 +22,7 @@ import {
 import { loadDraft, saveDraft, clearDraft, isDraftMeaningful, type Draft } from "@/lib/draft";
 import { sanitizeEmailHtml } from "@/lib/sanitizeHtml";
 import { RecipientInput } from "./RecipientInput";
-import { rememberAddresses } from "@/lib/addressBook";
+
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -377,64 +377,37 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
     if (!accountId) return toast.error("Válassz fiókot");
     if (!to.trim()) return toast.error("Adj meg címzettet");
 
-    const payload = {
-      accountId, to, cc: cc || undefined, bcc: bcc || undefined,
-      subject, html: body, text: htmlToText(body),
-    };
+    // A küldést átadjuk a központi sendQueue-nak. Ettől kezdve a státusz
+    // (folyamatban / siker / átmeneti hiba / végleges hiba) a jobb alsó
+    // SendStatusOverlay panelben követhető, és ott lehet újraküldeni / részleteket
+    // megnézni — még akkor is, ha a Composer időközben be lett zárva.
+    const { enqueueSend } = await import("@/lib/sendQueue");
+    enqueueSend(
+      {
+        accountId,
+        to,
+        cc: cc || undefined,
+        bcc: bcc || undefined,
+        subject,
+        html: body,
+        text: htmlToText(body),
+      },
+      {
+        delaySec: delay,
+        onSuccess: () => {
+          try { clearDraft(); } catch { /* ignore */ }
+        },
+      },
+    );
 
-    // Azonnali küldés — nincs késleltetés.
+    // A Composert azonnal becsukjuk — a felhasználó folytathatja a munkát,
+    // és a küldés állapotát az overlay-en követheti.
     if (delay === 0) {
-      setSending(true);
-      try {
-        await mailAPI.smtp.send(payload);
-        // Tanuljuk meg a most használt címeket az autocomplete-hez.
-        rememberAddresses([to, cc, bcc].filter(Boolean).join(","));
-        clearDraft();
-        toast.success("Levél elküldve");
-        onClose();
-      } catch (e: any) {
-        toast.error("Küldés sikertelen", { description: String(e?.message || e) });
-      } finally {
-        setSending(false);
-      }
-      return;
+      toast.success("Küldés elindítva");
+    } else {
+      toast.info(`Küldés ${delay} mp múlva — a jobb alsó panelben megszakítható.`);
     }
-
-    // Késleltetett küldés "Visszavonás" lehetőséggel.
-    let cancelled = false;
-    let remaining = delay;
-    const cancel = () => {
-      if (cancelled) return;
-      cancelled = true;
-      clearInterval(tick);
-      clearTimeout(timer);
-      setPending(null);
-      toast.info("Küldés visszavonva");
-    };
-    setPending({ remaining, total: delay, cancel });
-    const tick = setInterval(() => {
-      remaining -= 1;
-      if (cancelled) return;
-      if (remaining > 0) setPending({ remaining, total: delay, cancel });
-      else clearInterval(tick);
-    }, 1000);
-    const timer = setTimeout(async () => {
-      clearInterval(tick);
-      if (cancelled) return;
-      setPending(null);
-      setSending(true);
-      try {
-        await mailAPI.smtp.send(payload);
-        rememberAddresses([to, cc, bcc].filter(Boolean).join(","));
-        clearDraft();
-        toast.success("Levél elküldve");
-        onClose();
-      } catch (e: any) {
-        toast.error("Küldés sikertelen", { description: String(e?.message || e) });
-      } finally {
-        setSending(false);
-      }
-    }, delay * 1000);
+    onClose();
   };
 
   // Piszkozat mentése a szerver Drafts mappájába (IMAP APPEND).

@@ -3,6 +3,14 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.33.0] – 2026-04-30
+
+### Új
+- **Küldési állapotkövetés lebegő panellel.** Minden levél-küldés bekerül egy központi `sendQueue`-ba, és a jobb alsó sarokban megjelenik egy lebegő ikon — színes badge-dzsel, ami mutatja a folyamatban lévő/hibás küldések számát. Klikkre kibont egy panelt, ahol minden küldés látszik **címzettel, tárggyal és állapottal**: *Küldés folyamatban* (kék spinner), *Elküldve* (zöld pipa, 8 mp után automatikusan eltűnik), *Átmeneti hiba* (sárga, az `electron/main.cjs` 3× retry-ja után is elbukott — érdemes újrapróbálni), vagy *Végleges hiba* (piros, pl. authentication failed / 5xx). A hiba-kategóriát a renderer a main process által küldött hibaüzenet alapján olvassa ki (átmeneti / permanens / EAUTH / 535 / 5xx kulcsszavak). Ha új hiba érkezik miközben a panel zárva van, **automatikusan kinyílik**, hogy a felhasználó figyelmét ne kerülje el.
+- **Újraküldés és Részletek hibás küldéseknél.** Minden hibás bejegyzésnél két gomb: **„Újraküldés"** ugyanazzal a payload-dal újrapróbálja (a job státusza visszavált *folyamatban*-ra, nem keletkezik új sor a listában), és **„Részletek"** kibontja a teljes hibaüzenetet monospace blokkban, hogy SMTP/IMAP hibakódok (pl. `535-5.7.8 Username and Password not accepted`) is olvashatóak legyenek. Ha a main process automatikusan elmentette a piszkozatot a szerver Drafts mappájába (v1.31.0-tól), egy „✓ Piszkozat mentve a szerver Drafts mappájába" jelzés is megjelenik a hibasor alatt.
+- **Késleltetett küldés countdown a panelben — Composer azonnali bezárása.** A küldési késleltetés (Beállítások → Küldés késleltetés) mostantól nem a Composeren belül fut, hanem a `sendQueue`-ban: a Composer azonnal bezáródik a Küldés gomb után, és a panelben látszik a *„Küldés N mp múlva…"* visszaszámlálás egy **„Mégsem"** gombbal. Ettől szabadabban lehet több levelet írni egymás után — a régi viselkedéssel szemben nem kellett megvárni a 10 mp-es countdownt, hogy a Composer felszabaduljon.
+- **Tisztítás gomb.** A panel fejlécében egy „Tisztítás" gomb az összes befejezett (sikeres + hibás) küldést egyszerre eltávolítja a listából, hogy ne kelljen egyenként klikkelni.
+
 ## [1.32.0] – 2026-04-30
 
 ### Új

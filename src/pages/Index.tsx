@@ -13,6 +13,7 @@ import { TemplatesDialog } from "@/components/mail/TemplatesDialog";
 import { SignaturesDialog } from "@/components/mail/SignaturesDialog";
 import { UpdaterDialog } from "@/components/mail/UpdaterDialog";
 import { ContactsDialog } from "@/components/mail/ContactsDialog";
+import { SendStatusOverlay } from "@/components/mail/SendStatusOverlay";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -680,6 +681,10 @@ const Index = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Lebegő küldési-állapot panel a jobb alsó sarokban — csak akkor látszik,
+          ha van aktív vagy nemrég lezárult küldési job. */}
+      <SendStatusOverlay />
     </div>
   );
 };
