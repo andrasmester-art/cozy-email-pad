@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.30.1] – 2026-04-30
+
+### Javítás
+- **React `forwardRef` warningok megszüntetése a levéllistában.** A jobbklik-menü bevezetése után a dev konzol két warningot dobott: „Function components cannot be given refs … Check the render method of `ScrollList`" és ugyanaz `ContextMenuContent` környezetben. A `ScrollList`-et `React.forwardRef`-re alakítottuk (a kívülről kapott ref a görgethető konténer DOM-elemére mutat), a `ContextMenuContent`-et pedig kettébontottuk: a `forwardRef` belső függvénye mostantól csak a `ContextMenuPrimitive.Content`-et adja vissza, a `Portal` egy külön wrapperben van, hogy a ref-átadás soha ne fusson át function-componenten. A funkcionalitás (jobbklik menü a leveleken) változatlan.
+
 ## [1.30.0] – 2026-04-30
 
 ### Új
