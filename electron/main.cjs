@@ -518,6 +518,12 @@ ipcMain.handle("cache:read", (_e, { accountId, mailbox }) => {
 async function syncMailbox(account, logicalMailbox) {
   const tStart = Date.now();
   console.log(`[syncMailbox] enter ${account.id}/${logicalMailbox}`);
+  // A futás során összegyűjtött figyelmeztetések — a UI ezek alapján mutat
+  // részletes toast-leírást a felhasználónak (pl. „ALL search FAILED …",
+  // „UIDVALIDITY changed …", „server box EMPTY"), hogy ne csak az utolsó
+  // exception látszódjon, hanem az IMAP-szintű részletek is.
+  const warnings = [];
+  const warn = (msg) => { warnings.push(msg); };
   return withSyncLock(account.id, logicalMailbox, () =>
     withImap(account, 120000, async (imap) => {
       console.log(`[syncMailbox] imap connected ${account.id}/${logicalMailbox} (+${Date.now() - tStart}ms)`);
@@ -529,8 +535,10 @@ async function syncMailbox(account, logicalMailbox) {
       }
       if (!realName) {
         const state = cache.read(userDataDir(), account.id, logicalMailbox);
+        const w = `Mappa nem található a szerveren: „${logicalMailbox}" — a megjelenített lista a helyi cache-ből származik.`;
+        warn(w);
         console.warn(`[syncMailbox] MISSING mailbox ${account.id}/${logicalMailbox} → returning ${state.messages.length} cached msgs`);
-        return { added: 0, total: 0, mailbox: logicalMailbox, missing: true, messages: state.messages, updatedAt: state.updatedAt };
+        return { added: 0, total: 0, mailbox: logicalMailbox, missing: true, messages: state.messages, updatedAt: state.updatedAt, warnings };
       }
       const box = await openBox(imap, realName);
       const uidvalidity = box.uidvalidity ?? null;
@@ -540,6 +548,8 @@ async function syncMailbox(account, logicalMailbox) {
       // UIDVALIDITY váltott → eldobjuk a cache-t (ez a hivatalos IMAP jelzés
       // arra, hogy a UID-ok újraszámozódtak).
       if (state.uidvalidity != null && uidvalidity != null && state.uidvalidity !== uidvalidity) {
+        const w = `UIDVALIDITY változott (${state.uidvalidity} → ${uidvalidity}) — a helyi cache törölve, minden levelet újraszinkronizálunk.`;
+        warn(w);
         console.warn(`[syncMailbox] UIDVALIDITY CHANGED ${account.id}/${logicalMailbox}: ${state.uidvalidity} → ${uidvalidity} — cache reset`);
         state = cache.reset(uidvalidity);
       } else if (state.uidvalidity == null) {
@@ -547,9 +557,11 @@ async function syncMailbox(account, logicalMailbox) {
       }
 
       if (!box.messages.total) {
+        const w = `A szerver szerint a(z) „${realName}" mappa üres — megtartjuk a meglévő ${state.messages.length} cache-elt levelet (lehet tranziens IMAP állapot).`;
+        warn(w);
         console.warn(`[syncMailbox] server box EMPTY ${account.id}/${logicalMailbox} — keeping ${state.messages.length} cached msgs (no destructive reset)`);
         cache.write(userDataDir(), account.id, logicalMailbox, { ...state, updatedAt: Date.now() });
-        return { added: 0, total: 0, mailbox: logicalMailbox, messages: state.messages, updatedAt: Date.now() };
+        return { added: 0, total: 0, mailbox: logicalMailbox, messages: state.messages, updatedAt: Date.now(), warnings };
       }
 
       const uidSearch = (criteria) => new Promise((resolve, reject) => {
@@ -563,7 +575,9 @@ async function syncMailbox(account, logicalMailbox) {
           uidsToFetch = newer.filter((u) => u > state.lastUid);
           console.log(`[syncMailbox] incremental search ${account.id}/${logicalMailbox} after UID ${state.lastUid} → ${uidsToFetch.length} new`);
         } catch (err) {
-          console.warn(`[syncMailbox] incremental search FAILED ${account.id}/${logicalMailbox}: ${err && err.message}`);
+          const msg = (err && err.message) || String(err);
+          warn(`Inkrementális UID search sikertelen (UID ${state.lastUid + 1}:*): ${msg}`);
+          console.warn(`[syncMailbox] incremental search FAILED ${account.id}/${logicalMailbox}: ${msg}`);
           uidsToFetch = [];
         }
 
@@ -578,10 +592,13 @@ async function syncMailbox(account, logicalMailbox) {
             allOk = true;
             serverMax = all.length ? Math.max(...all) : 0;
           } catch (err) {
-            console.warn(`[syncMailbox] ALL search FAILED ${account.id}/${logicalMailbox}: ${err && err.message}`);
+            const msg = (err && err.message) || String(err);
+            warn(`ALL UID search sikertelen — nem tudtuk verifikálni a cache-t: ${msg}`);
+            console.warn(`[syncMailbox] ALL search FAILED ${account.id}/${logicalMailbox}: ${msg}`);
             allOk = false;
           }
           if (allOk && serverMax > 0 && serverMax < state.lastUid) {
+            warn(`Cache reset: a szerver max UID-ja (${serverMax}) kisebb, mint a cache-elt lastUid (${state.lastUid}).`);
             console.warn(`[syncMailbox] cache reset: ${account.id}/${logicalMailbox} serverMax=${serverMax} < cached lastUid=${state.lastUid}`);
             state = cache.reset(uidvalidity);
           } else if (allOk) {
@@ -593,7 +610,9 @@ async function syncMailbox(account, logicalMailbox) {
       if (state.lastUid === 0) {
         let allUids = [];
         try { allUids = await uidSearch(["ALL"]); } catch (err) {
-          console.warn(`[syncMailbox] initial ALL search FAILED ${account.id}/${logicalMailbox}: ${err && err.message}`);
+          const msg = (err && err.message) || String(err);
+          warn(`Kezdeti ALL UID search sikertelen — nem tudtunk leveleket lehúzni: ${msg}`);
+          console.warn(`[syncMailbox] initial ALL search FAILED ${account.id}/${logicalMailbox}: ${msg}`);
           allUids = [];
         }
         allUids.sort((a, b) => a - b);
@@ -616,7 +635,9 @@ async function syncMailbox(account, logicalMailbox) {
           if (changed > 0) console.log(`[syncMailbox] resyncFlags ${account.id}/${logicalMailbox} updated ${changed} flags`);
           return changed > 0 ? nextState : currentState;
         } catch (err) {
-          console.warn(`[syncMailbox] resyncFlags FAILED ${account.id}/${logicalMailbox}: ${err && err.message}`);
+          const msg = (err && err.message) || String(err);
+          warn(`Flag-szinkron sikertelen — a csillag/olvasott állapot lehet, hogy elavult: ${msg}`);
+          console.warn(`[syncMailbox] resyncFlags FAILED ${account.id}/${logicalMailbox}: ${msg}`);
           return currentState;
         }
       }
@@ -628,12 +649,19 @@ async function syncMailbox(account, logicalMailbox) {
         const next = { ...synced, updatedAt: Date.now() };
         cache.write(userDataDir(), account.id, logicalMailbox, next);
         console.log(`[syncMailbox] DONE ${account.id}/${logicalMailbox} added=0 returning msgs=${next.messages.length} (+${Date.now() - tStart}ms)`);
-        return { added: 0, total: box.messages.total, mailbox: logicalMailbox, messages: next.messages, updatedAt: next.updatedAt };
+        return { added: 0, total: box.messages.total, mailbox: logicalMailbox, messages: next.messages, updatedAt: next.updatedAt, warnings };
       }
 
       const minUid = Math.min(...uidsToFetch);
       const maxUid = Math.max(...uidsToFetch);
-      const fetched = await fetchHeadersByUidRange(imap, `${minUid}:${maxUid}`);
+      let fetched = [];
+      try {
+        fetched = await fetchHeadersByUidRange(imap, `${minUid}:${maxUid}`);
+      } catch (err) {
+        const msg = (err && err.message) || String(err);
+        warn(`Fejléc-letöltés sikertelen (UID ${minUid}:${maxUid}): ${msg}`);
+        console.warn(`[syncMailbox] header fetch FAILED ${account.id}/${logicalMailbox} range=${minUid}:${maxUid}: ${msg}`);
+      }
       const wanted = new Set(uidsToFetch);
       const newOnly = fetched.filter((m) => wanted.has(m.uid) && m.uid > (state.lastUid || 0));
       console.log(`[syncMailbox] fetched headers ${account.id}/${logicalMailbox} range=${minUid}:${maxUid} got=${fetched.length} newOnly=${newOnly.length}`);
@@ -642,6 +670,7 @@ async function syncMailbox(account, logicalMailbox) {
       const freshState = cache.read(userDataDir(), account.id, logicalMailbox);
       const useFresh = (freshState.uidvalidity === state.uidvalidity && freshState.lastUid >= state.lastUid);
       if (!useFresh) {
+        warn(`Cache race detektálva — a diszk közben frissült (disk.lastUid=${freshState.lastUid}, mem.lastUid=${state.lastUid}). A memóriabeli állapotot használjuk.`);
         console.warn(`[syncMailbox] RACE: disk diverged ${account.id}/${logicalMailbox} — disk.lastUid=${freshState.lastUid} mem.lastUid=${state.lastUid} — using in-memory state`);
       }
       const baseState = useFresh ? freshState : state;
@@ -649,13 +678,15 @@ async function syncMailbox(account, logicalMailbox) {
       const next = (flagSyncNeeded || newOnly.length > 0) ? await resyncFlags(merged) : merged;
       cache.write(userDataDir(), account.id, logicalMailbox, next);
       console.log(`[syncMailbox] DONE ${account.id}/${logicalMailbox} added=${newOnly.length} returning msgs=${next.messages.length} (+${Date.now() - tStart}ms)`);
-      return { added: newOnly.length, total: box.messages.total, mailbox: logicalMailbox, messages: next.messages, updatedAt: next.updatedAt };
+      return { added: newOnly.length, total: box.messages.total, mailbox: logicalMailbox, messages: next.messages, updatedAt: next.updatedAt, warnings };
     }),
   );
 }
 
 // Lazy-load: a cache-nél régebbi leveleket tölti le (oldestUid alatt).
 async function loadOlder(account, logicalMailbox, pageSize) {
+  const warnings = [];
+  const warn = (msg) => { warnings.push(msg); };
   return withImap(account, 120000, async (imap) => {
     let state = cache.read(userDataDir(), account.id, logicalMailbox);
     let realName = getCachedMailbox(account.id, logicalMailbox);
@@ -664,14 +695,15 @@ async function loadOlder(account, logicalMailbox, pageSize) {
       if (realName) setCachedMailbox(account.id, logicalMailbox, realName);
     }
     if (!realName) {
-      return { added: 0, mailbox: logicalMailbox, missing: true, messages: state.messages, updatedAt: state.updatedAt };
+      warn(`Mappa nem található a szerveren: „${logicalMailbox}".`);
+      return { added: 0, mailbox: logicalMailbox, missing: true, messages: state.messages, updatedAt: state.updatedAt, warnings };
     }
     const box = await openBox(imap, realName);
     if (!state.oldestUid || state.oldestUid <= 1) {
-      return { added: 0, mailbox: logicalMailbox, exhausted: true, messages: state.messages, updatedAt: state.updatedAt };
+      return { added: 0, mailbox: logicalMailbox, exhausted: true, messages: state.messages, updatedAt: state.updatedAt, warnings };
     }
     const upper = state.oldestUid - 1;
-    if (upper < 1) return { added: 0, mailbox: logicalMailbox, exhausted: true, messages: state.messages, updatedAt: state.updatedAt };
+    if (upper < 1) return { added: 0, mailbox: logicalMailbox, exhausted: true, messages: state.messages, updatedAt: state.updatedAt, warnings };
 
     // Kérdezzük meg a szervert, mely UID-ok léteznek 1..upper között.
     // (UID-ok nem összefüggőek — a törölt levelek hézagokat hagynak, ezért
@@ -683,7 +715,10 @@ async function loadOlder(account, logicalMailbox, pageSize) {
     let olderUids = [];
     try {
       olderUids = await uidSearch([["UID", `1:${upper}`]]);
-    } catch {
+    } catch (err) {
+      const msg = (err && err.message) || String(err);
+      warn(`Régebbi UID search sikertelen (UID 1:${upper}): ${msg}`);
+      console.warn(`[loadOlder] search FAILED ${account.id}/${logicalMailbox}: ${msg}`);
       olderUids = [];
     }
     olderUids = olderUids.filter((u) => u >= 1 && u <= upper).sort((a, b) => a - b);
@@ -692,7 +727,7 @@ async function loadOlder(account, logicalMailbox, pageSize) {
       // Tényleg nincs több régebbi → jelöljük kimerítettnek.
       const next = { ...state, oldestUid: 1, updatedAt: Date.now() };
       cache.write(userDataDir(), account.id, logicalMailbox, next);
-      return { added: 0, mailbox: logicalMailbox, exhausted: true, messages: next.messages, updatedAt: next.updatedAt };
+      return { added: 0, mailbox: logicalMailbox, exhausted: true, messages: next.messages, updatedAt: next.updatedAt, warnings };
     }
 
     const limit = pageSize || cache.PAGE_SIZE;
@@ -701,7 +736,14 @@ async function loadOlder(account, logicalMailbox, pageSize) {
     const minUid = Math.min(...pageUids);
     const maxUid = Math.max(...pageUids);
 
-    const fetched = await fetchHeadersByUidRange(imap, `${minUid}:${maxUid}`);
+    let fetched = [];
+    try {
+      fetched = await fetchHeadersByUidRange(imap, `${minUid}:${maxUid}`);
+    } catch (err) {
+      const msg = (err && err.message) || String(err);
+      warn(`Régebbi fejléc-letöltés sikertelen (UID ${minUid}:${maxUid}): ${msg}`);
+      console.warn(`[loadOlder] header fetch FAILED ${account.id}/${logicalMailbox}: ${msg}`);
+    }
     const wanted = new Set(pageUids);
     const filtered = fetched.filter((m) => wanted.has(m.uid));
 
@@ -728,6 +770,7 @@ async function loadOlder(account, logicalMailbox, pageSize) {
       exhausted,
       messages: next.messages,
       updatedAt: next.updatedAt,
+      warnings,
     };
   });
 }

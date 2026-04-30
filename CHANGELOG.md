@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.28.0] – 2026-04-30
+
+### Új
+- **Részletes IMAP-hibák a toast üzenetekben.** A levélbetöltés (`syncMailbox`) és a régebbi levelek (`loadOlder`) most a UI felé is továbbítja a részleges hibákat: UIDVALIDITY váltás, inkrementális UID search hiba, ALL search hiba, kezdeti ALL search hiba, hiányzó mappa, üres szerver-mailbox, fejléc-letöltés hiba, cache race és flag-szinkron hiba. A felhasználó egy 12 másodperces `toast.warning` (vagy hibánál `toast.error`) üzenetben pontkurzoros listával látja az okokat — pl. „• ALL UID search sikertelen — nem tudtuk verifikálni a cache-t: …" — így nem kell a logfájlt megnyitni a leggyakoribb problémákért.
+
 ## [1.27.0] – 2026-04-30
 
 ### Új
