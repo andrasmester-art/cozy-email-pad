@@ -220,7 +220,37 @@ export function MessageView({ message, onReply, onReplyAll, onForward, onToggleF
         <ContextMenuItem onSelect={savePdf}>
           <FileDown className="h-4 w-4 mr-2" /> Mentés PDF-ként
         </ContextMenuItem>
+        {onDelete && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              onSelect={() => setConfirmOpen(true)}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 className="h-4 w-4 mr-2" /> Levél törlése
+            </ContextMenuItem>
+          </>
+        )}
       </ContextMenuContent>
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Levél törlése</AlertDialogTitle>
+            <AlertDialogDescription>
+              Biztosan törlöd ezt a levelet? A levél a Kukába kerül (vagy ha már a Kukában van, véglegesen törlődik).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Mégse</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { setConfirmOpen(false); onDelete?.(message); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Törlés
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </ContextMenu>
   );
 }
