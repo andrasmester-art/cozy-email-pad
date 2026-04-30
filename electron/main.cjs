@@ -837,7 +837,11 @@ ipcMain.handle("cache:syncMailbox", async (_e, { accountId, mailbox }) => {
   console.log(`[ipc cache:syncMailbox] ← ${accountId}/${mailbox}`);
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("A fiók nem található.");
-  const result = await syncMailbox(account, mailbox);
+  // 3× retry exp. backoff-fal — átmeneti hibákra (timeout, ECONNRESET).
+  // Permanens hibák (auth fail, missing mailbox) azonnal megálltják.
+  const result = await runWithRetry(`syncMailbox ${accountId}/${mailbox}`, () =>
+    syncMailbox(account, mailbox),
+  );
   if (Array.isArray(result?.messages)) {
     console.log(`[ipc cache:syncMailbox] → ${accountId}/${mailbox} memory msgs=${result.messages.length} added=${result.added}`);
     return { ...result, messages: result.messages, updatedAt: result.updatedAt || Date.now() };
@@ -852,7 +856,10 @@ ipcMain.handle("cache:loadOlder", async (_e, { accountId, mailbox, pageSize }) =
   console.log(`[ipc cache:loadOlder] ← ${accountId}/${mailbox} pageSize=${pageSize}`);
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("A fiók nem található.");
-  const result = await loadOlder(account, mailbox, pageSize);
+  // 3× retry exp. backoff-fal (lásd syncMailbox kommentet).
+  const result = await runWithRetry(`loadOlder ${accountId}/${mailbox}`, () =>
+    loadOlder(account, mailbox, pageSize),
+  );
   if (Array.isArray(result?.messages)) {
     console.log(`[ipc cache:loadOlder] → ${accountId}/${mailbox} memory msgs=${result.messages.length} added=${result.added} exhausted=${!!result.exhausted}`);
     return { ...result, messages: result.messages, updatedAt: result.updatedAt || Date.now() };
