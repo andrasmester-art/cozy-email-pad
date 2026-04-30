@@ -49,4 +49,8 @@ contextBridge.exposeInMainWorld("mailAPI", {
   window: {
     openMessage: (params) => ipcRenderer.invoke("window:openMessage", params),
   },
+  debug: {
+    getLog: () => ipcRenderer.invoke("debug:getLog"),
+    clearLog: () => ipcRenderer.invoke("debug:clearLog"),
+  },
 });
