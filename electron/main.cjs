@@ -1249,6 +1249,8 @@ ipcMain.handle("mail:delete", async (_e, { accountId, mailbox, uid, uids }) => {
   if (!account) throw new Error("A fiók nem található.");
   const list = Array.isArray(uids) && uids.length ? uids : [uid];
   return deleteMessages(account, mailbox, list);
+});
+
 
 // Egyetlen levél teljes body-jának lazy letöltése. A lista-szinkron már csak
 // fejléceket húz le (gyors), így a body-t akkor töltjük le, amikor a felhasználó
