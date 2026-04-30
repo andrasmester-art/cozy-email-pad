@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.27.0] – 2026-04-30
+
+### Új
+- **Hibanapló mentése gomb** a bal oldali menüben (Beállítások / App frissítése alatt). Egy kattintásra letölt egy `cozy-email-pad-debug-<idő>.log` fájlt, ami időrendben tartalmazza a renderer és az Electron main process legutóbbi kb. 2000 releváns log-bejegyzését — `[loadMessages]`, `[cache.read]`, `[cache.write]`, `[syncMailbox]`, `[loadOlder]`, `[ipc cache:…]`, `[smtp]` stb. — pontos ezredmásodperces időbélyegekkel és szinttel (LOG/WARN/ERROR). Így a „nem tölti be a leveleket” / „eltűnnek a levelek” hibák utólag is rekonstruálhatók a részletes logolásból.
+
 ## [1.26.3] – 2026-04-30
 
 ### Változás

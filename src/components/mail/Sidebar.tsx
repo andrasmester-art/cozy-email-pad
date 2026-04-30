@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Account } from "@/lib/mailBridge";
 import { cn } from "@/lib/utils";
-import { Inbox, Send, FileText, Archive, Trash2, AlertOctagon, Plus, Settings, FileCode2, Pencil, X, AlertCircle, CheckCircle2, Circle, PenSquare, FileSignature, RefreshCw, Download, GripVertical, Users } from "lucide-react";
+import { Inbox, Send, FileText, Archive, Trash2, AlertOctagon, Plus, Settings, FileCode2, Pencil, X, AlertCircle, CheckCircle2, Circle, PenSquare, FileSignature, RefreshCw, Download, GripVertical, Users, Bug } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getAllAccountStatuses, formatRelative, formatCountdown, type AccountStatus } from "@/lib/accountStatus";
 import { ThemeToggle } from "./ThemeToggle";
+import { exportDebugLog } from "@/lib/debugLog";
+import { toast } from "sonner";
 
 const WIDTH_KEY = "mailwise.sidebarWidth";
 const MIN_WIDTH = 200;
@@ -295,6 +297,22 @@ export function Sidebar({
         </Button>
         <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={onOpenUpdater}>
           <Download className="h-4 w-4" /> App frissítése
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start gap-2"
+          title="A legutóbbi levélbetöltési és cache-események mentése .log fájlba"
+          onClick={async () => {
+            try {
+              const r = await exportDebugLog();
+              toast.success("Hibanapló mentve", { description: `${r.filename} · ${(r.bytes / 1024).toFixed(1)} KB` });
+            } catch (err: any) {
+              toast.error("Mentés sikertelen", { description: String(err?.message || err) });
+            }
+          }}
+        >
+          <Bug className="h-4 w-4" /> Hibanapló mentése
         </Button>
         <ThemeToggle />
       </div>
