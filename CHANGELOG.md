@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.26.3] – 2026-04-30
+
+### Változás
+- **Részletes diagnosztikai logolás a levélbetöltés körül.** Cache hit/miss (méret, `lastUid`, `oldestUid`, `updatedAt` + életkor), cache-írás eredménye és időtartama, `syncMailbox` minden lényegi lépése (mailbox feloldás, `UIDVALIDITY` változás, üres szerver-mailbox, inkrementális/`ALL` search eredmény, fetch range és db, race-detektálás a merge előtt), valamint a `cache:syncMailbox` / `cache:loadOlder` / `cache:read` IPC handlerek be- és kimenete. A frontend `loadMessages` is logolja a cache vs. sync visszatérést, és figyelmeztet, ha üres listát kap. Ez segít beazonosítani, miért tűnik el időnként a beérkezett mappa.
+
 ## [1.26.2] – 2026-04-30
 
 ### Javítás
