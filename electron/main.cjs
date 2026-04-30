@@ -8,6 +8,52 @@ const nodemailer = require("nodemailer");
 const cache = require("./mailCache.cjs");
 require("./updater.cjs");
 
+// ---- Debug log ring buffer ----
+// Elkapjuk a saját, releváns log-üzeneteket a main processben (cache.read,
+// syncMailbox, loadOlder, smtp, …), hogy a UI-ből egy gombnyomással
+// le lehessen menteni a hibakereséshez.
+const DEBUG_MAX_ENTRIES = 2000;
+const DEBUG_PREFIXES = [
+  "[loadMessages]", "[loadOlder]", "[cache.read]", "[cache.write]",
+  "[syncMailbox]", "[ipc cache:", "[ipc imap:", "[smtp]",
+  "[mail.fetchBody]", "[autoSync]",
+];
+const debugBuffer = [];
+function debugRecord(level, args) {
+  let message;
+  try {
+    message = args.map((a) => {
+      if (a == null) return String(a);
+      if (typeof a === "string") return a;
+      if (a instanceof Error) return `${a.name}: ${a.message}`;
+      try { return JSON.stringify(a); } catch { return String(a); }
+    }).join(" ");
+  } catch { return; }
+  let relevant = false;
+  for (const p of DEBUG_PREFIXES) {
+    if (message.startsWith(p) || message.includes(` ${p}`)) { relevant = true; break; }
+  }
+  if (!relevant) return;
+  debugBuffer.push({ ts: Date.now(), level, message });
+  if (debugBuffer.length > DEBUG_MAX_ENTRIES) {
+    debugBuffer.splice(0, debugBuffer.length - DEBUG_MAX_ENTRIES);
+  }
+}
+(function installDebugHook() {
+  const orig = {
+    log: console.log.bind(console),
+    warn: console.warn.bind(console),
+    error: console.error.bind(console),
+    info: console.info.bind(console),
+  };
+  console.log = (...a) => { debugRecord("log", a); orig.log(...a); };
+  console.warn = (...a) => { debugRecord("warn", a); orig.warn(...a); };
+  console.error = (...a) => { debugRecord("error", a); orig.error(...a); };
+  console.info = (...a) => { debugRecord("info", a); orig.info(...a); };
+})();
+ipcMain.handle("debug:getLog", () => ({ entries: debugBuffer.slice() }));
+ipcMain.handle("debug:clearLog", () => { debugBuffer.length = 0; return { ok: true }; });
+
 // ---- Persistent storage ----
 const userDataDir = () => app.getPath("userData");
 const storeFile = (name) => path.join(userDataDir(), `${name}.json`);
