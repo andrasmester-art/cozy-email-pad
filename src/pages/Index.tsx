@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Account, MailMessage, mailAPI } from "@/lib/mailBridge";
+import { rememberAddresses } from "@/lib/addressBook";
 
 import { clearRetryFor } from "@/lib/accountRetry";
 import { Sidebar } from "@/components/mail/Sidebar";
@@ -44,6 +45,15 @@ const Index = () => {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [listWidth, setListWidth] = useState<number>(readListWidth);
+
+  // Bárhonnan is kerülnek a `messages`-be új levelek (cache, sync, loadOlder),
+  // tanuljuk meg a feladók címét az autocomplete címjegyzékhez. Idempotens:
+  // ugyanaz a feladó több-szöri látása csak a count/lastUsed-et frissíti.
+  useEffect(() => {
+    if (!messages.length) return;
+    const froms = messages.map((m) => m.from).filter(Boolean) as string[];
+    if (froms.length) rememberAddresses(froms);
+  }, [messages]);
 
   // Húzás közben élőben frissítjük a szélességet, és pointerup-on mentjük le.
   // A `pointer*` eseményeket a `window`-on figyeljük, hogy a kurzor akkor is
