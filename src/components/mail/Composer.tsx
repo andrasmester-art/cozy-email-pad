@@ -377,11 +377,6 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
     if (!accountId) return toast.error("Válassz fiókot");
     if (!to.trim()) return toast.error("Adj meg címzettet");
 
-    const payload = {
-      accountId, to, cc: cc || undefined, bcc: bcc || undefined,
-      subject, html: body, text: htmlToText(body),
-    };
-
     // A küldést átadjuk a központi sendQueue-nak. Ettől kezdve a státusz
     // (folyamatban / siker / átmeneti hiba / végleges hiba) a jobb alsó
     // SendStatusOverlay panelben követhető, és ott lehet újraküldeni / részleteket
@@ -400,7 +395,6 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
       {
         delaySec: delay,
         onSuccess: () => {
-          // Tisztítsuk a piszkozatot, miután ténylegesen elment.
           try { clearDraft(); } catch { /* ignore */ }
         },
       },
