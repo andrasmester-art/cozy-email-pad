@@ -189,25 +189,36 @@ export const mailAPI = {
 
   cache: {
     // Egy mappa inkrementális szinkronja — visszaadja a friss listát.
-    async syncMailbox(params: { accountId: string; mailbox: string }): Promise<{ added: number; messages: MailMessage[] }> {
+    async syncMailbox(params: { accountId: string; mailbox: string }): Promise<{ added: number; messages: MailMessage[]; warnings?: string[]; missing?: boolean }> {
       if (isElectron) {
         const r = await (window as any).mailAPI.cache.syncMailbox(params);
-        return { added: r?.added || 0, messages: r?.messages || [] };
+        return {
+          added: r?.added || 0,
+          messages: r?.messages || [],
+          warnings: Array.isArray(r?.warnings) ? r.warnings : [],
+          missing: !!r?.missing,
+        };
       }
       const accounts = await mailAPI.accounts.list();
       const acc = accounts.find((a) => a.id === params.accountId);
       return {
         added: 0,
         messages: params.mailbox === "INBOX" ? demoMessages(acc?.label || "demo@local") : [],
+        warnings: [],
       };
     },
     // Régebbi levelek lazy-load betöltése (görgetésre).
-    async loadOlder(params: { accountId: string; mailbox: string; pageSize?: number }): Promise<{ added: number; messages: MailMessage[]; exhausted?: boolean }> {
+    async loadOlder(params: { accountId: string; mailbox: string; pageSize?: number }): Promise<{ added: number; messages: MailMessage[]; exhausted?: boolean; warnings?: string[] }> {
       if (isElectron && (window as any).mailAPI.cache.loadOlder) {
         const r = await (window as any).mailAPI.cache.loadOlder(params);
-        return { added: r?.added || 0, messages: r?.messages || [], exhausted: !!r?.exhausted };
+        return {
+          added: r?.added || 0,
+          messages: r?.messages || [],
+          exhausted: !!r?.exhausted,
+          warnings: Array.isArray(r?.warnings) ? r.warnings : [],
+        };
       }
-      return { added: 0, messages: [], exhausted: true };
+      return { added: 0, messages: [], exhausted: true, warnings: [] };
     },
     // Egy fiók INBOX szinkronja (a többi mappa csak kattintásra).
     async syncAccount(accountId: string): Promise<{ ok: true; results: Array<{ mailbox: string; ok: boolean; added?: number; error?: string; missing?: boolean }> }> {
