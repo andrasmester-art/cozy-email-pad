@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.30.0] – 2026-04-30
+
+### Új
+- **Címzett-autocomplete a Composerben (To / Cc / Bcc).** Gépelés közben felajánlja a korábban használt e-mail címeket a saját, lokális címjegyzékből — nincs külön kapcsolat-tár, automatikusan tanul a kimenő küldésekből (sikeres `smtp.send` után) és a beérkező levelek `From` mezőiből. Fuzzy keresés: a query az email vagy a megjelenítendő név bármely részére illeszkedik (case-insensitive), a találatok gyakoriság + frissesség (≈ 2 hetes felezési idő) szerint rangsorolva, a query elejére illeszkedők előrébb. Vezérlés: ↓/↑ navigáció, Enter / Tab kiválasztás, Esc zárás, kattintás beillesztés. Vesszővel/pontosvesszővel elválasztott listákban az utolsó tokenre javasol, és „, " elválasztót tesz utána, hogy folytatható legyen a gépelés. A címjegyzék a `localStorage`-ban él (`mw.addressbook.v1`), legfeljebb 2000 bejegyzés (a leggyengébb rangú túlcsorduláskor kiesik).
+
 ## [1.29.0] – 2026-04-30
 
 ### Új
