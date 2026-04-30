@@ -433,6 +433,35 @@ async function pickBestCandidate(imap, names) {
   return firstOpenable;
 }
 
+// Megszámolja a „valódi" csatolmányokat egy `simpleParser` által kibontott
+// üzenetből — minden content-type-ra (pdf, kép, szöveg, zip, doc, stb.)
+// egységesen működik, mert nem a typeból, hanem a csatolmány-rész
+// jellemzőiből (filename / méret / disposition / content-id) dolgozik.
+//
+// Mit számolunk csatolmánynak:
+//   • bármilyen rész, aminek van fájlneve (filename) → felhasználói intent
+//   • bármilyen rész, aminek a tartalmi mérete > 0 ÉS van content-disposition
+//     (`attachment` vagy `inline`) — ez kizárja a multipart strukturális
+//     wrapper-eket, amik 0 byte-osak és nincs disposition-jük
+//   • inline image/* cid-vel — explicit beágyazott kép, akkor is csatolmány
+// Mit NEM számolunk:
+//   • 0 byte-os, fájlnév és disposition nélküli részek (üres cid-stub,
+//     hibás multipart wrapper)
+function countRealAttachments(parsed) {
+  const atts = parsed?.attachments || [];
+  let n = 0;
+  for (const a of atts) {
+    const size = a.size || 0;
+    const hasName = !!a.filename;
+    const disp = (a.contentDisposition || "").toLowerCase();
+    const hasDisp = disp === "attachment" || disp === "inline";
+    const ct = (a.contentType || "").toLowerCase();
+    const isInlineImage = !!a.cid && ct.startsWith("image/");
+    if (hasName || (size > 0 && hasDisp) || isInlineImage) n += 1;
+  }
+  return n;
+}
+
 function fetchByUidRange(imap, range) {
   return new Promise((resolve, reject) => {
     const out = [];
