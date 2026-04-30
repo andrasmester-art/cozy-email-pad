@@ -462,6 +462,51 @@ function countRealAttachments(parsed) {
   return n;
 }
 
+// Ugyanaz a logika, de a `node-imap` BODYSTRUCTURE-jén (rekurzív tömb).
+// Ezt a HEADER-szinkron használja: nem kell teljes body letöltés, így gyors,
+// és pontosan jelzi a 📎 ikont a listanézetben — minden csatolmány-típushoz
+// (pdf, kép, szöveg, zip, doc, hang, video, …).
+//
+// A `node-imap` `struct` formátum: nested array. Egy levél alkatrésze (part)
+// vagy egy alkatrész-tömb (multipart). Az alkatrész egy objektum, amiben:
+//   - type, subtype          (pl. "image", "png")
+//   - disposition            (pl. { type: "attachment", params: { filename } })
+//   - id                     (Content-ID, cid)
+//   - size                   (byte)
+function hasAttachmentsInStruct(struct) {
+  if (!Array.isArray(struct)) return false;
+  for (const item of struct) {
+    if (Array.isArray(item)) {
+      if (hasAttachmentsInStruct(item)) return true;
+      continue;
+    }
+    if (!item || typeof item !== "object") continue;
+    const type = String(item.type || "").toLowerCase();
+    const subtype = String(item.subtype || "").toLowerCase();
+    if (!type) continue;
+    // Multipart wrapper-eket átugorjuk — a tartalmukat a tömb-rekurzió
+    // járja be (lásd fent), itt magát a wrapper-objektumot nem nézzük.
+    if (type === "multipart") continue;
+
+    const disp = item.disposition || null;
+    const dispType = disp && typeof disp === "object" ? String(disp.type || "").toLowerCase() : null;
+    const params = item.params || (disp && disp.params) || {};
+    const filename = params && (params.filename || params.name);
+    const size = Number(item.size) || 0;
+    const cid = item.id || null;
+    const isInlineImage = !!cid && type === "image";
+
+    if (filename) return true;
+    if ((dispType === "attachment" || dispType === "inline") && size > 0) return true;
+    if (isInlineImage) return true;
+
+    // Tipikus „nyilvánvalóan csatolmány" típusok body-disposition nélkül is.
+    if (type === "application" && size > 0 && subtype && subtype !== "pkcs7-signature") return true;
+    if (type === "image" && size > 0 && (filename || cid)) return true;
+  }
+  return false;
+}
+
 function fetchByUidRange(imap, range) {
   return new Promise((resolve, reject) => {
     const out = [];
@@ -585,15 +630,18 @@ function decodeMimeWords(input) {
   ).replace(/\?=\s+=\?[^?]+\?[BbQq]\?/g, ""); // szomszédos encoded-word szóköz eltüntetése
 }
 
-// Csak fejléceket tölt le (FROM, TO, SUBJECT, DATE) — nincs body, nincs struct.
-// A lista-megjelenítéshez ennyi elég; a teljes szöveg/HTML lazy-n töltődik le
-// a fetchBodyByUid hívásával, amikor a felhasználó megnyit egy levelet.
+// Csak fejléceket tölt le (FROM, TO, SUBJECT, DATE) + BODYSTRUCTURE-t a
+// `hasAttachments` flag-hez. A teljes body NINCS letöltve — gyors marad,
+// de az IMAP `BODYSTRUCTURE` válaszból pontosan tudjuk, van-e csatolmány,
+// így a lista-nézetben rögtön megjelenik a 📎 ikon (body letöltése nélkül).
+// A teljes szöveg/HTML lazy-n töltődik le a fetchBodyByUid hívásával,
+// amikor a felhasználó megnyit egy levelet.
 function fetchHeadersByUidRange(imap, range) {
   return new Promise((resolve, reject) => {
     const out = [];
     const f = imap.fetch(range, {
       bodies: "HEADER.FIELDS (FROM TO SUBJECT DATE)",
-      struct: false,
+      struct: true,
     });
     f.on("message", (msg) => {
       let raw = "";
@@ -611,6 +659,7 @@ function fetchHeadersByUidRange(imap, range) {
           const d = new Date(h.date);
           if (!Number.isNaN(d.getTime())) dateIso = d.toISOString();
         }
+        const hasAttachments = hasAttachmentsInStruct(attrs.struct);
         out.push({
           uid: attrs.uid,
           from: decodeMimeWords(h.from || ""),
@@ -623,6 +672,7 @@ function fetchHeadersByUidRange(imap, range) {
           flagged: flags.includes("\\Flagged"),
           seen: flags.includes("\\Seen"),
           bodyLoaded: false,
+          hasAttachments,
         });
       });
     });
@@ -1220,7 +1270,21 @@ async function loadMessageBody(account, logicalMailbox, uid) {
     const next = cache.updateMessageBody(state, numericUid, body);
     cache.write(userDataDir(), account.id, logicalMailbox, next);
     const updated = next.messages.find((m) => m.uid === numericUid) || null;
-    return { ok: true, message: updated };
+    // A body-t is rámergeljuk a cache-objektumra, hogy a friss `attachments`
+    // és `hasAttachments` mezők mindenképp megérkezzenek a renderernek —
+    // akkor is, ha a cache valamiért régi adatot adna vissza.
+    const merged = updated
+      ? {
+          ...updated,
+          text: body.text ?? updated.text,
+          html: body.html ?? updated.html,
+          snippet: body.snippet ?? updated.snippet,
+          attachments: Array.isArray(body.attachments) ? body.attachments : (updated.attachments || []),
+          hasAttachments: typeof body.hasAttachments === "boolean" ? body.hasAttachments : !!updated.hasAttachments,
+          bodyLoaded: true,
+        }
+      : { ...body, bodyLoaded: true };
+    return { ok: true, message: merged };
   });
 }
 

@@ -178,19 +178,26 @@ function removeMessages(state, uids) {
   return { ...state, messages: next, updatedAt: Date.now() };
 }
 
-// Egyetlen üzenet body-mezőit (text/html/snippet/bodyLoaded) frissíti.
+// Egyetlen üzenet body-mezőit (text/html/snippet/bodyLoaded/attachments) frissíti.
+// Az `attachments` és `hasAttachments` is itt mentődik le, hogy a megnyitott
+// levél csatolmány-listája és a listanézet 📎 ikonja is megmaradjon a cache-ben.
 function updateMessageBody(state, uid, body) {
   const idx = state.messages.findIndex((m) => m.uid === uid);
   if (idx < 0) return state;
   const next = state.messages.slice();
+  const prev = next[idx];
   next[idx] = {
-    ...next[idx],
-    text: body.text ?? next[idx].text ?? "",
-    html: body.html ?? next[idx].html ?? "",
-    snippet: body.snippet ?? next[idx].snippet ?? "",
+    ...prev,
+    text: body.text ?? prev.text ?? "",
+    html: body.html ?? prev.html ?? "",
+    snippet: body.snippet ?? prev.snippet ?? "",
     bodyLoaded: true,
-    flagged: typeof body.flagged === "boolean" ? body.flagged : next[idx].flagged,
-    seen: typeof body.seen === "boolean" ? body.seen : next[idx].seen,
+    flagged: typeof body.flagged === "boolean" ? body.flagged : prev.flagged,
+    seen: typeof body.seen === "boolean" ? body.seen : prev.seen,
+    attachments: Array.isArray(body.attachments) ? body.attachments : (prev.attachments || []),
+    hasAttachments: typeof body.hasAttachments === "boolean"
+      ? body.hasAttachments
+      : (Array.isArray(body.attachments) ? body.attachments.length > 0 : !!prev.hasAttachments),
   };
   return { ...state, messages: next, updatedAt: Date.now() };
 }
