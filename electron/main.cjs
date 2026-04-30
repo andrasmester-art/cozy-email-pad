@@ -630,15 +630,18 @@ function decodeMimeWords(input) {
   ).replace(/\?=\s+=\?[^?]+\?[BbQq]\?/g, ""); // szomszédos encoded-word szóköz eltüntetése
 }
 
-// Csak fejléceket tölt le (FROM, TO, SUBJECT, DATE) — nincs body, nincs struct.
-// A lista-megjelenítéshez ennyi elég; a teljes szöveg/HTML lazy-n töltődik le
-// a fetchBodyByUid hívásával, amikor a felhasználó megnyit egy levelet.
+// Csak fejléceket tölt le (FROM, TO, SUBJECT, DATE) + BODYSTRUCTURE-t a
+// `hasAttachments` flag-hez. A teljes body NINCS letöltve — gyors marad,
+// de az IMAP `BODYSTRUCTURE` válaszból pontosan tudjuk, van-e csatolmány,
+// így a lista-nézetben rögtön megjelenik a 📎 ikon (body letöltése nélkül).
+// A teljes szöveg/HTML lazy-n töltődik le a fetchBodyByUid hívásával,
+// amikor a felhasználó megnyit egy levelet.
 function fetchHeadersByUidRange(imap, range) {
   return new Promise((resolve, reject) => {
     const out = [];
     const f = imap.fetch(range, {
       bodies: "HEADER.FIELDS (FROM TO SUBJECT DATE)",
-      struct: false,
+      struct: true,
     });
     f.on("message", (msg) => {
       let raw = "";
@@ -656,6 +659,7 @@ function fetchHeadersByUidRange(imap, range) {
           const d = new Date(h.date);
           if (!Number.isNaN(d.getTime())) dateIso = d.toISOString();
         }
+        const hasAttachments = hasAttachmentsInStruct(attrs.struct);
         out.push({
           uid: attrs.uid,
           from: decodeMimeWords(h.from || ""),
@@ -668,6 +672,7 @@ function fetchHeadersByUidRange(imap, range) {
           flagged: flags.includes("\\Flagged"),
           seen: flags.includes("\\Seen"),
           bodyLoaded: false,
+          hasAttachments,
         });
       });
     });
