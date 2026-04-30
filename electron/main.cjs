@@ -440,7 +440,11 @@ ipcMain.handle("cache:read", (_e, { accountId, mailbox }) => {
 // üres cache-nél a legfrissebb INITIAL_PAGE_SIZE darabot. UIDVALIDITY változás → reset.
 async function syncMailbox(account, logicalMailbox) {
   return withImap(account, 120000, async (imap) => {
-    const realName = await resolveMailbox(imap, logicalMailbox);
+    let realName = getCachedMailbox(account.id, logicalMailbox);
+    if (!realName) {
+      realName = await resolveMailbox(imap, logicalMailbox);
+      if (realName) setCachedMailbox(account.id, logicalMailbox, realName);
+    }
     if (!realName) return { added: 0, total: 0, mailbox: logicalMailbox, missing: true };
     const box = await openBox(imap, realName);
     const uidvalidity = box.uidvalidity ?? null;
@@ -538,7 +542,11 @@ async function syncMailbox(account, logicalMailbox) {
 // Lazy-load: a cache-nél régebbi leveleket tölti le (oldestUid alatt).
 async function loadOlder(account, logicalMailbox, pageSize) {
   return withImap(account, 120000, async (imap) => {
-    const realName = await resolveMailbox(imap, logicalMailbox);
+    let realName = getCachedMailbox(account.id, logicalMailbox);
+    if (!realName) {
+      realName = await resolveMailbox(imap, logicalMailbox);
+      if (realName) setCachedMailbox(account.id, logicalMailbox, realName);
+    }
     if (!realName) return { added: 0, mailbox: logicalMailbox, missing: true };
     const box = await openBox(imap, realName);
     let state = cache.read(userDataDir(), account.id, logicalMailbox);
@@ -627,7 +635,11 @@ ipcMain.handle("cache:loadOlder", async (_e, { accountId, mailbox, pageSize }) =
 // patch: { flagged?: boolean, seen?: boolean }
 async function setMessageFlags(account, logicalMailbox, uid, patch) {
   return withImap(account, 30000, async (imap) => {
-    const realName = await resolveMailbox(imap, logicalMailbox);
+    let realName = getCachedMailbox(account.id, logicalMailbox);
+    if (!realName) {
+      realName = await resolveMailbox(imap, logicalMailbox);
+      if (realName) setCachedMailbox(account.id, logicalMailbox, realName);
+    }
     if (!realName) throw new Error(`Mappa nem található: ${logicalMailbox}`);
     await openBox(imap, realName, false); // RW mód a flag-íráshoz
 
@@ -670,7 +682,11 @@ ipcMain.handle("mail:setFlag", async (_e, { accountId, mailbox, uid, patch }) =>
 // megnyit egy levelet. Eredmény bekerül a cache-be (bodyLoaded=true).
 async function loadMessageBody(account, logicalMailbox, uid) {
   return withImap(account, 30000, async (imap) => {
-    const realName = await resolveMailbox(imap, logicalMailbox);
+    let realName = getCachedMailbox(account.id, logicalMailbox);
+    if (!realName) {
+      realName = await resolveMailbox(imap, logicalMailbox);
+      if (realName) setCachedMailbox(account.id, logicalMailbox, realName);
+    }
     if (!realName) throw new Error(`Mappa nem található: ${logicalMailbox}`);
     await openBox(imap, realName);
     const numericUid = Number(uid);
@@ -793,7 +809,11 @@ ipcMain.handle("imap:appendDraft", async (_e, { accountId, to, cc, bcc, subject,
   if (!account) throw new Error("A fiók nem található.");
   const raw = await buildRawMime(account, { to, cc, bcc, subject, html, text });
   await withImap(account, 60000, async (imap) => {
-    const realName = await resolveMailbox(imap, "Drafts");
+    let realName = getCachedMailbox(account.id, "Drafts");
+    if (!realName) {
+      realName = await resolveMailbox(imap, "Drafts");
+      if (realName) setCachedMailbox(account.id, "Drafts", realName);
+    }
     if (!realName) throw new Error("Drafts mappa nem található a szerveren.");
     await appendToMailbox(imap, realName, raw, ["\\Draft", "\\Seen"]);
   });
