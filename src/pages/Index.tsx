@@ -395,6 +395,32 @@ const Index = () => {
     applyFlagPatch(m, { seen: m.seen === false ? true : false });
   }, [applyFlagPatch]);
 
+  // Levél törlése: optimista lokális eltávolítás + IMAP MOVE Trash-be
+  // (vagy EXPUNGE, ha már a Trash-ben vagyunk). Hiba esetén visszagörgetjük.
+  const deleteMessage = useCallback(async (m: MailMessage) => {
+    if (!activeAccountId || !m.uid) {
+      toast.error("Ezt az üzenetet nem lehet törölni (hiányzó UID).");
+      return;
+    }
+    const prevMessages = messages;
+    const prevSelected = selected;
+    setMessages((arr) => arr.filter((x) => x.uid !== m.uid));
+    setSelected((s) => (s && s.uid === m.uid ? null : s));
+    try {
+      const r = await mailAPI.mail.delete({
+        accountId: activeAccountId,
+        mailbox: activeMailbox,
+        uid: m.uid,
+      });
+      if (r?.messages) setMessages(r.messages);
+      toast.success(r?.mode === "expunge" ? "Levél véglegesen törölve" : "Levél a Kukába helyezve");
+    } catch (e: any) {
+      setMessages(prevMessages);
+      setSelected(prevSelected);
+      toast.error("Törlés sikertelen", { description: String(e?.message || e) });
+    }
+  }, [activeAccountId, activeMailbox, messages, selected]);
+
   // Az aktív mappa minden olvasatlan levelét jelöljük olvasottnak (kötegelve).
   // Optimista lokális update + szerverhívás üzenetenként; hiba esetén az
   // adott levél visszaáll. A Sidebar Mappa context menüből hívható.
@@ -596,6 +622,7 @@ const Index = () => {
           onReply={handleReply}
           onReplyAll={handleReplyAll}
           onForward={handleForward}
+          onDelete={deleteMessage}
           loading={loading}
           onRefresh={loadMessages}
           mailbox={activeMailbox}
@@ -626,6 +653,7 @@ const Index = () => {
             onForward={handleForward}
             onToggleFlag={toggleFlag}
             onToggleSeen={toggleSeen}
+            onDelete={deleteMessage}
             onOpenInNewWindow={openInNewWindow}
           />
         </div>
