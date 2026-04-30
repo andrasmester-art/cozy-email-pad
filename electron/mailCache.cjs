@@ -169,6 +169,15 @@ function applyFlagUpdates(state, updates) {
   return { state: { ...state, messages: next, updatedAt: Date.now() }, changed };
 }
 
+// Eltávolít üzeneteket a cache-ből UID-listából (törlés / áthelyezés után).
+function removeMessages(state, uids) {
+  const set = new Set((uids || []).map((u) => Number(u)).filter((n) => !Number.isNaN(n)));
+  if (set.size === 0) return state;
+  const next = state.messages.filter((m) => !set.has(Number(m.uid)));
+  if (next.length === state.messages.length) return state;
+  return { ...state, messages: next, updatedAt: Date.now() };
+}
+
 // Egyetlen üzenet body-mezőit (text/html/snippet/bodyLoaded) frissíti.
 function updateMessageBody(state, uid, body) {
   const idx = state.messages.findIndex((m) => m.uid === uid);
@@ -195,6 +204,7 @@ module.exports = {
   mergeNewMessages,
   updateMessageFlags,
   updateMessageBody,
+  removeMessages,
   applyFlagUpdates,
   reset,
   purgeAccount,
