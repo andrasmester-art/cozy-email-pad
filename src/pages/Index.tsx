@@ -384,6 +384,65 @@ const Index = () => {
     applyFlagPatch(m, { seen: m.seen === false ? true : false });
   }, [applyFlagPatch]);
 
+  // Az aktív mappa minden olvasatlan levelét jelöljük olvasottnak (kötegelve).
+  // Optimista lokális update + szerverhívás üzenetenként; hiba esetén az
+  // adott levél visszaáll. A Sidebar Mappa context menüből hívható.
+  const markAllReadInActiveMailbox = useCallback(async () => {
+    if (!activeAccountId) return;
+    const unread = messages.filter((m) => m.seen === false && typeof m.uid === "number");
+    if (unread.length === 0) {
+      toast.info("Nincs olvasatlan levél ebben a mappában");
+      return;
+    }
+    setMessages((arr) => arr.map((x) => (x.seen === false ? { ...x, seen: true } : x)));
+    let failed = 0;
+    await Promise.all(unread.map(async (m) => {
+      try {
+        await mailAPI.mail.setFlag({
+          accountId: activeAccountId,
+          mailbox: activeMailbox,
+          uid: m.uid as number,
+          patch: { seen: true },
+        });
+      } catch { failed++; }
+    }));
+    if (failed === 0) {
+      toast.success(`${unread.length} levél olvasottnak jelölve`);
+    } else {
+      toast.warning(`${unread.length - failed} sikeres, ${failed} hiba`);
+    }
+  }, [activeAccountId, activeMailbox, messages]);
+
+  // Egyetlen fiók (INBOX + Drafts) szinkronizálása a context menüből.
+  const syncSingleAccount = useCallback(async (accountId: string) => {
+    const acc = accounts.find((a) => a.id === accountId);
+    const label = acc?.label || acc?.user || "fiók";
+    const t = toast.loading(`Szinkronizálás (${label})…`);
+    try {
+      const r = await mailAPI.cache.syncAccount(accountId);
+      const added = (r.results || []).reduce((s, x) => s + (x.added || 0), 0);
+      toast.dismiss(t);
+      toast.success(added > 0 ? `${label}: ${added} új levél` : `${label}: naprakész`);
+      if (accountId === activeAccountId) {
+        const fresh = await mailAPI.imap.fetch({
+          accountId, mailbox: activeMailbox, limit: 5000,
+        });
+        setMessages(fresh);
+      }
+    } catch (e: any) {
+      toast.dismiss(t);
+      toast.error(`${label} szinkron sikertelen`, { description: String(e?.message || e) });
+    }
+  }, [accounts, activeAccountId, activeMailbox]);
+
+  // Új levél írása konkrét fiókkal (Sidebar fiók context menü).
+  const composeFromAccount = useCallback((accountId: string) => {
+    setActiveAccountId(accountId);
+    setComposerInitial(undefined);
+    setComposerMode("new");
+    setComposerOpen(true);
+  }, []);
+
   // Kiválasztáskor: 1) automatikus \\Seen, 2) ha nincs még betöltve a body,
   // lazy lekérjük a teljes szöveget/HTML-t (a sync csak fejléceket húz le).
   useEffect(() => {
