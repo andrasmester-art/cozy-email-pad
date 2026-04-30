@@ -53,6 +53,7 @@ type Props = {
   onReply?: (m: MailMessage) => void;
   onReplyAll?: (m: MailMessage) => void;
   onForward?: (m: MailMessage) => void;
+  onDelete?: (m: MailMessage) => void;
   loading: boolean;
   onRefresh: () => void;
   mailbox: string;
@@ -78,7 +79,7 @@ function extractEmail(s: string): string {
 
 type FilterMode = "all" | "unread" | "flagged";
 
-export function MessageList({ messages, selectedSeqno, onSelect, onOpen, onToggleFlag, onToggleSeen, onReply, onReplyAll, onForward, loading, onRefresh, mailbox, onLoadMore, loadingMore, exhausted, width }: Props) {
+export function MessageList({ messages, selectedSeqno, onSelect, onOpen, onToggleFlag, onToggleSeen, onReply, onReplyAll, onForward, onDelete, loading, onRefresh, mailbox, onLoadMore, loadingMore, exhausted, width }: Props) {
   const [q, setQ] = useState("");
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [density, setDensityState] = useState<ListDensity>(readDensity);
