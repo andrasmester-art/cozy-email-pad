@@ -437,4 +437,5 @@ const ScrollList = React.forwardRef<HTMLDivElement, {
       )}
     </div>
   );
-}
+});
+ScrollList.displayName = "ScrollList";
