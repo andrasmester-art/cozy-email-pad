@@ -8,6 +8,16 @@ A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 ### Javítás
 - **A levéltest teljes magassága újra helyesen látszik.** Egyes HTML leveleknél az iframe túl korán mérte le a tartalom magasságát, ezért úgy tűnt, mintha csak egy kis ablakban látnád a levelet. A magasságmérés most a teljes dokumentumot figyeli, ismételten újramér betöltés után, és a később érkező képek / layout-változások esetén is követi a tényleges méretet.
 
+## [1.25.2] – 2026-04-30
+
+### Javítás
+- **A böngészős preview-ban a HTML levél már nem csak keskeny sávként látszik.** Az email iframe sandbox beállítása eddig megakadályozta, hogy a szülő oldal minden környezetben hozzáférjen a `srcDoc` dokumentum tényleges méretéhez, ezért a frame a kezdeti alacsony magasságon ragadt. A sandbox most úgy van szűkítve, hogy továbbra se fusson script vagy aktív tartalom, viszont a magasságmérés megbízhatóan működjön.
+
+## [1.25.3] – 2026-04-30
+
+### Javítás
+- **A rövid HTML levelek sem „egy sávként” jelennek meg a jobb oldalon.** Ha a levél tartalma alacsony volt, a jobb oldali panel sötét üres háttérrel túl kicsinek hatott. A levéltest konténere most legalább a teljes olvasópanel-magasságot kitölti, és az iframe újraméri magát ablakméret-váltáskor is.
+
 ## [1.25.0] – 2026-04-29
 
 ### Új

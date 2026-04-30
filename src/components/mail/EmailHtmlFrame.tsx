@@ -20,10 +20,12 @@ type Props = {
  *   az Apple Mail / Gmail web nézetében.
  *
  * Biztonság:
- * - `sandbox=""` (üres token list): nincs script, nincs form submit, nincs
- *   top-navigation, nincs same-origin → a levél nem férhet hozzá a renderer
- *   process-hez vagy az alkalmazás cookie-jaihoz.
- * - Az iframe-ben futó kód nem éri el az ablak `parent`-jét.
+ * - `sandbox="allow-same-origin"`: nincs script, nincs form submit, nincs
+ *   top-navigation. A `same-origin` itt csak azért kell, hogy a szülő oldal
+ *   megbízhatóan le tudja mérni a `srcDoc` tartalom magasságát minden
+ *   környezetben (különösen a böngészős preview-ban).
+ * - Mivel script továbbra sem futhat a levélben, az iframe-ből nem lehet
+ *   aktív kódot futtatni vagy a parent window-t vezérelni.
  *
  * Méretezés:
  * - Az iframe magasságát a betöltött body `scrollHeight`-jához igazítjuk és
@@ -76,7 +78,10 @@ export function EmailHtmlFrame({ html, className }: Props) {
     const doc = iframe?.contentDocument;
     if (!doc?.body) return;
 
+    const containerHeight = iframe.parentElement?.getBoundingClientRect().height ?? 0;
+
     const next = Math.max(
+      containerHeight,
       doc.body.scrollHeight,
       doc.body.offsetHeight,
       doc.documentElement.scrollHeight,
@@ -122,20 +127,23 @@ export function EmailHtmlFrame({ html, className }: Props) {
       attachObservers();
     }
 
+    window.addEventListener("resize", updateHeight);
+
     return () => {
       iframe.removeEventListener("load", onLoad);
+      window.removeEventListener("resize", updateHeight);
       observerRef.current?.disconnect();
       observerRef.current = null;
     };
-  }, [srcDoc, attachObservers]);
+  }, [srcDoc, attachObservers, updateHeight]);
 
   return (
     <iframe
       ref={ref}
       title="email-body"
-      // Sandbox: minden képesség kikapcsolva. Scriptek nem futnak, a frame
-      // nem nyithat ablakot, nem küldhet form-ot, nem érheti el a parent-et.
-      sandbox=""
+      // A preview-ban a teljes magasság méréséhez kell a same-origin hozzáférés,
+      // de script / form / popup továbbra sincs engedélyezve.
+      sandbox="allow-same-origin"
       srcDoc={srcDoc}
       style={{ width: "100%", height, border: "0", display: "block" }}
       className={className}
