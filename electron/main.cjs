@@ -1376,12 +1376,114 @@ function loadRoute(win, hashRoute) {
   }
 }
 
+// ---- Ablakméret/pozíció megőrzése ----
+// Megnyitáskor visszaállítjuk az utoljára használt méretet, pozíciót és
+// maximalizált állapotot, hogy ne kelljen minden indulásnál újrahúzni az
+// ablakot. A bezáráskor (és resize/move közben debouncolva) elmentjük a
+// `window-state.json` állományba a felhasználói adatkönyvtárban.
+//
+// Két külön kulcs: "main" (fő ablak) és "message" (egy-üzenet ablakok).
+
+const { screen } = require("electron");
+
+const WINDOW_DEFAULTS = {
+  main:    { width: 1280, height: 820, minWidth: 920, minHeight: 600 },
+  message: { width: 900,  height: 720, minWidth: 560, minHeight: 420 },
+};
+
+function loadWindowState(key) {
+  const all = readStore("window-state", {});
+  const s = all && typeof all === "object" ? all[key] : null;
+  if (!s || typeof s !== "object") return null;
+  return s;
+}
+
+function saveWindowState(key, state) {
+  const all = readStore("window-state", {}) || {};
+  all[key] = state;
+  writeStore("window-state", all);
+}
+
+// Egy mentett { x, y, width, height } érték csak akkor használható, ha
+// továbbra is van olyan kijelző, amibe legalább részben belelóg. Ezzel
+// elkerüljük, hogy egy levált monitor miatt láthatatlanná váljon az ablak.
+function isBoundsVisible(bounds) {
+  if (!bounds || typeof bounds.x !== "number" || typeof bounds.y !== "number") return false;
+  try {
+    const displays = screen.getAllDisplays();
+    return displays.some((d) => {
+      const a = d.workArea;
+      const overlapX = Math.max(0, Math.min(bounds.x + bounds.width,  a.x + a.width)  - Math.max(bounds.x, a.x));
+      const overlapY = Math.max(0, Math.min(bounds.y + bounds.height, a.y + a.height) - Math.max(bounds.y, a.y));
+      // Legalább 100×100 pixel látszódjon.
+      return overlapX >= 100 && overlapY >= 100;
+    });
+  } catch {
+    return true;
+  }
+}
+
+// Bekötés: figyeli a resize/move/maximize/unmaximize/close eseményeket és
+// debouncolva menti a méretet. Bezáráskor utolsó snapshotot is ír.
+function attachWindowStatePersistence(win, key) {
+  let saveTimer = null;
+  const persist = () => {
+    try {
+      if (win.isDestroyed()) return;
+      const isMax = win.isMaximized();
+      // Maximalizált állapotban a getBounds() a nem-maximalizált alapot adja
+      // vissza macOS-en, de Win/Linux-on a teljes képernyőt — emiatt csak
+      // akkor írjuk felül a bounds-ot, ha NEM maximalizált.
+      const state = { maximized: isMax };
+      if (!isMax) {
+        const b = win.getBounds();
+        state.x = b.x; state.y = b.y; state.width = b.width; state.height = b.height;
+      } else {
+        // Maximalizált esetben tartsuk meg az előző normál bounds-ot, hogy
+        // az unmaximize-kor visszakapja a méretét.
+        const prev = loadWindowState(key) || {};
+        state.x = prev.x; state.y = prev.y;
+        state.width = prev.width; state.height = prev.height;
+      }
+      saveWindowState(key, state);
+    } catch (e) {
+      console.warn(`[window-state] save failed (${key}): ${e?.message || e}`);
+    }
+  };
+  const schedule = () => {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(persist, 400);
+  };
+  win.on("resize", schedule);
+  win.on("move", schedule);
+  win.on("maximize", persist);
+  win.on("unmaximize", persist);
+  win.on("close", () => { if (saveTimer) clearTimeout(saveTimer); persist(); });
+}
+
+// A mentett állapotot összefésüli az alapértelmezésekkel, és visszaadja a
+// `BrowserWindow` konstruktornak átadható objektumot (csak a látható-kijelző
+// teszten átment koordinátákat őrzi meg).
+function buildWindowOptions(key) {
+  const def = WINDOW_DEFAULTS[key];
+  const saved = loadWindowState(key);
+  const opts = {
+    width: saved?.width ?? def.width,
+    height: saved?.height ?? def.height,
+    minWidth: def.minWidth,
+    minHeight: def.minHeight,
+  };
+  if (saved && isBoundsVisible({ x: saved.x, y: saved.y, width: opts.width, height: opts.height })) {
+    opts.x = saved.x;
+    opts.y = saved.y;
+  }
+  return { opts, savedMaximized: !!saved?.maximized };
+}
+
 function createWindow() {
+  const { opts, savedMaximized } = buildWindowOptions("main");
   const win = new BrowserWindow({
-    width: 1280,
-    height: 820,
-    minWidth: 920,
-    minHeight: 600,
+    ...opts,
     titleBarStyle: "hiddenInset",
     backgroundColor: "#f5f6f8",
     webPreferences: {
@@ -1390,6 +1492,8 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
+  if (savedMaximized) win.maximize();
+  attachWindowStatePersistence(win, "main");
   mainWindow = win;
   win.on("closed", () => { if (mainWindow === win) mainWindow = null; });
   loadRoute(win, "");
@@ -1397,11 +1501,9 @@ function createWindow() {
 
 // Egy levél megnyitása új ablakban (dupla kattintás a listában).
 function openMessageWindow({ accountId, mailbox, seqno, uid }) {
+  const { opts, savedMaximized } = buildWindowOptions("message");
   const win = new BrowserWindow({
-    width: 900,
-    height: 720,
-    minWidth: 560,
-    minHeight: 420,
+    ...opts,
     titleBarStyle: "hiddenInset",
     backgroundColor: "#f5f6f8",
     webPreferences: {
@@ -1410,6 +1512,8 @@ function openMessageWindow({ accountId, mailbox, seqno, uid }) {
       nodeIntegration: false,
     },
   });
+  if (savedMaximized) win.maximize();
+  attachWindowStatePersistence(win, "message");
   childWindows.add(win);
   win.on("closed", () => childWindows.delete(win));
   const params = new URLSearchParams();
