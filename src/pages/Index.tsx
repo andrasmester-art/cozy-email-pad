@@ -197,7 +197,7 @@ const Index = () => {
         accountId: activeAccountId,
         mailbox: activeMailbox,
       });
-      console.log(`${tag} sync returned added=${r.added} msgs=${r.messages.length} in ${(performance.now() - tSync).toFixed(0)}ms`);
+      console.log(`${tag} sync returned added=${r.added} msgs=${r.messages.length} warnings=${r.warnings?.length || 0} in ${(performance.now() - tSync).toFixed(0)}ms`);
       if (r.messages.length === 0) {
         console.warn(`${tag} ⚠ sync returned 0 msgs — server empty or sync failed silently`);
       }
@@ -205,9 +205,21 @@ const Index = () => {
       if (r.added > 0) {
         toast.success(`${r.added} új levél`);
       }
+      // Részleges hibák (UIDVALIDITY váltás, ALL/incremental search hiba,
+      // hiányzó mappa, üres szerver-mailbox, race) → érthető figyelmeztetés
+      // a felhasználónak, hogy lássa miért nem teljes a lista.
+      if (r.warnings && r.warnings.length > 0) {
+        toast.warning("Frissítés részleges hibákkal", {
+          description: r.warnings.join("\n• ").replace(/^/, "• "),
+          duration: 12000,
+        });
+      }
     } catch (e: any) {
       console.error(`${tag} sync FAILED`, e);
-      toast.error("Frissítés sikertelen", { description: String(e?.message || e) });
+      toast.error("Frissítés sikertelen", {
+        description: String(e?.message || e),
+        duration: 12000,
+      });
     } finally {
       setLoading(false);
       console.log(`${tag} done in ${(performance.now() - t0).toFixed(0)}ms`);
@@ -228,8 +240,17 @@ const Index = () => {
       });
       setMessages(r.messages);
       if (r.exhausted) setExhausted(true);
+      if (r.warnings && r.warnings.length > 0) {
+        toast.warning("Régebbi levelek részleges hibákkal", {
+          description: r.warnings.join("\n• ").replace(/^/, "• "),
+          duration: 12000,
+        });
+      }
     } catch (e: any) {
-      toast.error("Régebbi levelek betöltése sikertelen", { description: String(e?.message || e) });
+      toast.error("Régebbi levelek betöltése sikertelen", {
+        description: String(e?.message || e),
+        duration: 12000,
+      });
     } finally {
       setLoadingMore(false);
     }
