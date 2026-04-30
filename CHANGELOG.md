@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.29.0] – 2026-04-30
+
+### Új
+- **Részletes SMTP-naplózás a Hibanapló fájlban.** A levélküldés most végigvezeti a teljes SMTP folyamatot a logokba: indulás (host:port, secure/requireTLS, user, to/cc/bcc darabszám, subject preview), nodemailer belső debug-csatornája (`[smtp] dbg/inf/wrn/err`) a teljes EHLO/STARTTLS/AUTH/MAIL FROM/RCPT/DATA párbeszéddel, sikeres küldés (messageId, accepted/rejected, server response, időtartam ms), részleges visszautasítás (rejected címek listája), valamint hibánál `code`, `responseCode`, `command`, időtartam és a stack első 4 sora. Az érzékeny mezőket (AUTH base64, jelszó-mezők) a logger redaktálja `[REDACTED]`-re. Mindezt a Sidebar „Hibanapló mentése" gombbal egy fájlként tudod elküldeni a hibakereséshez.
+
 ## [1.28.0] – 2026-04-30
 
 ### Új
