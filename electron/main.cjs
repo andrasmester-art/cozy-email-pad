@@ -98,15 +98,71 @@ const MAILBOX_ALIASES = {
   Trash: ["Trash", "Deleted", "Deleted Items", "INBOX.Trash", "[Gmail]/Trash", "[Google Mail]/Trash"],
 };
 
-// Per-session mappafeloldás cache: accountId → { logicalName → realName }
+// IMAP SPECIAL-USE attribútumok (RFC 6154) → logikai mappanevek leképzése.
+// Ez a leghitelesebb forrás a Drafts/Sent/Trash/Junk/Archive azonosításra,
+// függetlenül a szerver névsémájától (Drafts vs INBOX.Drafts vs [Gmail]/Drafts).
+const SPECIAL_USE_TO_LOGICAL = {
+  "\\Drafts": "Drafts",
+  "\\Sent": "Sent",
+  "\\Trash": "Trash",
+  "\\Junk": "Spam",
+  "\\Archive": "Archive",
+  "\\All": "Archive", // Gmail "All Mail" — archive-szerű viselkedés
+};
+
+// Mappa-feloldás cache. Memóriában (per accountId), ÉS perzisztensen lemezen
+// (mailbox-resolutions.json), hogy indulásokon át gyors maradjon a felhasználói
+// élmény és ne kelljen mindig LIST-elni a szervert.
+//
+// Struktúra: { [accountId]: { [logical]: realName } }
 const resolvedMailboxCache = new Map();
+let resolvedMailboxLoaded = false;
+
+function loadResolvedMailboxesFromDisk() {
+  if (resolvedMailboxLoaded) return;
+  resolvedMailboxLoaded = true;
+  try {
+    const raw = readStore("mailbox-resolutions", {});
+    for (const [accId, map] of Object.entries(raw || {})) {
+      const m = new Map();
+      for (const [logical, real] of Object.entries(map || {})) {
+        if (typeof real === "string" && real) m.set(logical, real);
+      }
+      resolvedMailboxCache.set(accId, m);
+    }
+  } catch (e) {
+    console.warn(`[mailbox] failed to load resolutions from disk: ${e?.message || e}`);
+  }
+}
+
+function persistResolvedMailboxes() {
+  try {
+    const out = {};
+    for (const [accId, m] of resolvedMailboxCache.entries()) {
+      out[accId] = Object.fromEntries(m.entries());
+    }
+    writeStore("mailbox-resolutions", out);
+  } catch (e) {
+    console.warn(`[mailbox] failed to persist resolutions: ${e?.message || e}`);
+  }
+}
 
 function getCachedMailbox(accountId, logical) {
+  loadResolvedMailboxesFromDisk();
   return resolvedMailboxCache.get(accountId)?.get(logical) ?? null;
 }
 function setCachedMailbox(accountId, logical, real) {
+  loadResolvedMailboxesFromDisk();
   if (!resolvedMailboxCache.has(accountId)) resolvedMailboxCache.set(accountId, new Map());
+  const prev = resolvedMailboxCache.get(accountId).get(logical);
+  if (prev === real) return;
   resolvedMailboxCache.get(accountId).set(logical, real);
+  if (prev && prev !== real) {
+    console.log(`[mailbox] resolution changed acct=${accountId} ${logical}: "${prev}" → "${real}"`);
+  } else {
+    console.log(`[mailbox] resolution stored acct=${accountId} ${logical} → "${real}"`);
+  }
+  persistResolvedMailboxes();
 }
 
 // Per-mailbox sync lock: ugyanarra a (accountId, mailbox) párra egyszerre csak
