@@ -507,6 +507,29 @@ function hasAttachmentsInStruct(struct) {
   return false;
 }
 
+const ATTACHMENT_META_VERSION = 1;
+
+function refreshAttachmentFlagsFromStruct(state) {
+  if (!state || !Array.isArray(state.messages) || state.messages.length === 0) {
+    return state;
+  }
+  let changed = false;
+  const nextMessages = state.messages.map((m) => {
+    if (!m || typeof m !== "object") return m;
+    if (typeof m.hasAttachments === "boolean") return m;
+    const atts = Array.isArray(m.attachments) ? m.attachments : null;
+    const nextHasAttachments = atts ? atts.length > 0 : false;
+    changed = true;
+    return { ...m, hasAttachments: nextHasAttachments };
+  });
+  return {
+    ...state,
+    messages: changed ? nextMessages : state.messages,
+    attachmentMetaVersion: ATTACHMENT_META_VERSION,
+    updatedAt: changed ? Date.now() : state.updatedAt,
+  };
+}
+
 function fetchByUidRange(imap, range) {
   return new Promise((resolve, reject) => {
     const out = [];
@@ -948,7 +971,10 @@ async function syncMailbox(account, logicalMailbox) {
       const flagSyncNeeded = (Date.now() - (state.updatedAt || 0)) > 10 * 60 * 1000;
 
       if (uidsToFetch.length === 0) {
-        const synced = flagSyncNeeded ? await resyncFlags(state) : state;
+        const migrated = state.attachmentMetaVersion >= ATTACHMENT_META_VERSION
+          ? state
+          : refreshAttachmentFlagsFromStruct(state);
+        const synced = flagSyncNeeded ? await resyncFlags(migrated) : migrated;
         const next = { ...synced, updatedAt: Date.now() };
         cache.write(userDataDir(), account.id, logicalMailbox, next);
         console.log(`[syncMailbox] DONE ${account.id}/${logicalMailbox} added=0 returning msgs=${next.messages.length} (+${Date.now() - tStart}ms)`);
