@@ -700,7 +700,9 @@ async function syncMailbox(account, logicalMailbox) {
   return withSyncLock(account.id, logicalMailbox, () =>
     withImap(account, 120000, async (imap) => {
       console.log(`[syncMailbox] imap connected ${account.id}/${logicalMailbox} (+${Date.now() - tStart}ms)`);
+      // 1. Mappa-feloldás: cache → ha nincs, friss LIST + SPECIAL-USE alapján.
       let realName = getCachedMailbox(account.id, logicalMailbox);
+      let cameFromCache = !!realName;
       if (!realName) {
         realName = await resolveMailbox(imap, logicalMailbox);
         if (realName) setCachedMailbox(account.id, logicalMailbox, realName);
@@ -713,7 +715,28 @@ async function syncMailbox(account, logicalMailbox) {
         console.warn(`[syncMailbox] MISSING mailbox ${account.id}/${logicalMailbox} → returning ${state.messages.length} cached msgs`);
         return { added: 0, total: 0, mailbox: logicalMailbox, missing: true, messages: state.messages, updatedAt: state.updatedAt, warnings };
       }
-      const box = await openBox(imap, realName);
+
+      // 2. Cache-validáció: a cache-elt valós nevet megpróbáljuk megnyitni.
+      // Ha nem nyitható (törölték / átnevezték), újra-feloldunk és frissítjük a cache-t.
+      let box;
+      try {
+        box = await openBox(imap, realName);
+      } catch (openErr) {
+        if (cameFromCache) {
+          const reResolved = await resolveMailbox(imap, logicalMailbox);
+          if (reResolved && reResolved !== realName) {
+            console.warn(`[syncMailbox] cached "${realName}" not openable (${openErr?.message || openErr}) — re-resolved to "${reResolved}"`);
+            warn(`A korábbi mappa-feloldás („${realName}") már nem érvényes, áttértünk erre: „${reResolved}".`);
+            realName = reResolved;
+            setCachedMailbox(account.id, logicalMailbox, realName);
+            box = await openBox(imap, realName);
+          } else {
+            throw openErr;
+          }
+        } else {
+          throw openErr;
+        }
+      }
       const uidvalidity = box.uidvalidity ?? null;
       let state = cache.read(userDataDir(), account.id, logicalMailbox);
       console.log(`[syncMailbox] opened box ${realName} server.total=${box.messages.total} uidvalidity=${uidvalidity} cache.uidvalidity=${state.uidvalidity} cache.lastUid=${state.lastUid} cache.msgs=${state.messages.length}`);
@@ -729,6 +752,27 @@ async function syncMailbox(account, logicalMailbox) {
         state.uidvalidity = uidvalidity;
       }
 
+      // 3. Üres-mappa egyeztetés: ha a feloldott mappa üres, megnézzük, hogy
+      //    egy másik jelölt (más név vagy SPECIAL-USE) tartalmazza-e a leveleket.
+      //    Ha igen, áttérünk arra (ez szünteti meg a discrepancy warningot,
+      //    pl. ha eddig „Drafts" volt a cache-elt, de a kliens valójában az
+      //    „INBOX.Drafts"-ba teszi a piszkozatokat).
+      if (!box.messages.total && cameFromCache) {
+        const reResolved = await resolveMailbox(imap, logicalMailbox);
+        if (reResolved && reResolved !== realName) {
+          try {
+            const altBox = await openBox(imap, reResolved);
+            if (altBox.messages.total > 0) {
+              console.warn(`[syncMailbox] "${realName}" empty, but "${reResolved}" has ${altBox.messages.total} msgs — switching cache`);
+              warn(`Mappa egyeztetés: „${realName}" üres a szerveren, áttértünk erre: „${reResolved}" (${altBox.messages.total} levél).`);
+              realName = reResolved;
+              setCachedMailbox(account.id, logicalMailbox, realName);
+              box = altBox;
+            }
+          } catch { /* ignore */ }
+        }
+      }
+
       if (!box.messages.total) {
         const w = `A szerver szerint a(z) „${realName}" mappa üres — megtartjuk a meglévő ${state.messages.length} cache-elt levelet (lehet tranziens IMAP állapot).`;
         warn(w);
@@ -736,6 +780,7 @@ async function syncMailbox(account, logicalMailbox) {
         cache.write(userDataDir(), account.id, logicalMailbox, { ...state, updatedAt: Date.now() });
         return { added: 0, total: 0, mailbox: logicalMailbox, messages: state.messages, updatedAt: Date.now(), warnings };
       }
+
 
       const uidSearch = (criteria) => new Promise((resolve, reject) => {
         imap.search(criteria, (err, results) => (err ? reject(err) : resolve(results || [])));
