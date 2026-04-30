@@ -688,24 +688,30 @@ async function loadOlder(account, logicalMailbox, pageSize) {
 
 // Egyetlen mappa szinkronizálása (UI gomb / fiókváltás háttér-sync).
 ipcMain.handle("cache:syncMailbox", async (_e, { accountId, mailbox }) => {
+  console.log(`[ipc cache:syncMailbox] ← ${accountId}/${mailbox}`);
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("A fiók nem található.");
   const result = await syncMailbox(account, mailbox);
   if (Array.isArray(result?.messages)) {
+    console.log(`[ipc cache:syncMailbox] → ${accountId}/${mailbox} memory msgs=${result.messages.length} added=${result.added}`);
     return { ...result, messages: result.messages, updatedAt: result.updatedAt || Date.now() };
   }
+  console.warn(`[ipc cache:syncMailbox] ${accountId}/${mailbox} no in-memory messages → fallback disk read`);
   const state = cache.read(userDataDir(), accountId, mailbox);
   return { ...result, messages: state.messages, updatedAt: state.updatedAt };
 });
 
 // Lazy-load régebbi levelek (görgetésre).
 ipcMain.handle("cache:loadOlder", async (_e, { accountId, mailbox, pageSize }) => {
+  console.log(`[ipc cache:loadOlder] ← ${accountId}/${mailbox} pageSize=${pageSize}`);
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("A fiók nem található.");
   const result = await loadOlder(account, mailbox, pageSize);
   if (Array.isArray(result?.messages)) {
+    console.log(`[ipc cache:loadOlder] → ${accountId}/${mailbox} memory msgs=${result.messages.length} added=${result.added} exhausted=${!!result.exhausted}`);
     return { ...result, messages: result.messages, updatedAt: result.updatedAt || Date.now() };
   }
+  console.warn(`[ipc cache:loadOlder] ${accountId}/${mailbox} no in-memory messages → fallback disk read`);
   const state = cache.read(userDataDir(), accountId, mailbox);
   return { ...result, messages: state.messages, updatedAt: state.updatedAt };
 });
