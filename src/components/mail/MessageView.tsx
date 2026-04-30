@@ -124,7 +124,16 @@ export function MessageView({ message, onReply, onReplyAll, onForward, onToggleF
           <FileDown className="h-4 w-4 mr-1.5" /> PDF
         </Button>
         <Button size="sm" variant="ghost" className="text-muted-foreground"><Archive className="h-4 w-4" /></Button>
-        <Button size="sm" variant="ghost" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-destructive"
+          onClick={() => onDelete && setConfirmOpen(true)}
+          disabled={!onDelete}
+          title={onDelete ? "Levél törlése (Kukába helyezés)" : "Törlés nem érhető el"}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
       </div>
 
       <div className="px-8 py-5 border-b border-border bg-surface">
