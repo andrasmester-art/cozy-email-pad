@@ -726,16 +726,20 @@ ipcMain.handle("mail:fetchBody", async (_e, { accountId, mailbox, uid }) => {
 ipcMain.handle("cache:syncAccount", async (_e, { accountId }) => {
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("A fiók nem található.");
-  const results = [];
-  for (const mb of ["INBOX", "Drafts"]) {
-    try {
-      const r = await syncMailbox(account, mb);
-      results.push({ mailbox: mb, ok: true, added: r.added, missing: !!r.missing });
-    } catch (e) {
-      results.push({ mailbox: mb, ok: false, error: String(e?.message || e) });
-    }
-  }
-  return { ok: true, results };
+  const results = await Promise.allSettled(
+    ["INBOX", "Drafts"].map(async (mb) => {
+      try {
+        const r = await syncMailbox(account, mb);
+        return { mailbox: mb, ok: true, added: r.added, missing: !!r.missing };
+      } catch (e) {
+        return { mailbox: mb, ok: false, error: String(e?.message || e) };
+      }
+    }),
+  );
+  return {
+    ok: true,
+    results: results.map((r) => (r.status === "fulfilled" ? r.value : { mailbox: "unknown", ok: false, error: r.reason })),
+  };
 });
 
 // Régi végpont kompatibilitás: ha valami még listInbox-ot hívna, INBOX cache-et adunk.

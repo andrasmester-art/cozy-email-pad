@@ -247,17 +247,15 @@ const Index = () => {
     if (!mailAPI.isElectron) return;
     const api = (window as any).mailAPI;
     if (!api?.events?.onAutoSync) return;
+    let active = true;
     const off = api.events.onAutoSync(async (payload: { accountId: string; mailbox: string; added: number }) => {
-      if (!payload) return;
-      // Toast csak új levélnél; a flag-frissítés (added=0) csendes.
+      if (!active || !payload) return;
       if (payload.added > 0) {
         const acc = accounts.find((a) => a.id === payload.accountId);
         const accLabel = acc?.label || acc?.from || acc?.user;
         const label = accLabel ? ` (${accLabel})` : "";
         toast.success(`${payload.added} új levél${label}`);
       }
-      // Ha az érintett fiók/mappa van nyitva, mindig frissítsük a listát
-      // (új levél VAGY visszaszinkronizált flag-változás miatt is).
       if (payload.accountId === activeAccountId && payload.mailbox === activeMailbox) {
         try {
           const fresh = await mailAPI.imap.fetch({
@@ -265,11 +263,14 @@ const Index = () => {
             mailbox: payload.mailbox,
             limit: 5000,
           });
-          setMessages(fresh);
+          if (active) setMessages(fresh);
         } catch { /* ignore */ }
       }
     });
-    return () => { try { off?.(); } catch { /* ignore */ } };
+    return () => {
+      active = false;
+      try { off?.(); } catch { /* ignore */ }
+    };
   }, [accounts, activeAccountId, activeMailbox]);
 
   // "Szinkronizálás" gomb: minden fiók összes mappáját inkrementálisan frissíti.
