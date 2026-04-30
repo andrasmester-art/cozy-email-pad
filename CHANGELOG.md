@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.26.2] – 2026-04-30
+
+### Javítás
+- **Az email lista újra megbízhatóan betölt.** Az aszinkron cache-írás után a main process több ponton azonnal visszaolvasta a fájlt, ami versenyhelyzetben üres vagy régi levéllistát adhatott vissza a UI-nak. A szinkron és a „régebbi levelek” betöltése most közvetlenül a friss memóriabeli eredményt adja vissza, és csak visszaesésként olvas a cache-ből.
+
 ## [1.26.1] – 2026-04-30
 
 ### Javítás
