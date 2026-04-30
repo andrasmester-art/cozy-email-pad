@@ -124,6 +124,63 @@ function withSyncLock(accountId, mailbox, fn) {
   return next;
 }
 
+// ---- Retry helper átmeneti hibákra (SMTP/IMAP) ----
+//
+// Általános szabály: 3× próbálkozás exponenciális backoff-fal (1s, 2s, 4s).
+// PERMANENS hibákat (pl. authentication failed, 5xx response code, hiányzó
+// fiók, misszing mailbox) NEM próbálja újra — felesleges és csak elhúzza
+// a hibajelzést a felhasználó felé. Az átmeneti hibákhoz tartozik minden
+// hálózati eredetű probléma: timeout, ECONNRESET, ECONNREFUSED, EHOSTUNREACH,
+// 4xx greylisting/rate limit, valamint a kapcsolat-szint kódok.
+//
+// A `label` csak a logoláshoz kell — `[retry] <label> attempt N/3 …` formában.
+function isPermanentError(err) {
+  if (!err) return false;
+  const msg = String(err.message || err.response || err).toLowerCase();
+  const code = err.code || "";
+  const responseCode = Number(err.responseCode || 0);
+  // SMTP 5xx → permanens (auth failed, mailbox not found, message rejected)
+  if (responseCode >= 500 && responseCode < 600) return true;
+  // Authentication / authorization → ne próbáljuk újra
+  if (/(authentication failed|invalid login|invalid credentials|authentication unsuccessful|535|534|538)/i.test(msg)) {
+    return true;
+  }
+  // Konfigurációs / állandó hibák
+  if (/no such mailbox|mailbox.*not.*exist|550|553|554/i.test(msg)) return true;
+  if (code === "EAUTH") return true;
+  return false;
+}
+
+async function runWithRetry(label, fn, { maxAttempts = 3, baseDelayMs = 1000 } = {}) {
+  let lastErr;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const result = await fn(attempt);
+      if (attempt > 1) {
+        console.log(`[retry] ${label} succeeded on attempt ${attempt}/${maxAttempts}`);
+      }
+      return result;
+    } catch (err) {
+      lastErr = err;
+      const permanent = isPermanentError(err);
+      const detail = err?.message || err?.response || String(err);
+      const code = err?.code || err?.responseCode || "?";
+      if (permanent) {
+        console.warn(`[retry] ${label} PERMANENT error on attempt ${attempt}/${maxAttempts} (code=${code}) — not retrying: ${detail}`);
+        throw err;
+      }
+      if (attempt >= maxAttempts) {
+        console.warn(`[retry] ${label} TRANSIENT error on attempt ${attempt}/${maxAttempts} (code=${code}) — giving up: ${detail}`);
+        throw err;
+      }
+      const wait = baseDelayMs * Math.pow(2, attempt - 1);
+      console.warn(`[retry] ${label} TRANSIENT error on attempt ${attempt}/${maxAttempts} (code=${code}) — waiting ${wait}ms before retry: ${detail}`);
+      await new Promise((r) => setTimeout(r, wait));
+    }
+  }
+  throw lastErr;
+}
+
 // ---- IPC: accounts ----
 ipcMain.handle("accounts:list", () =>
   loadAccounts().map((a) => ({ ...a, password: undefined, smtpPassword: undefined })),
