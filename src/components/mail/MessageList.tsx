@@ -245,7 +245,7 @@ function FilterChip({
 }
 
 function ScrollList({
-  loading, messages, filtered, selectedSeqno, onSelect, onOpen, onToggleFlag, onLoadMore, loadingMore, exhausted, searching, emptyHint, density,
+  loading, messages, filtered, selectedSeqno, onSelect, onOpen, onToggleFlag, onToggleSeen, onReply, onReplyAll, onForward, onLoadMore, loadingMore, exhausted, searching, emptyHint, density,
 }: {
   loading: boolean;
   messages: MailMessage[];
@@ -254,6 +254,10 @@ function ScrollList({
   onSelect: (m: MailMessage) => void;
   onOpen?: (m: MailMessage) => void;
   onToggleFlag?: (m: MailMessage) => void;
+  onToggleSeen?: (m: MailMessage) => void;
+  onReply?: (m: MailMessage) => void;
+  onReplyAll?: (m: MailMessage) => void;
+  onForward?: (m: MailMessage) => void;
   onLoadMore?: () => void;
   loadingMore?: boolean;
   exhausted?: boolean;
