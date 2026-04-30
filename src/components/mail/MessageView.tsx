@@ -34,6 +34,8 @@ type Props = {
 };
 
 export function MessageView({ message, onReply, onReplyAll, onForward, onToggleFlag, onToggleSeen, onDelete, onOpenInNewWindow }: Props) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
   if (!message) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground bg-background">
