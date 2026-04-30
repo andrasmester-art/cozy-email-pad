@@ -511,7 +511,9 @@ async function syncMailbox(account, logicalMailbox) {
         try {
           const newer = await uidSearch([["UID", `${state.lastUid + 1}:*`]]);
           uidsToFetch = newer.filter((u) => u > state.lastUid);
-        } catch {
+          console.log(`[syncMailbox] incremental search ${account.id}/${logicalMailbox} after UID ${state.lastUid} → ${uidsToFetch.length} new`);
+        } catch (err) {
+          console.warn(`[syncMailbox] incremental search FAILED ${account.id}/${logicalMailbox}: ${err && err.message}`);
           uidsToFetch = [];
         }
 
@@ -525,24 +527,28 @@ async function syncMailbox(account, logicalMailbox) {
             const all = await uidSearch(["ALL"]);
             allOk = true;
             serverMax = all.length ? Math.max(...all) : 0;
-          } catch {
+          } catch (err) {
+            console.warn(`[syncMailbox] ALL search FAILED ${account.id}/${logicalMailbox}: ${err && err.message}`);
             allOk = false;
           }
-          // Csak akkor reseteljünk, ha az ALL search sikerült, a szerveren
-          // van legalább 1 levél, és a max UID jóval kisebb, mint a cache.
-          // (A box.messages.total > 0 már ellenőrizve van fent.)
           if (allOk && serverMax > 0 && serverMax < state.lastUid) {
             console.warn(`[syncMailbox] cache reset: ${account.id}/${logicalMailbox} serverMax=${serverMax} < cached lastUid=${state.lastUid}`);
             state = cache.reset(uidvalidity);
+          } else if (allOk) {
+            console.log(`[syncMailbox] no reset ${account.id}/${logicalMailbox} (serverMax=${serverMax}, cache.lastUid=${state.lastUid})`);
           }
         }
       }
 
       if (state.lastUid === 0) {
         let allUids = [];
-        try { allUids = await uidSearch(["ALL"]); } catch { allUids = []; }
+        try { allUids = await uidSearch(["ALL"]); } catch (err) {
+          console.warn(`[syncMailbox] initial ALL search FAILED ${account.id}/${logicalMailbox}: ${err && err.message}`);
+          allUids = [];
+        }
         allUids.sort((a, b) => a - b);
         uidsToFetch = allUids.slice(-cache.INITIAL_PAGE_SIZE);
+        console.log(`[syncMailbox] initial fetch ${account.id}/${logicalMailbox}: server total=${allUids.length}, picking ${uidsToFetch.length} newest`);
       }
 
       async function resyncFlags(currentState) {
@@ -557,8 +563,10 @@ async function syncMailbox(account, logicalMailbox) {
           const updates = new Map();
           for (const f of flagsList) updates.set(f.uid, { flagged: f.flagged, seen: f.seen });
           const { state: nextState, changed } = cache.applyFlagUpdates(currentState, updates);
+          if (changed > 0) console.log(`[syncMailbox] resyncFlags ${account.id}/${logicalMailbox} updated ${changed} flags`);
           return changed > 0 ? nextState : currentState;
-        } catch {
+        } catch (err) {
+          console.warn(`[syncMailbox] resyncFlags FAILED ${account.id}/${logicalMailbox}: ${err && err.message}`);
           return currentState;
         }
       }
@@ -569,6 +577,7 @@ async function syncMailbox(account, logicalMailbox) {
         const synced = flagSyncNeeded ? await resyncFlags(state) : state;
         const next = { ...synced, updatedAt: Date.now() };
         cache.write(userDataDir(), account.id, logicalMailbox, next);
+        console.log(`[syncMailbox] DONE ${account.id}/${logicalMailbox} added=0 returning msgs=${next.messages.length} (+${Date.now() - tStart}ms)`);
         return { added: 0, total: box.messages.total, mailbox: logicalMailbox, messages: next.messages, updatedAt: next.updatedAt };
       }
 
@@ -577,17 +586,19 @@ async function syncMailbox(account, logicalMailbox) {
       const fetched = await fetchHeadersByUidRange(imap, `${minUid}:${maxUid}`);
       const wanted = new Set(uidsToFetch);
       const newOnly = fetched.filter((m) => wanted.has(m.uid) && m.uid > (state.lastUid || 0));
+      console.log(`[syncMailbox] fetched headers ${account.id}/${logicalMailbox} range=${minUid}:${maxUid} got=${fetched.length} newOnly=${newOnly.length}`);
       // FONTOS: a merge előtt újraolvassuk a state-et a diszkről, hogy más
       // (pl. flag-állítás) közben írt változások se vesszenek el.
       const freshState = cache.read(userDataDir(), account.id, logicalMailbox);
-      // Csak akkor használjuk a friss state-et, ha ugyanaz a uidvalidity, és
-      // nem kisebb a lastUid (különben a saját reset-ünk veszne el).
-      const baseState = (freshState.uidvalidity === state.uidvalidity && freshState.lastUid >= state.lastUid)
-        ? freshState
-        : state;
+      const useFresh = (freshState.uidvalidity === state.uidvalidity && freshState.lastUid >= state.lastUid);
+      if (!useFresh) {
+        console.warn(`[syncMailbox] RACE: disk diverged ${account.id}/${logicalMailbox} — disk.lastUid=${freshState.lastUid} mem.lastUid=${state.lastUid} — using in-memory state`);
+      }
+      const baseState = useFresh ? freshState : state;
       const merged = cache.mergeNewMessages(baseState, newOnly);
       const next = (flagSyncNeeded || newOnly.length > 0) ? await resyncFlags(merged) : merged;
       cache.write(userDataDir(), account.id, logicalMailbox, next);
+      console.log(`[syncMailbox] DONE ${account.id}/${logicalMailbox} added=${newOnly.length} returning msgs=${next.messages.length} (+${Date.now() - tStart}ms)`);
       return { added: newOnly.length, total: box.messages.total, mailbox: logicalMailbox, messages: next.messages, updatedAt: next.updatedAt };
     }),
   );
