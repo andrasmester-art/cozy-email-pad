@@ -3,12 +3,16 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNowStrict } from "date-fns";
 import { hu } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
-import { Search, RefreshCw, Loader2, Star, Mail, Rows3 } from "lucide-react";
+import { Search, RefreshCw, Loader2, Star, Mail, Rows3, Reply, ReplyAll, Forward, ExternalLink, Copy, MailOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
   DropdownMenuLabel, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import { toast } from "sonner";
 import { useState, useMemo, useRef, useEffect } from "react";
 
 // A levéllista sortávolsága (sűrűsége). A választás localStorage-ben
