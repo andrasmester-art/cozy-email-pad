@@ -466,34 +466,38 @@ ipcMain.handle("cache:read", (_e, { accountId, mailbox }) => {
 // nem írja felül egymás cache-ét (race elkerülése — különben a régebbi state-tel
 // induló sync az újabb merge-et felülírhatja, és „eltűnnek" a levelek).
 async function syncMailbox(account, logicalMailbox) {
+  const tStart = Date.now();
+  console.log(`[syncMailbox] enter ${account.id}/${logicalMailbox}`);
   return withSyncLock(account.id, logicalMailbox, () =>
     withImap(account, 120000, async (imap) => {
+      console.log(`[syncMailbox] imap connected ${account.id}/${logicalMailbox} (+${Date.now() - tStart}ms)`);
       let realName = getCachedMailbox(account.id, logicalMailbox);
       if (!realName) {
         realName = await resolveMailbox(imap, logicalMailbox);
         if (realName) setCachedMailbox(account.id, logicalMailbox, realName);
+        console.log(`[syncMailbox] resolved mailbox ${logicalMailbox} → ${realName || "(none)"}`);
       }
       if (!realName) {
         const state = cache.read(userDataDir(), account.id, logicalMailbox);
+        console.warn(`[syncMailbox] MISSING mailbox ${account.id}/${logicalMailbox} → returning ${state.messages.length} cached msgs`);
         return { added: 0, total: 0, mailbox: logicalMailbox, missing: true, messages: state.messages, updatedAt: state.updatedAt };
       }
       const box = await openBox(imap, realName);
       const uidvalidity = box.uidvalidity ?? null;
       let state = cache.read(userDataDir(), account.id, logicalMailbox);
+      console.log(`[syncMailbox] opened box ${realName} server.total=${box.messages.total} uidvalidity=${uidvalidity} cache.uidvalidity=${state.uidvalidity} cache.lastUid=${state.lastUid} cache.msgs=${state.messages.length}`);
 
       // UIDVALIDITY váltott → eldobjuk a cache-t (ez a hivatalos IMAP jelzés
       // arra, hogy a UID-ok újraszámozódtak).
       if (state.uidvalidity != null && uidvalidity != null && state.uidvalidity !== uidvalidity) {
+        console.warn(`[syncMailbox] UIDVALIDITY CHANGED ${account.id}/${logicalMailbox}: ${state.uidvalidity} → ${uidvalidity} — cache reset`);
         state = cache.reset(uidvalidity);
       } else if (state.uidvalidity == null) {
         state.uidvalidity = uidvalidity;
       }
 
       if (!box.messages.total) {
-        // Üres mailbox a szerveren — NE töröljük a cache-t azonnal, mert lehet
-        // tranziens IMAP állapot (épp törlés folyamatban, vagy hibás box.messages).
-        // Csak az updatedAt-ot frissítjük; ha tartós, a felhasználó kézi
-        // szinkronnal vagy UIDVALIDITY váltással úgyis tisztul.
+        console.warn(`[syncMailbox] server box EMPTY ${account.id}/${logicalMailbox} — keeping ${state.messages.length} cached msgs (no destructive reset)`);
         cache.write(userDataDir(), account.id, logicalMailbox, { ...state, updatedAt: Date.now() });
         return { added: 0, total: 0, mailbox: logicalMailbox, messages: state.messages, updatedAt: Date.now() };
       }
