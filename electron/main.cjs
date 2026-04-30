@@ -790,27 +790,46 @@ ipcMain.handle("imap:listInbox", async (_e, { accountId } = {}) => {
 ipcMain.handle("smtp:send", async (_e, { accountId, to, cc, bcc, subject, html, text }) => {
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("A fiók nem található.");
+  if (!account.smtpHost) throw new Error("Hiányzó SMTP szerver — szerkeszd a fiókot.");
+  const smtpUser = account.smtpUser || account.authUser || account.user;
+  const smtpPass = decryptPassword(account.smtpPassword || account.password);
+  if (!smtpUser || !smtpPass) {
+    throw new Error("Hiányzó SMTP felhasználónév vagy jelszó — szerkeszd a fiókot és add meg újra a jelszót.");
+  }
+  // STARTTLS heurisztika: 587-es port → secure=false + requireTLS, 465 → secure=true.
+  const port = account.smtpPort || 465;
+  const explicitSecure = typeof account.smtpSecure === "boolean";
+  const secure = explicitSecure ? account.smtpSecure : port === 465;
   const transporter = nodemailer.createTransport({
     host: account.smtpHost,
-    port: account.smtpPort || 465,
-    secure: account.smtpSecure !== false,
-    auth: {
-      user: account.smtpUser || account.authUser || account.user,
-      pass: decryptPassword(account.smtpPassword || account.password),
-    },
-    tls: { rejectUnauthorized: false },
-    connectionTimeout: 15000,
-    greetingTimeout: 10000,
-    socketTimeout: 30000,
+    port,
+    secure,
+    requireTLS: !secure, // STARTTLS kötelezővé tétele 587-en
+    auth: { user: smtpUser, pass: smtpPass },
+    tls: { rejectUnauthorized: false, minVersion: "TLSv1.2" },
+    connectionTimeout: 30000,
+    greetingTimeout: 20000,
+    socketTimeout: 60000,
   });
   const fromAddress = account.displayName
     ? `"${String(account.displayName).replace(/"/g, '\\"')}" <${account.user}>`
     : account.from || account.user;
-  const info = await transporter.sendMail({
-    from: fromAddress,
-    to, cc, bcc, subject, html, text,
-  });
-  return { ok: true, messageId: info.messageId };
+  try {
+    const info = await transporter.sendMail({
+      from: fromAddress,
+      to, cc, bcc, subject, html, text,
+    });
+    console.log(`[smtp] sent ${info.messageId} via ${account.smtpHost}:${port} (secure=${secure})`);
+    return { ok: true, messageId: info.messageId };
+  } catch (err) {
+    const code = err?.code || err?.responseCode || "?";
+    const detail = err?.response || err?.message || String(err);
+    console.error(`[smtp] FAILED (${code}) ${account.smtpHost}:${port} secure=${secure} — ${detail}`);
+    // Részletesebb hibaüzenet a felhasználónak
+    throw new Error(`SMTP hiba (${code}): ${detail}`);
+  } finally {
+    try { transporter.close(); } catch { /* ignore */ }
+  }
 });
 
 // ---- IPC: Draft mentés a szerverre (IMAP APPEND a Drafts mappába) ----
