@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { MailMessage } from "@/lib/mailBridge";
 import { Button } from "@/components/ui/button";
 import { Reply, ReplyAll, Forward, Trash2, Archive, Star, Mail, MailOpen, FileDown, Copy, ExternalLink } from "lucide-react";
@@ -9,6 +10,10 @@ import { AttachmentList } from "./AttachmentList";
 import {
   ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
 function extractEmail(s: string): string {
