@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNowStrict } from "date-fns";
 import { hu } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
-import { Search, RefreshCw, Loader2, Star, Mail, Rows3, Reply, ReplyAll, Forward, ExternalLink, Copy, MailOpen, Paperclip } from "lucide-react";
+import { Search, RefreshCw, Loader2, Star, Mail, Rows3, Reply, ReplyAll, Forward, ExternalLink, Copy, MailOpen, Paperclip, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -53,6 +53,7 @@ type Props = {
   onReply?: (m: MailMessage) => void;
   onReplyAll?: (m: MailMessage) => void;
   onForward?: (m: MailMessage) => void;
+  onDelete?: (m: MailMessage) => void;
   loading: boolean;
   onRefresh: () => void;
   mailbox: string;
@@ -78,7 +79,7 @@ function extractEmail(s: string): string {
 
 type FilterMode = "all" | "unread" | "flagged";
 
-export function MessageList({ messages, selectedSeqno, onSelect, onOpen, onToggleFlag, onToggleSeen, onReply, onReplyAll, onForward, loading, onRefresh, mailbox, onLoadMore, loadingMore, exhausted, width }: Props) {
+export function MessageList({ messages, selectedSeqno, onSelect, onOpen, onToggleFlag, onToggleSeen, onReply, onReplyAll, onForward, onDelete, loading, onRefresh, mailbox, onLoadMore, loadingMore, exhausted, width }: Props) {
   const [q, setQ] = useState("");
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [density, setDensityState] = useState<ListDensity>(readDensity);
@@ -195,6 +196,7 @@ export function MessageList({ messages, selectedSeqno, onSelect, onOpen, onToggl
         onReply={onReply}
         onReplyAll={onReplyAll}
         onForward={onForward}
+        onDelete={onDelete}
         onLoadMore={onLoadMore}
         loadingMore={loadingMore}
         exhausted={exhausted}
@@ -262,6 +264,7 @@ const ScrollList = React.forwardRef<HTMLDivElement, {
   onReply?: (m: MailMessage) => void;
   onReplyAll?: (m: MailMessage) => void;
   onForward?: (m: MailMessage) => void;
+  onDelete?: (m: MailMessage) => void;
   onLoadMore?: () => void;
   loadingMore?: boolean;
   exhausted?: boolean;
@@ -269,7 +272,7 @@ const ScrollList = React.forwardRef<HTMLDivElement, {
   emptyHint?: string;
   density: ListDensity;
 }>(function ScrollList({
-  loading, messages, filtered, selectedSeqno, onSelect, onOpen, onToggleFlag, onToggleSeen, onReply, onReplyAll, onForward, onLoadMore, loadingMore, exhausted, searching, emptyHint, density,
+  loading, messages, filtered, selectedSeqno, onSelect, onOpen, onToggleFlag, onToggleSeen, onReply, onReplyAll, onForward, onDelete, onLoadMore, loadingMore, exhausted, searching, emptyHint, density,
 }, forwardedRef) {
   const ref = useRef<HTMLDivElement>(null);
   // A belső ref-et és a kívülről kapott ref-et ugyanarra a DOM-elemre kötjük.
@@ -406,6 +409,17 @@ const ScrollList = React.forwardRef<HTMLDivElement, {
                       >
                         <Copy className="h-4 w-4 mr-2" /> Tárgy másolása
                       </ContextMenuItem>
+                      {onDelete && (
+                        <>
+                          <ContextMenuSeparator />
+                          <ContextMenuItem
+                            onSelect={() => onDelete(m)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" /> Levél törlése
+                          </ContextMenuItem>
+                        </>
+                      )}
                     </ContextMenuContent>
                   </ContextMenu>
                   {onToggleFlag && (

@@ -1111,6 +1111,95 @@ ipcMain.handle("mail:setFlag", async (_e, { accountId, mailbox, uid, patch }) =>
   return setMessageFlags(account, mailbox, uid, patch || {});
 });
 
+// Levél(ek) törlése: ha a Trash mappából töröljük → \\Deleted + EXPUNGE (végleges).
+// Egyébként → áthelyezés a Trash mappába (MOVE; ha nincs MOVE támogatás, COPY+DELETE+EXPUNGE).
+async function deleteMessages(account, logicalMailbox, uids) {
+  const numericUids = (Array.isArray(uids) ? uids : [uids])
+    .map((u) => Number(u))
+    .filter((n) => Number.isFinite(n) && n > 0);
+  if (numericUids.length === 0) throw new Error("Érvénytelen UID");
+
+  return withImap(account, 60000, async (imap) => {
+    let realName = getCachedMailbox(account.id, logicalMailbox);
+    if (!realName) {
+      realName = await resolveMailbox(imap, logicalMailbox);
+      if (realName) setCachedMailbox(account.id, logicalMailbox, realName);
+    }
+    if (!realName) throw new Error(`Mappa nem található: ${logicalMailbox}`);
+
+    const isTrash = String(logicalMailbox).toLowerCase().includes("trash")
+      || String(realName).toLowerCase().includes("trash")
+      || String(realName).toLowerCase().includes("kuka")
+      || String(realName).toLowerCase().includes("deleted");
+
+    await openBox(imap, realName, false);
+
+    const addDeleted = () => new Promise((resolve, reject) => {
+      imap.addFlags(numericUids, ["\\Deleted"], (err) => (err ? reject(err) : resolve()));
+    });
+    const expunge = () => new Promise((resolve, reject) => {
+      imap.expunge((err) => (err ? reject(err) : resolve()));
+    });
+    const move = (target) => new Promise((resolve, reject) => {
+      imap.move(numericUids, target, (err) => (err ? reject(err) : resolve()));
+    });
+    const copy = (target) => new Promise((resolve, reject) => {
+      imap.copy(numericUids, target, (err) => (err ? reject(err) : resolve()));
+    });
+
+    let mode = isTrash ? "expunge" : "move";
+    let trashName = null;
+
+    if (!isTrash) {
+      // Próbáljuk meg a Trash mappát feloldani; ha nincs, kényszerített \\Deleted+EXPUNGE.
+      trashName = getCachedMailbox(account.id, "Trash");
+      if (!trashName) {
+        try {
+          trashName = await resolveMailbox(imap, "Trash");
+          if (trashName) setCachedMailbox(account.id, "Trash", trashName);
+        } catch { /* ignore */ }
+      }
+      if (!trashName) {
+        console.warn("[mail.delete] Trash mappa nem található → végleges törlés EXPUNGE-zsal");
+        mode = "expunge";
+      }
+    }
+
+    if (mode === "expunge") {
+      await addDeleted();
+      await expunge();
+    } else {
+      try {
+        await move(trashName);
+      } catch (e) {
+        console.warn(`[mail.delete] MOVE sikertelen (${e?.message}), fallback COPY+DELETE+EXPUNGE`);
+        await copy(trashName);
+        await addDeleted();
+        await expunge();
+      }
+    }
+
+    // Cache frissítése: töröljük az érintett UID-okat a forrás mappából.
+    const state = cache.read(userDataDir(), account.id, logicalMailbox);
+    const next = cache.removeMessages(state, numericUids);
+    cache.write(userDataDir(), account.id, logicalMailbox, next);
+
+    return {
+      ok: true,
+      mode,
+      removedUids: numericUids,
+      messages: next.messages,
+      updatedAt: next.updatedAt,
+    };
+  });
+}
+
+ipcMain.handle("mail:delete", async (_e, { accountId, mailbox, uid, uids }) => {
+  const account = loadAccounts().find((a) => a.id === accountId);
+  if (!account) throw new Error("A fiók nem található.");
+  const list = Array.isArray(uids) && uids.length ? uids : [uid];
+  return deleteMessages(account, mailbox, list);
+
 // Egyetlen levél teljes body-jának lazy letöltése. A lista-szinkron már csak
 // fejléceket húz le (gyors), így a body-t akkor töltjük le, amikor a felhasználó
 // megnyit egy levelet. Eredmény bekerül a cache-be (bodyLoaded=true).

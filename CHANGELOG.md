@@ -3,6 +3,14 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.34.0] – 2026-04-30
+
+### Új
+- **Működő törlés gomb a levél-nézetben.** Eddig a `MessageView` kuka ikonja csak dekoráció volt — most teljes IMAP törlés van mögötte. Megerősítő dialógus után a levél áthelyeződik a Kuka mappába (IMAP `MOVE`, ha a szerver támogatja, különben `COPY` + `\Deleted` + `EXPUNGE` fallback). Ha már a Kukában (Trash) töröljük, akkor véglegesen kitörlődik (`\Deleted` + `EXPUNGE`). A Trash mappa nevét a meglévő `resolveMailbox("Trash")` keresi meg (XLIST/SPECIAL-USE → kanonikus nevek). A lokális cache azonnal frissül (`removeMessages`), és optimista UI-frissítéssel azonnal eltűnik a levél a listából; hiba esetén visszagörgetjük.
+- **Törlés a kontextus menüből.** Mind a levéllistán (jobb klikk a sorra), mind a levél-nézetben (jobb klikk a tartalomra) megjelenik egy **„Levél törlése"** menüpont (destruktív, piros).
+- **Új ablakban megnyitott levélnél** a törlés sikere után az ablak automatikusan bezárul (`window.close()`).
+- IPC: új `mail:delete` handler (`electron/main.cjs`), `window.mailAPI.mail.delete(...)` preload-bridge, és `mailAPI.mail.delete(...)` típusos kliens-API (`src/lib/mailBridge.ts`).
+
 ## [1.33.4] – 2026-04-30
 
 ### Javítás

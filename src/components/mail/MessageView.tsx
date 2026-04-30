@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { MailMessage } from "@/lib/mailBridge";
 import { Button } from "@/components/ui/button";
 import { Reply, ReplyAll, Forward, Trash2, Archive, Star, Mail, MailOpen, FileDown, Copy, ExternalLink } from "lucide-react";
@@ -9,6 +10,10 @@ import { AttachmentList } from "./AttachmentList";
 import {
   ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
 function extractEmail(s: string): string {
@@ -24,10 +29,13 @@ type Props = {
   onForward?: (m: MailMessage) => void;
   onToggleFlag?: (m: MailMessage) => void;
   onToggleSeen?: (m: MailMessage) => void;
+  onDelete?: (m: MailMessage) => void;
   onOpenInNewWindow?: (m: MailMessage) => void;
 };
 
-export function MessageView({ message, onReply, onReplyAll, onForward, onToggleFlag, onToggleSeen, onOpenInNewWindow }: Props) {
+export function MessageView({ message, onReply, onReplyAll, onForward, onToggleFlag, onToggleSeen, onDelete, onOpenInNewWindow }: Props) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
   if (!message) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground bg-background">
@@ -116,7 +124,16 @@ export function MessageView({ message, onReply, onReplyAll, onForward, onToggleF
           <FileDown className="h-4 w-4 mr-1.5" /> PDF
         </Button>
         <Button size="sm" variant="ghost" className="text-muted-foreground"><Archive className="h-4 w-4" /></Button>
-        <Button size="sm" variant="ghost" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-destructive"
+          onClick={() => onDelete && setConfirmOpen(true)}
+          disabled={!onDelete}
+          title={onDelete ? "Levél törlése (Kukába helyezés)" : "Törlés nem érhető el"}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
       </div>
 
       <div className="px-8 py-5 border-b border-border bg-surface">
@@ -203,7 +220,37 @@ export function MessageView({ message, onReply, onReplyAll, onForward, onToggleF
         <ContextMenuItem onSelect={savePdf}>
           <FileDown className="h-4 w-4 mr-2" /> Mentés PDF-ként
         </ContextMenuItem>
+        {onDelete && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              onSelect={() => setConfirmOpen(true)}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 className="h-4 w-4 mr-2" /> Levél törlése
+            </ContextMenuItem>
+          </>
+        )}
       </ContextMenuContent>
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Levél törlése</AlertDialogTitle>
+            <AlertDialogDescription>
+              Biztosan törlöd ezt a levelet? A levél a Kukába kerül (vagy ha már a Kukában van, véglegesen törlődik).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Mégse</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { setConfirmOpen(false); onDelete?.(message); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Törlés
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </ContextMenu>
   );
 }
