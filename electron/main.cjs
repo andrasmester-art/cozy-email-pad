@@ -63,6 +63,21 @@ function setCachedMailbox(accountId, logical, real) {
   resolvedMailboxCache.get(accountId).set(logical, real);
 }
 
+// Per-mailbox sync lock: ugyanarra a (accountId, mailbox) párra egyszerre csak
+// EGY syncMailbox futhasson. Ha érkezik egy második hívás, megvárja az elsőt
+// és annak az eredményét adja vissza. Így elkerüljük azt a race-t, amikor két
+// konkurens IMAP szinkron felülírja egymás cache-írását és „eltűnnek" levelek.
+const syncLocks = new Map(); // key: `${accountId}::${mailbox}` → Promise
+function withSyncLock(accountId, mailbox, fn) {
+  const key = `${accountId}::${mailbox}`;
+  const prev = syncLocks.get(key) || Promise.resolve();
+  const next = prev.catch(() => {}).then(fn);
+  syncLocks.set(key, next.finally(() => {
+    if (syncLocks.get(key) === next) syncLocks.delete(key);
+  }));
+  return next;
+}
+
 // ---- IPC: accounts ----
 ipcMain.handle("accounts:list", () =>
   loadAccounts().map((a) => ({ ...a, password: undefined, smtpPassword: undefined })),
