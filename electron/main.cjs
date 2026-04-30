@@ -664,6 +664,9 @@ ipcMain.handle("cache:syncMailbox", async (_e, { accountId, mailbox }) => {
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("A fiók nem található.");
   const result = await syncMailbox(account, mailbox);
+  if (Array.isArray(result?.messages)) {
+    return { ...result, messages: result.messages, updatedAt: result.updatedAt || Date.now() };
+  }
   const state = cache.read(userDataDir(), accountId, mailbox);
   return { ...result, messages: state.messages, updatedAt: state.updatedAt };
 });
@@ -673,6 +676,9 @@ ipcMain.handle("cache:loadOlder", async (_e, { accountId, mailbox, pageSize }) =
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("A fiók nem található.");
   const result = await loadOlder(account, mailbox, pageSize);
+  if (Array.isArray(result?.messages)) {
+    return { ...result, messages: result.messages, updatedAt: result.updatedAt || Date.now() };
+  }
   const state = cache.read(userDataDir(), accountId, mailbox);
   return { ...result, messages: state.messages, updatedAt: state.updatedAt };
 });
