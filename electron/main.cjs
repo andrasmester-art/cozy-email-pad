@@ -479,12 +479,10 @@ function fetchByUidRange(imap, range) {
           Promise.resolve(simpleParser(raw))
             .then((parsed) => {
               const flags = Array.isArray(attrs?.flags) ? attrs.flags : [];
-              // hasAttachments: van-e bármilyen letölthető csatolmány — beleértve
-              // az inline ágyazott KÉPEKET is, hiszen a felhasználó ezeket is
-              // szeretné külön elmenteni. Csak a tisztán „belső" cid-referenciás,
-              // 0 byte-os részeket hagyjuk figyelmen kívül.
-              const atts = parsed.attachments || [];
-              const hasAttachments = atts.some((a) => (a.size || 0) > 0 || a.filename);
+              // hasAttachments: a `countRealAttachments` minden típust felismer
+              // (pdf, kép, szöveg, zip, doc, …) — body letöltése nélkül is
+              // pontosan jelzi a 📎 ikont a listán. Ld. a függvény kommentjét.
+              const hasAttachments = countRealAttachments(parsed) > 0;
               out.push({
                 uid: attrs?.uid,
                 from: parsed.from?.text || "",
