@@ -168,6 +168,9 @@ const Index = () => {
   // majd háttérben inkrementális szinkronnal lehúzzuk az újakat.
   const loadMessages = useCallback(async () => {
     if (!activeAccountId) return;
+    const tag = `[loadMessages] ${activeAccountId}/${activeMailbox}`;
+    const t0 = performance.now();
+    console.log(`${tag} start`);
     setSelected(null);
     setExhausted(false);
     // 1) Cache azonnal — nincs spinner, nincs várakozás.
@@ -177,25 +180,37 @@ const Index = () => {
         mailbox: activeMailbox,
         limit: 5000,
       });
+      console.log(`${tag} cache returned ${cached.length} msgs in ${(performance.now() - t0).toFixed(0)}ms`);
       setMessages(cached);
-    } catch {
+      if (cached.length === 0) {
+        console.warn(`${tag} ⚠ cache EMPTY — UI shows blank list until sync completes`);
+      }
+    } catch (err) {
+      console.error(`${tag} cache READ FAILED`, err);
       setMessages([]);
     }
     // 2) Háttér-szinkron: csak az új UID-okat húzza le.
     setLoading(true);
+    const tSync = performance.now();
     try {
       const r = await mailAPI.cache.syncMailbox({
         accountId: activeAccountId,
         mailbox: activeMailbox,
       });
+      console.log(`${tag} sync returned added=${r.added} msgs=${r.messages.length} in ${(performance.now() - tSync).toFixed(0)}ms`);
+      if (r.messages.length === 0) {
+        console.warn(`${tag} ⚠ sync returned 0 msgs — server empty or sync failed silently`);
+      }
       setMessages(r.messages);
       if (r.added > 0) {
         toast.success(`${r.added} új levél`);
       }
     } catch (e: any) {
+      console.error(`${tag} sync FAILED`, e);
       toast.error("Frissítés sikertelen", { description: String(e?.message || e) });
     } finally {
       setLoading(false);
+      console.log(`${tag} done in ${(performance.now() - t0).toFixed(0)}ms`);
     }
   }, [activeAccountId, activeMailbox]);
 

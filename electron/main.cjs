@@ -454,8 +454,12 @@ ipcMain.handle("imap:test", async (_e, { accountId } = {}) => {
 
 // Cache azonnali olvasása — a UI render-first ezt hívja.
 ipcMain.handle("cache:read", (_e, { accountId, mailbox }) => {
-  if (!accountId || !mailbox) return { messages: [], updatedAt: 0 };
+  if (!accountId || !mailbox) {
+    console.warn(`[ipc cache:read] missing args accountId=${accountId} mailbox=${mailbox}`);
+    return { messages: [], updatedAt: 0 };
+  }
   const state = cache.read(userDataDir(), accountId, mailbox);
+  console.log(`[ipc cache:read] → ${accountId}/${mailbox} returning msgs=${state.messages.length} updatedAt=${state.updatedAt}`);
   return { messages: state.messages, updatedAt: state.updatedAt };
 });
 
@@ -466,34 +470,38 @@ ipcMain.handle("cache:read", (_e, { accountId, mailbox }) => {
 // nem írja felül egymás cache-ét (race elkerülése — különben a régebbi state-tel
 // induló sync az újabb merge-et felülírhatja, és „eltűnnek" a levelek).
 async function syncMailbox(account, logicalMailbox) {
+  const tStart = Date.now();
+  console.log(`[syncMailbox] enter ${account.id}/${logicalMailbox}`);
   return withSyncLock(account.id, logicalMailbox, () =>
     withImap(account, 120000, async (imap) => {
+      console.log(`[syncMailbox] imap connected ${account.id}/${logicalMailbox} (+${Date.now() - tStart}ms)`);
       let realName = getCachedMailbox(account.id, logicalMailbox);
       if (!realName) {
         realName = await resolveMailbox(imap, logicalMailbox);
         if (realName) setCachedMailbox(account.id, logicalMailbox, realName);
+        console.log(`[syncMailbox] resolved mailbox ${logicalMailbox} → ${realName || "(none)"}`);
       }
       if (!realName) {
         const state = cache.read(userDataDir(), account.id, logicalMailbox);
+        console.warn(`[syncMailbox] MISSING mailbox ${account.id}/${logicalMailbox} → returning ${state.messages.length} cached msgs`);
         return { added: 0, total: 0, mailbox: logicalMailbox, missing: true, messages: state.messages, updatedAt: state.updatedAt };
       }
       const box = await openBox(imap, realName);
       const uidvalidity = box.uidvalidity ?? null;
       let state = cache.read(userDataDir(), account.id, logicalMailbox);
+      console.log(`[syncMailbox] opened box ${realName} server.total=${box.messages.total} uidvalidity=${uidvalidity} cache.uidvalidity=${state.uidvalidity} cache.lastUid=${state.lastUid} cache.msgs=${state.messages.length}`);
 
       // UIDVALIDITY váltott → eldobjuk a cache-t (ez a hivatalos IMAP jelzés
       // arra, hogy a UID-ok újraszámozódtak).
       if (state.uidvalidity != null && uidvalidity != null && state.uidvalidity !== uidvalidity) {
+        console.warn(`[syncMailbox] UIDVALIDITY CHANGED ${account.id}/${logicalMailbox}: ${state.uidvalidity} → ${uidvalidity} — cache reset`);
         state = cache.reset(uidvalidity);
       } else if (state.uidvalidity == null) {
         state.uidvalidity = uidvalidity;
       }
 
       if (!box.messages.total) {
-        // Üres mailbox a szerveren — NE töröljük a cache-t azonnal, mert lehet
-        // tranziens IMAP állapot (épp törlés folyamatban, vagy hibás box.messages).
-        // Csak az updatedAt-ot frissítjük; ha tartós, a felhasználó kézi
-        // szinkronnal vagy UIDVALIDITY váltással úgyis tisztul.
+        console.warn(`[syncMailbox] server box EMPTY ${account.id}/${logicalMailbox} — keeping ${state.messages.length} cached msgs (no destructive reset)`);
         cache.write(userDataDir(), account.id, logicalMailbox, { ...state, updatedAt: Date.now() });
         return { added: 0, total: 0, mailbox: logicalMailbox, messages: state.messages, updatedAt: Date.now() };
       }
@@ -507,7 +515,9 @@ async function syncMailbox(account, logicalMailbox) {
         try {
           const newer = await uidSearch([["UID", `${state.lastUid + 1}:*`]]);
           uidsToFetch = newer.filter((u) => u > state.lastUid);
-        } catch {
+          console.log(`[syncMailbox] incremental search ${account.id}/${logicalMailbox} after UID ${state.lastUid} → ${uidsToFetch.length} new`);
+        } catch (err) {
+          console.warn(`[syncMailbox] incremental search FAILED ${account.id}/${logicalMailbox}: ${err && err.message}`);
           uidsToFetch = [];
         }
 
@@ -521,24 +531,28 @@ async function syncMailbox(account, logicalMailbox) {
             const all = await uidSearch(["ALL"]);
             allOk = true;
             serverMax = all.length ? Math.max(...all) : 0;
-          } catch {
+          } catch (err) {
+            console.warn(`[syncMailbox] ALL search FAILED ${account.id}/${logicalMailbox}: ${err && err.message}`);
             allOk = false;
           }
-          // Csak akkor reseteljünk, ha az ALL search sikerült, a szerveren
-          // van legalább 1 levél, és a max UID jóval kisebb, mint a cache.
-          // (A box.messages.total > 0 már ellenőrizve van fent.)
           if (allOk && serverMax > 0 && serverMax < state.lastUid) {
             console.warn(`[syncMailbox] cache reset: ${account.id}/${logicalMailbox} serverMax=${serverMax} < cached lastUid=${state.lastUid}`);
             state = cache.reset(uidvalidity);
+          } else if (allOk) {
+            console.log(`[syncMailbox] no reset ${account.id}/${logicalMailbox} (serverMax=${serverMax}, cache.lastUid=${state.lastUid})`);
           }
         }
       }
 
       if (state.lastUid === 0) {
         let allUids = [];
-        try { allUids = await uidSearch(["ALL"]); } catch { allUids = []; }
+        try { allUids = await uidSearch(["ALL"]); } catch (err) {
+          console.warn(`[syncMailbox] initial ALL search FAILED ${account.id}/${logicalMailbox}: ${err && err.message}`);
+          allUids = [];
+        }
         allUids.sort((a, b) => a - b);
         uidsToFetch = allUids.slice(-cache.INITIAL_PAGE_SIZE);
+        console.log(`[syncMailbox] initial fetch ${account.id}/${logicalMailbox}: server total=${allUids.length}, picking ${uidsToFetch.length} newest`);
       }
 
       async function resyncFlags(currentState) {
@@ -553,8 +567,10 @@ async function syncMailbox(account, logicalMailbox) {
           const updates = new Map();
           for (const f of flagsList) updates.set(f.uid, { flagged: f.flagged, seen: f.seen });
           const { state: nextState, changed } = cache.applyFlagUpdates(currentState, updates);
+          if (changed > 0) console.log(`[syncMailbox] resyncFlags ${account.id}/${logicalMailbox} updated ${changed} flags`);
           return changed > 0 ? nextState : currentState;
-        } catch {
+        } catch (err) {
+          console.warn(`[syncMailbox] resyncFlags FAILED ${account.id}/${logicalMailbox}: ${err && err.message}`);
           return currentState;
         }
       }
@@ -565,6 +581,7 @@ async function syncMailbox(account, logicalMailbox) {
         const synced = flagSyncNeeded ? await resyncFlags(state) : state;
         const next = { ...synced, updatedAt: Date.now() };
         cache.write(userDataDir(), account.id, logicalMailbox, next);
+        console.log(`[syncMailbox] DONE ${account.id}/${logicalMailbox} added=0 returning msgs=${next.messages.length} (+${Date.now() - tStart}ms)`);
         return { added: 0, total: box.messages.total, mailbox: logicalMailbox, messages: next.messages, updatedAt: next.updatedAt };
       }
 
@@ -573,17 +590,19 @@ async function syncMailbox(account, logicalMailbox) {
       const fetched = await fetchHeadersByUidRange(imap, `${minUid}:${maxUid}`);
       const wanted = new Set(uidsToFetch);
       const newOnly = fetched.filter((m) => wanted.has(m.uid) && m.uid > (state.lastUid || 0));
+      console.log(`[syncMailbox] fetched headers ${account.id}/${logicalMailbox} range=${minUid}:${maxUid} got=${fetched.length} newOnly=${newOnly.length}`);
       // FONTOS: a merge előtt újraolvassuk a state-et a diszkről, hogy más
       // (pl. flag-állítás) közben írt változások se vesszenek el.
       const freshState = cache.read(userDataDir(), account.id, logicalMailbox);
-      // Csak akkor használjuk a friss state-et, ha ugyanaz a uidvalidity, és
-      // nem kisebb a lastUid (különben a saját reset-ünk veszne el).
-      const baseState = (freshState.uidvalidity === state.uidvalidity && freshState.lastUid >= state.lastUid)
-        ? freshState
-        : state;
+      const useFresh = (freshState.uidvalidity === state.uidvalidity && freshState.lastUid >= state.lastUid);
+      if (!useFresh) {
+        console.warn(`[syncMailbox] RACE: disk diverged ${account.id}/${logicalMailbox} — disk.lastUid=${freshState.lastUid} mem.lastUid=${state.lastUid} — using in-memory state`);
+      }
+      const baseState = useFresh ? freshState : state;
       const merged = cache.mergeNewMessages(baseState, newOnly);
       const next = (flagSyncNeeded || newOnly.length > 0) ? await resyncFlags(merged) : merged;
       cache.write(userDataDir(), account.id, logicalMailbox, next);
+      console.log(`[syncMailbox] DONE ${account.id}/${logicalMailbox} added=${newOnly.length} returning msgs=${next.messages.length} (+${Date.now() - tStart}ms)`);
       return { added: newOnly.length, total: box.messages.total, mailbox: logicalMailbox, messages: next.messages, updatedAt: next.updatedAt };
     }),
   );
@@ -669,24 +688,30 @@ async function loadOlder(account, logicalMailbox, pageSize) {
 
 // Egyetlen mappa szinkronizálása (UI gomb / fiókváltás háttér-sync).
 ipcMain.handle("cache:syncMailbox", async (_e, { accountId, mailbox }) => {
+  console.log(`[ipc cache:syncMailbox] ← ${accountId}/${mailbox}`);
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("A fiók nem található.");
   const result = await syncMailbox(account, mailbox);
   if (Array.isArray(result?.messages)) {
+    console.log(`[ipc cache:syncMailbox] → ${accountId}/${mailbox} memory msgs=${result.messages.length} added=${result.added}`);
     return { ...result, messages: result.messages, updatedAt: result.updatedAt || Date.now() };
   }
+  console.warn(`[ipc cache:syncMailbox] ${accountId}/${mailbox} no in-memory messages → fallback disk read`);
   const state = cache.read(userDataDir(), accountId, mailbox);
   return { ...result, messages: state.messages, updatedAt: state.updatedAt };
 });
 
 // Lazy-load régebbi levelek (görgetésre).
 ipcMain.handle("cache:loadOlder", async (_e, { accountId, mailbox, pageSize }) => {
+  console.log(`[ipc cache:loadOlder] ← ${accountId}/${mailbox} pageSize=${pageSize}`);
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("A fiók nem található.");
   const result = await loadOlder(account, mailbox, pageSize);
   if (Array.isArray(result?.messages)) {
+    console.log(`[ipc cache:loadOlder] → ${accountId}/${mailbox} memory msgs=${result.messages.length} added=${result.added} exhausted=${!!result.exhausted}`);
     return { ...result, messages: result.messages, updatedAt: result.updatedAt || Date.now() };
   }
+  console.warn(`[ipc cache:loadOlder] ${accountId}/${mailbox} no in-memory messages → fallback disk read`);
   const state = cache.read(userDataDir(), accountId, mailbox);
   return { ...result, messages: state.messages, updatedAt: state.updatedAt };
 });
