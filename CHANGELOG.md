@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.33.1] – 2026-04-30
+
+### Javítás
+- **Ablakméret, pozíció és maximalizált állapot megőrzése indítások között.** Eddig minden indításkor 1280×820 méretben nyílt a fő ablak (és 900×720 az egy-üzenet ablakok), így a felhasználónak újra kellett húznia a magasságot, hogy a sidebar menük rendesen kiférjenek. Mostantól a `window-state.json` állományba (a felhasználói adatkönyvtárban) elmentjük az ablak `x`, `y`, `width`, `height` és `maximized` mezőit `resize` / `move` / `maximize` / `unmaximize` / `close` eseményekre (debounce 400 ms), és a következő indításkor ezt visszaállítjuk. **Több-monitoros védelem**: a mentett pozíciót csak akkor használjuk, ha továbbra is van olyan kijelző, ahol az ablak legalább 100×100 pixelt mutat — különben az alapértelmezett méretre esünk vissza, hogy egy levált monitor miatt soha ne legyen láthatatlan az ablak. Maximalizált állapotban a normál `bounds` is megőrződik, hogy az unmaximize-kor visszakapja az előző méretét.
+
 ## [1.33.0] – 2026-04-30
 
 ### Új
