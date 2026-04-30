@@ -3,6 +3,18 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.26.0] – 2026-04-30
+
+### Új
+- **Csatolmányok érkeznek a levelekkel.** A teljes body letöltésekor a melléklet-lista (név, méret, MIME-típus, base64 tartalom, inline `cid` jelölés) most bekerül a levélbe, így megjeleníthetők és letölthetők.
+
+### Változás
+- **Gyorsabb szinkron.** A mappanév-feloldás (Sent / Drafts / Archive…) per-fiók memóriában cache-elődik, így nincs felesleges IMAP körút. A fiók-szinkron (`syncAccount`) az INBOX-ot és a Drafts-et párhuzamosan húzza le. A flag-visszaszinkron (csillag/olvasott állapot más kliensből) csak akkor fut, ha tényleg új levél jött, vagy 10+ perce nem volt szinkron.
+- **Cache írás nem blokkol.** A lokális JSON cache mentése aszinkron lett (`fs.writeFile`), így a main process event loop-ja nem akad meg nagy mappáknál.
+
+### Javítás
+- **Auto-sync listener megbízható leiratkozás.** Az `onAutoSync` cleanup `active` flag-gel kezeli a régi listener késő válaszait — fiókváltás után nem írja felül a friss listát egy korábbi szinkron eredménye.
+
 ## [1.25.1] – 2026-04-29
 
 ### Javítás

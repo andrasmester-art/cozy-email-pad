@@ -70,9 +70,10 @@ function write(userDataDir, accountId, mailbox, state) {
     updatedAt: state.updatedAt || Date.now(),
     messages: (state.messages || []).slice(0, MAX_PER_MAILBOX),
   };
-  fs.writeFileSync(
+  fs.writeFile(
     mailboxFile(userDataDir, accountId, mailbox),
     JSON.stringify(trimmed),
+    () => {},
   );
 }
 

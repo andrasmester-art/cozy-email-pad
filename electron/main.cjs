@@ -52,6 +52,17 @@ const MAILBOX_ALIASES = {
   Trash: ["Trash", "Deleted", "Deleted Items", "INBOX.Trash", "[Gmail]/Trash", "[Google Mail]/Trash"],
 };
 
+// Per-session mappafeloldás cache: accountId → { logicalName → realName }
+const resolvedMailboxCache = new Map();
+
+function getCachedMailbox(accountId, logical) {
+  return resolvedMailboxCache.get(accountId)?.get(logical) ?? null;
+}
+function setCachedMailbox(accountId, logical, real) {
+  if (!resolvedMailboxCache.has(accountId)) resolvedMailboxCache.set(accountId, new Map());
+  resolvedMailboxCache.get(accountId).set(logical, real);
+}
+
 // ---- IPC: accounts ----
 ipcMain.handle("accounts:list", () =>
   loadAccounts().map((a) => ({ ...a, password: undefined, smtpPassword: undefined })),
@@ -75,6 +86,7 @@ ipcMain.handle("accounts:save", (_e, account) => {
 ipcMain.handle("accounts:delete", (_e, id) => {
   saveAccounts(loadAccounts().filter((a) => a.id !== id));
   cache.purgeAccount(userDataDir(), id);
+  resolvedMailboxCache.delete(id);
   return { ok: true };
 });
 
@@ -401,6 +413,14 @@ function fetchBodyByUid(imap, uid) {
           flagged: flags.includes("\\Flagged"),
           seen: flags.includes("\\Seen"),
           bodyLoaded: true,
+          attachments: (parsed.attachments || []).map((a) => ({
+            filename: a.filename || "melléklet",
+            contentType: a.contentType || "application/octet-stream",
+            size: a.size || 0,
+            data: a.content ? a.content.toString("base64") : undefined,
+            cid: a.cid || undefined,
+            inline: !!a.contentDisposition && a.contentDisposition === "inline",
+          })),
         });
       } catch (err) {
         reject(err);
@@ -428,7 +448,11 @@ ipcMain.handle("cache:read", (_e, { accountId, mailbox }) => {
 // üres cache-nél a legfrissebb INITIAL_PAGE_SIZE darabot. UIDVALIDITY változás → reset.
 async function syncMailbox(account, logicalMailbox) {
   return withImap(account, 120000, async (imap) => {
-    const realName = await resolveMailbox(imap, logicalMailbox);
+    let realName = getCachedMailbox(account.id, logicalMailbox);
+    if (!realName) {
+      realName = await resolveMailbox(imap, logicalMailbox);
+      if (realName) setCachedMailbox(account.id, logicalMailbox, realName);
+    }
     if (!realName) return { added: 0, total: 0, mailbox: logicalMailbox, missing: true };
     const box = await openBox(imap, realName);
     const uidvalidity = box.uidvalidity ?? null;
@@ -505,8 +529,10 @@ async function syncMailbox(account, logicalMailbox) {
       }
     }
 
+    const flagSyncNeeded = (Date.now() - (state.updatedAt || 0)) > 10 * 60 * 1000;
+
     if (uidsToFetch.length === 0) {
-      const synced = await resyncFlags(state);
+      const synced = flagSyncNeeded ? await resyncFlags(state) : state;
       cache.write(userDataDir(), account.id, logicalMailbox, { ...synced, updatedAt: Date.now() });
       return { added: 0, total: box.messages.total, mailbox: logicalMailbox };
     }
@@ -517,7 +543,7 @@ async function syncMailbox(account, logicalMailbox) {
     const wanted = new Set(uidsToFetch);
     const newOnly = fetched.filter((m) => wanted.has(m.uid) && m.uid > (state.lastUid || 0));
     const merged = cache.mergeNewMessages(state, newOnly);
-    const next = await resyncFlags(merged);
+    const next = (flagSyncNeeded || newOnly.length > 0) ? await resyncFlags(merged) : merged;
     cache.write(userDataDir(), account.id, logicalMailbox, next);
     return { added: newOnly.length, total: box.messages.total, mailbox: logicalMailbox };
   });
@@ -526,7 +552,11 @@ async function syncMailbox(account, logicalMailbox) {
 // Lazy-load: a cache-nél régebbi leveleket tölti le (oldestUid alatt).
 async function loadOlder(account, logicalMailbox, pageSize) {
   return withImap(account, 120000, async (imap) => {
-    const realName = await resolveMailbox(imap, logicalMailbox);
+    let realName = getCachedMailbox(account.id, logicalMailbox);
+    if (!realName) {
+      realName = await resolveMailbox(imap, logicalMailbox);
+      if (realName) setCachedMailbox(account.id, logicalMailbox, realName);
+    }
     if (!realName) return { added: 0, mailbox: logicalMailbox, missing: true };
     const box = await openBox(imap, realName);
     let state = cache.read(userDataDir(), account.id, logicalMailbox);
@@ -615,7 +645,11 @@ ipcMain.handle("cache:loadOlder", async (_e, { accountId, mailbox, pageSize }) =
 // patch: { flagged?: boolean, seen?: boolean }
 async function setMessageFlags(account, logicalMailbox, uid, patch) {
   return withImap(account, 30000, async (imap) => {
-    const realName = await resolveMailbox(imap, logicalMailbox);
+    let realName = getCachedMailbox(account.id, logicalMailbox);
+    if (!realName) {
+      realName = await resolveMailbox(imap, logicalMailbox);
+      if (realName) setCachedMailbox(account.id, logicalMailbox, realName);
+    }
     if (!realName) throw new Error(`Mappa nem található: ${logicalMailbox}`);
     await openBox(imap, realName, false); // RW mód a flag-íráshoz
 
@@ -658,7 +692,11 @@ ipcMain.handle("mail:setFlag", async (_e, { accountId, mailbox, uid, patch }) =>
 // megnyit egy levelet. Eredmény bekerül a cache-be (bodyLoaded=true).
 async function loadMessageBody(account, logicalMailbox, uid) {
   return withImap(account, 30000, async (imap) => {
-    const realName = await resolveMailbox(imap, logicalMailbox);
+    let realName = getCachedMailbox(account.id, logicalMailbox);
+    if (!realName) {
+      realName = await resolveMailbox(imap, logicalMailbox);
+      if (realName) setCachedMailbox(account.id, logicalMailbox, realName);
+    }
     if (!realName) throw new Error(`Mappa nem található: ${logicalMailbox}`);
     await openBox(imap, realName);
     const numericUid = Number(uid);
@@ -688,16 +726,20 @@ ipcMain.handle("mail:fetchBody", async (_e, { accountId, mailbox, uid }) => {
 ipcMain.handle("cache:syncAccount", async (_e, { accountId }) => {
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("A fiók nem található.");
-  const results = [];
-  for (const mb of ["INBOX", "Drafts"]) {
-    try {
-      const r = await syncMailbox(account, mb);
-      results.push({ mailbox: mb, ok: true, added: r.added, missing: !!r.missing });
-    } catch (e) {
-      results.push({ mailbox: mb, ok: false, error: String(e?.message || e) });
-    }
-  }
-  return { ok: true, results };
+  const results = await Promise.allSettled(
+    ["INBOX", "Drafts"].map(async (mb) => {
+      try {
+        const r = await syncMailbox(account, mb);
+        return { mailbox: mb, ok: true, added: r.added, missing: !!r.missing };
+      } catch (e) {
+        return { mailbox: mb, ok: false, error: String(e?.message || e) };
+      }
+    }),
+  );
+  return {
+    ok: true,
+    results: results.map((r) => (r.status === "fulfilled" ? r.value : { mailbox: "unknown", ok: false, error: r.reason })),
+  };
 });
 
 // Régi végpont kompatibilitás: ha valami még listInbox-ot hívna, INBOX cache-et adunk.
@@ -781,7 +823,11 @@ ipcMain.handle("imap:appendDraft", async (_e, { accountId, to, cc, bcc, subject,
   if (!account) throw new Error("A fiók nem található.");
   const raw = await buildRawMime(account, { to, cc, bcc, subject, html, text });
   await withImap(account, 60000, async (imap) => {
-    const realName = await resolveMailbox(imap, "Drafts");
+    let realName = getCachedMailbox(account.id, "Drafts");
+    if (!realName) {
+      realName = await resolveMailbox(imap, "Drafts");
+      if (realName) setCachedMailbox(account.id, "Drafts", realName);
+    }
     if (!realName) throw new Error("Drafts mappa nem található a szerveren.");
     await appendToMailbox(imap, realName, raw, ["\\Draft", "\\Seen"]);
   });
