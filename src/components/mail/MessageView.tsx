@@ -1,12 +1,21 @@
 import { MailMessage } from "@/lib/mailBridge";
 import { Button } from "@/components/ui/button";
-import { Reply, ReplyAll, Forward, Trash2, Archive, Star, Mail, MailOpen, FileDown } from "lucide-react";
+import { Reply, ReplyAll, Forward, Trash2, Archive, Star, Mail, MailOpen, FileDown, Copy, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { EmailHtmlFrame } from "./EmailHtmlFrame";
 import { exportEmailToPdf } from "@/lib/exportPdf";
 import { AttachmentList } from "./AttachmentList";
+import {
+  ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { toast } from "sonner";
+
+function extractEmail(s: string): string {
+  if (!s) return "";
+  const m = s.match(/<\s*([^<>\s]+@[^<>\s]+)\s*>/);
+  return (m ? m[1] : s).trim();
+}
 
 type Props = {
   message: MailMessage | null;
@@ -15,9 +24,10 @@ type Props = {
   onForward?: (m: MailMessage) => void;
   onToggleFlag?: (m: MailMessage) => void;
   onToggleSeen?: (m: MailMessage) => void;
+  onOpenInNewWindow?: (m: MailMessage) => void;
 };
 
-export function MessageView({ message, onReply, onReplyAll, onForward, onToggleFlag, onToggleSeen }: Props) {
+export function MessageView({ message, onReply, onReplyAll, onForward, onToggleFlag, onToggleSeen, onOpenInNewWindow }: Props) {
   if (!message) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground bg-background">
@@ -31,9 +41,23 @@ export function MessageView({ message, onReply, onReplyAll, onForward, onToggleF
   const flagged = !!message.flagged;
   const seen = message.seen !== false;
 
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${label} másolva`);
+    } catch { toast.error("Másolás sikertelen"); }
+  };
+
+  const savePdf = async () => {
+    try { await exportEmailToPdf(message); }
+    catch (e: any) { toast.error("PDF mentése sikertelen", { description: String(e?.message || e) }); }
+  };
+
   return (
-    <div className="flex-1 flex flex-col h-full bg-background">
-      <div className="mac-titlebar shrink-0 flex items-center justify-end px-3 gap-1 border-b border-border">
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div className="flex-1 flex flex-col h-full bg-background">
+          <div className="mac-titlebar shrink-0 flex items-center justify-end px-3 gap-1 border-b border-border">
         <Button size="sm" variant="ghost" onClick={() => onReply(message)}>
           <Reply className="h-4 w-4 mr-1.5" /> Válasz
         </Button>
@@ -131,6 +155,55 @@ export function MessageView({ message, onReply, onReplyAll, onForward, onToggleF
           <AttachmentList attachments={message.attachments} />
         )}
       </div>
-    </div>
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-56">
+        <ContextMenuItem onSelect={() => onReply(message)}>
+          <Reply className="h-4 w-4 mr-2" /> Válasz
+        </ContextMenuItem>
+        {onReplyAll && (
+          <ContextMenuItem onSelect={() => onReplyAll(message)}>
+            <ReplyAll className="h-4 w-4 mr-2" /> Válasz mindenkinek
+          </ContextMenuItem>
+        )}
+        {onForward && (
+          <ContextMenuItem onSelect={() => onForward(message)}>
+            <Forward className="h-4 w-4 mr-2" /> Továbbítás
+          </ContextMenuItem>
+        )}
+        {onOpenInNewWindow && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem onSelect={() => onOpenInNewWindow(message)}>
+              <ExternalLink className="h-4 w-4 mr-2" /> Megnyitás új ablakban
+            </ContextMenuItem>
+          </>
+        )}
+        <ContextMenuSeparator />
+        {onToggleSeen && (
+          <ContextMenuItem onSelect={() => onToggleSeen(message)}>
+            {seen ? <MailOpen className="h-4 w-4 mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
+            {seen ? "Megjelölés olvasatlannak" : "Megjelölés olvasottnak"}
+          </ContextMenuItem>
+        )}
+        {onToggleFlag && (
+          <ContextMenuItem onSelect={() => onToggleFlag(message)}>
+            <Star className={cn("h-4 w-4 mr-2", flagged && "fill-current text-amber-500")} />
+            {flagged ? "Csillag eltávolítása" : "Megjelölés csillaggal"}
+          </ContextMenuItem>
+        )}
+        <ContextMenuSeparator />
+        <ContextMenuItem onSelect={() => copyToClipboard(extractEmail(message.from), "Feladó címe")}>
+          <Copy className="h-4 w-4 mr-2" /> Feladó címének másolása
+        </ContextMenuItem>
+        <ContextMenuItem onSelect={() => copyToClipboard(message.subject || "", "Tárgy")}>
+          <Copy className="h-4 w-4 mr-2" /> Tárgy másolása
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onSelect={savePdf}>
+          <FileDown className="h-4 w-4 mr-2" /> Mentés PDF-ként
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
