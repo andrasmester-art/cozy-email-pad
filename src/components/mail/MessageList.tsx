@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNowStrict } from "date-fns";
 import { hu } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
-import { Search, RefreshCw, Loader2, Star, Mail, Rows3, Reply, ReplyAll, Forward, ExternalLink, Copy, MailOpen } from "lucide-react";
+import { Search, RefreshCw, Loader2, Star, Mail, Rows3, Reply, ReplyAll, Forward, ExternalLink, Copy, MailOpen, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -333,7 +333,15 @@ const ScrollList = React.forwardRef<HTMLDivElement, {
                               : ""}
                           </span>
                         </div>
-                        <div className={cn("text-sm truncate", DENSITY_STYLES[density].gap, unread && "font-semibold")}>{m.subject}</div>
+                        <div className={cn("flex items-center gap-1.5 text-sm truncate", DENSITY_STYLES[density].gap, unread && "font-semibold")}>
+                          {(m.hasAttachments || (m.attachments && m.attachments.length > 0)) && (
+                            <Paperclip
+                              className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                              aria-label="Csatolmány"
+                            />
+                          )}
+                          <span className="truncate">{m.subject}</span>
+                        </div>
                         <div className={cn("text-xs text-muted-foreground truncate", DENSITY_STYLES[density].gap)}>{m.snippet}</div>
                       </button>
                     </ContextMenuTrigger>

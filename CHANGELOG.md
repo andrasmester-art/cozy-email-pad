@@ -3,6 +3,14 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.33.2] – 2026-04-30
+
+### Új
+- **Gemkapocs ikon csatolmányos leveleknél a listában.** A levéllistában a tárgy mellett mostantól egy kis 📎 ikon jelzi, hogy a levél tartalmaz csatolmányt — anélkül, hogy a body-t ki kellene jelölni. A jelzést a header-szinkron a `BODYSTRUCTURE` (`simpleParser` `attachments` mezője) alapján számolja ki és teszi a `MailMessage.hasAttachments` mezőbe, így a cache-ből is azonnal megjelenik újraindítás után.
+
+### Javítás
+- **Beágyazott (inline) képek mostantól letölthetők a csatolmány-listából.** Ha a levélbe képet ágyazol be (a Composer rich text szerkesztője a beillesztett képet `cid:`-vel ágyazott inline csatolmányként küldi), eddig a fogadott levélnél nem volt látható „Letöltés" gomb a kép alatt — a `MessageView` az `inline=true` csatolmányokat teljesen kiszűrte, mert a HTML-ben már megjelennek. Mostantól az inline KÉP-csatolmányok is megjelennek a levél alatti listán saját **Előnézet** és **Letöltés** gombbal, így a címzett (és te magad is, a saját elküldött levelednél) le tudja menteni az ágyazott képet. Más típusú inline részek (pl. üres cid-referenciák) továbbra is rejtve maradnak.
+
 ## [1.33.1] – 2026-04-30
 
 ### Javítás

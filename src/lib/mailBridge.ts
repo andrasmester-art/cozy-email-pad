@@ -62,6 +62,10 @@ export type MailMessage = {
   seen?: boolean;
   bodyLoaded?: boolean;
   attachments?: MailAttachment[];
+  /** True, ha a levél tartalmaz letölthető csatolmányt (a header-szinkron a
+   *  BODYSTRUCTURE alapján számolja, így a body letöltése nélkül is tudjuk
+   *  mutatni a gemkapocs ikont a levéllistában). */
+  hasAttachments?: boolean;
 };
 
 const isElectron = typeof window !== "undefined" && (window as any).mailAPI?.isElectron;

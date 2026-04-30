@@ -67,10 +67,20 @@ function makeBlobUrl(att: MailAttachment): string | null {
 }
 
 export function AttachmentList({ attachments }: Props) {
-  // Csak a NEM-inline csatolmányokat mutatjuk a listán — az inline (cid:…)
-  // képek a HTML-ben már láthatók.
+  // A csatolmányok közül azokat mutatjuk, amelyek a felhasználó számára
+  // önállóan értelmezhetők (van saját fájlnév vagy tartalom). Az inline
+  // ágyazott KÉPEKET is megjelenítjük — a HTML-ben már láthatók ugyan, de a
+  // user gyakran szeretné külön elmenteni / letölteni őket. Csak a tisztán
+  // belső, üres cid-referenciás részeket szűrjük ki.
   const visible = useMemo(
-    () => (attachments || []).filter((a) => !a.inline),
+    () => (attachments || []).filter((a) => {
+      const hasName = !!(a.filename && a.filename !== "melléklet");
+      const hasSize = (a.size || 0) > 0;
+      const hasData = !!a.data;
+      // Inline kép → mutatjuk, ha van neve VAGY tartalma.
+      if (a.inline) return (hasName || hasData) && (a.contentType || "").startsWith("image/");
+      return hasName || hasSize || hasData;
+    }),
     [attachments],
   );
 
