@@ -63,6 +63,21 @@ function setCachedMailbox(accountId, logical, real) {
   resolvedMailboxCache.get(accountId).set(logical, real);
 }
 
+// Per-mailbox sync lock: ugyanarra a (accountId, mailbox) párra egyszerre csak
+// EGY syncMailbox futhasson. Ha érkezik egy második hívás, megvárja az elsőt
+// és annak az eredményét adja vissza. Így elkerüljük azt a race-t, amikor két
+// konkurens IMAP szinkron felülírja egymás cache-írását és „eltűnnek" levelek.
+const syncLocks = new Map(); // key: `${accountId}::${mailbox}` → Promise
+function withSyncLock(accountId, mailbox, fn) {
+  const key = `${accountId}::${mailbox}`;
+  const prev = syncLocks.get(key) || Promise.resolve();
+  const next = prev.catch(() => {}).then(fn);
+  syncLocks.set(key, next.finally(() => {
+    if (syncLocks.get(key) === next) syncLocks.delete(key);
+  }));
+  return next;
+}
+
 // ---- IPC: accounts ----
 ipcMain.handle("accounts:list", () =>
   loadAccounts().map((a) => ({ ...a, password: undefined, smtpPassword: undefined })),
@@ -446,107 +461,128 @@ ipcMain.handle("cache:read", (_e, { accountId, mailbox }) => {
 
 // Inkrementális szinkron egy mappához. Csak az új UID-okat húzza le, vagy
 // üres cache-nél a legfrissebb INITIAL_PAGE_SIZE darabot. UIDVALIDITY változás → reset.
+//
+// FONTOS: per (accountId, mailbox) lock alatt fut, így két konkurens hívás
+// nem írja felül egymás cache-ét (race elkerülése — különben a régebbi state-tel
+// induló sync az újabb merge-et felülírhatja, és „eltűnnek" a levelek).
 async function syncMailbox(account, logicalMailbox) {
-  return withImap(account, 120000, async (imap) => {
-    let realName = getCachedMailbox(account.id, logicalMailbox);
-    if (!realName) {
-      realName = await resolveMailbox(imap, logicalMailbox);
-      if (realName) setCachedMailbox(account.id, logicalMailbox, realName);
-    }
-    if (!realName) return { added: 0, total: 0, mailbox: logicalMailbox, missing: true };
-    const box = await openBox(imap, realName);
-    const uidvalidity = box.uidvalidity ?? null;
-    let state = cache.read(userDataDir(), account.id, logicalMailbox);
+  return withSyncLock(account.id, logicalMailbox, () =>
+    withImap(account, 120000, async (imap) => {
+      let realName = getCachedMailbox(account.id, logicalMailbox);
+      if (!realName) {
+        realName = await resolveMailbox(imap, logicalMailbox);
+        if (realName) setCachedMailbox(account.id, logicalMailbox, realName);
+      }
+      if (!realName) return { added: 0, total: 0, mailbox: logicalMailbox, missing: true };
+      const box = await openBox(imap, realName);
+      const uidvalidity = box.uidvalidity ?? null;
+      let state = cache.read(userDataDir(), account.id, logicalMailbox);
 
-    // UIDVALIDITY váltott → eldobjuk a cache-t.
-    if (state.uidvalidity != null && uidvalidity != null && state.uidvalidity !== uidvalidity) {
-      state = cache.reset(uidvalidity);
-    } else if (state.uidvalidity == null) {
-      state.uidvalidity = uidvalidity;
-    }
-
-    if (!box.messages.total) {
-      cache.write(userDataDir(), account.id, logicalMailbox, { ...state, updatedAt: Date.now() });
-      return { added: 0, total: 0, mailbox: logicalMailbox };
-    }
-
-    // Lekérdezzük a szervertől a tényleges UID listát — így nem ragadunk be
-    // egy hibás lastUid miatt, és UIDVALIDITY-rejtett változásokat is észrevesszük.
-    const uidSearch = (criteria) => new Promise((resolve, reject) => {
-      imap.search(criteria, (err, results) => (err ? reject(err) : resolve(results || [])));
-    });
-
-    let uidsToFetch = [];
-    if (state.lastUid > 0) {
-      // Kérdezzük meg a szervert: melyek a tényleg új UID-ok?
-      try {
-        const newer = await uidSearch([["UID", `${state.lastUid + 1}:*`]]);
-        uidsToFetch = newer.filter((u) => u > state.lastUid);
-      } catch {
-        uidsToFetch = [];
+      // UIDVALIDITY váltott → eldobjuk a cache-t (ez a hivatalos IMAP jelzés
+      // arra, hogy a UID-ok újraszámozódtak).
+      if (state.uidvalidity != null && uidvalidity != null && state.uidvalidity !== uidvalidity) {
+        state = cache.reset(uidvalidity);
+      } else if (state.uidvalidity == null) {
+        state.uidvalidity = uidvalidity;
       }
 
-      // Biztonsági ellenőrzés: ha a szerver legnagyobb UID-ja kisebb, mint a
-      // cached lastUid, valami félrement (UIDVALIDITY váltás amit nem jeleztek,
-      // mailbox visszaállítás stb.) → reseteljük a cache-t és újra szinkronizálunk.
-      if (uidsToFetch.length === 0) {
+      if (!box.messages.total) {
+        // Üres mailbox a szerveren — NE töröljük a cache-t azonnal, mert lehet
+        // tranziens IMAP állapot (épp törlés folyamatban, vagy hibás box.messages).
+        // Csak az updatedAt-ot frissítjük; ha tartós, a felhasználó kézi
+        // szinkronnal vagy UIDVALIDITY váltással úgyis tisztul.
+        cache.write(userDataDir(), account.id, logicalMailbox, { ...state, updatedAt: Date.now() });
+        return { added: 0, total: 0, mailbox: logicalMailbox };
+      }
+
+      const uidSearch = (criteria) => new Promise((resolve, reject) => {
+        imap.search(criteria, (err, results) => (err ? reject(err) : resolve(results || [])));
+      });
+
+      let uidsToFetch = [];
+      if (state.lastUid > 0) {
         try {
-          const all = await uidSearch(["ALL"]);
-          const serverMax = all.length ? Math.max(...all) : 0;
-          if (serverMax > 0 && serverMax < state.lastUid) {
-            // Cache invalid → reset, és töltsük le a legutóbbi INITIAL_PAGE_SIZE darabot
+          const newer = await uidSearch([["UID", `${state.lastUid + 1}:*`]]);
+          uidsToFetch = newer.filter((u) => u > state.lastUid);
+        } catch {
+          uidsToFetch = [];
+        }
+
+        // KONZERVATÍV reset: csak akkor dobjuk el a cache-t, ha az ALL search
+        // ténylegesen sikeres volt ÉS jelentős eltérés van. Ha bármilyen hiba
+        // történik, megtartjuk a meglévő cache-t (jobb régi adat, mint üres).
+        if (uidsToFetch.length === 0) {
+          let allOk = false;
+          let serverMax = 0;
+          try {
+            const all = await uidSearch(["ALL"]);
+            allOk = true;
+            serverMax = all.length ? Math.max(...all) : 0;
+          } catch {
+            allOk = false;
+          }
+          // Csak akkor reseteljünk, ha az ALL search sikerült, a szerveren
+          // van legalább 1 levél, és a max UID jóval kisebb, mint a cache.
+          // (A box.messages.total > 0 már ellenőrizve van fent.)
+          if (allOk && serverMax > 0 && serverMax < state.lastUid) {
+            console.warn(`[syncMailbox] cache reset: ${account.id}/${logicalMailbox} serverMax=${serverMax} < cached lastUid=${state.lastUid}`);
             state = cache.reset(uidvalidity);
           }
-        } catch { /* ignore */ }
+        }
       }
-    }
 
-    if (state.lastUid === 0) {
-      // Üres cache (vagy reset után) → a legutolsó INITIAL_PAGE_SIZE UID
-      let allUids = [];
-      try { allUids = await uidSearch(["ALL"]); } catch { allUids = []; }
-      allUids.sort((a, b) => a - b);
-      uidsToFetch = allUids.slice(-cache.INITIAL_PAGE_SIZE);
-    }
-
-    // Visszafelé szinkron: a már cache-elt UID-ok szerverbeli flag-jeit (\\Flagged,
-    // \\Seen) frissítjük, hogy más kliensben tett változások is megjelenjenek.
-    async function resyncFlags(currentState) {
-      const cachedUids = currentState.messages
-        .map((m) => (typeof m.uid === "number" ? m.uid : null))
-        .filter((u) => u != null);
-      if (cachedUids.length === 0) return currentState;
-      try {
-        const minU = Math.min(...cachedUids);
-        const maxU = Math.max(...cachedUids);
-        const flagsList = await fetchFlagsByUidRange(imap, `${minU}:${maxU}`);
-        const updates = new Map();
-        for (const f of flagsList) updates.set(f.uid, { flagged: f.flagged, seen: f.seen });
-        const { state: nextState, changed } = cache.applyFlagUpdates(currentState, updates);
-        return changed > 0 ? nextState : currentState;
-      } catch {
-        return currentState;
+      if (state.lastUid === 0) {
+        let allUids = [];
+        try { allUids = await uidSearch(["ALL"]); } catch { allUids = []; }
+        allUids.sort((a, b) => a - b);
+        uidsToFetch = allUids.slice(-cache.INITIAL_PAGE_SIZE);
       }
-    }
 
-    const flagSyncNeeded = (Date.now() - (state.updatedAt || 0)) > 10 * 60 * 1000;
+      async function resyncFlags(currentState) {
+        const cachedUids = currentState.messages
+          .map((m) => (typeof m.uid === "number" ? m.uid : null))
+          .filter((u) => u != null);
+        if (cachedUids.length === 0) return currentState;
+        try {
+          const minU = Math.min(...cachedUids);
+          const maxU = Math.max(...cachedUids);
+          const flagsList = await fetchFlagsByUidRange(imap, `${minU}:${maxU}`);
+          const updates = new Map();
+          for (const f of flagsList) updates.set(f.uid, { flagged: f.flagged, seen: f.seen });
+          const { state: nextState, changed } = cache.applyFlagUpdates(currentState, updates);
+          return changed > 0 ? nextState : currentState;
+        } catch {
+          return currentState;
+        }
+      }
 
-    if (uidsToFetch.length === 0) {
-      const synced = flagSyncNeeded ? await resyncFlags(state) : state;
-      cache.write(userDataDir(), account.id, logicalMailbox, { ...synced, updatedAt: Date.now() });
-      return { added: 0, total: box.messages.total, mailbox: logicalMailbox };
-    }
+      const flagSyncNeeded = (Date.now() - (state.updatedAt || 0)) > 10 * 60 * 1000;
 
-    const minUid = Math.min(...uidsToFetch);
-    const maxUid = Math.max(...uidsToFetch);
-    const fetched = await fetchHeadersByUidRange(imap, `${minUid}:${maxUid}`);
-    const wanted = new Set(uidsToFetch);
-    const newOnly = fetched.filter((m) => wanted.has(m.uid) && m.uid > (state.lastUid || 0));
-    const merged = cache.mergeNewMessages(state, newOnly);
-    const next = (flagSyncNeeded || newOnly.length > 0) ? await resyncFlags(merged) : merged;
-    cache.write(userDataDir(), account.id, logicalMailbox, next);
-    return { added: newOnly.length, total: box.messages.total, mailbox: logicalMailbox };
-  });
+      if (uidsToFetch.length === 0) {
+        const synced = flagSyncNeeded ? await resyncFlags(state) : state;
+        cache.write(userDataDir(), account.id, logicalMailbox, { ...synced, updatedAt: Date.now() });
+        return { added: 0, total: box.messages.total, mailbox: logicalMailbox };
+      }
+
+      const minUid = Math.min(...uidsToFetch);
+      const maxUid = Math.max(...uidsToFetch);
+      const fetched = await fetchHeadersByUidRange(imap, `${minUid}:${maxUid}`);
+      const wanted = new Set(uidsToFetch);
+      const newOnly = fetched.filter((m) => wanted.has(m.uid) && m.uid > (state.lastUid || 0));
+      // FONTOS: a merge előtt újraolvassuk a state-et a diszkről, hogy más
+      // (pl. flag-állítás) közben írt változások se vesszenek el.
+      const freshState = cache.read(userDataDir(), account.id, logicalMailbox);
+      // Csak akkor használjuk a friss state-et, ha ugyanaz a uidvalidity, és
+      // nem kisebb a lastUid (különben a saját reset-ünk veszne el).
+      const baseState = (freshState.uidvalidity === state.uidvalidity && freshState.lastUid >= state.lastUid)
+        ? freshState
+        : state;
+      const merged = cache.mergeNewMessages(baseState, newOnly);
+      const next = (flagSyncNeeded || newOnly.length > 0) ? await resyncFlags(merged) : merged;
+      cache.write(userDataDir(), account.id, logicalMailbox, next);
+      return { added: newOnly.length, total: box.messages.total, mailbox: logicalMailbox };
+    }),
+  );
 }
 
 // Lazy-load: a cache-nél régebbi leveleket tölti le (oldestUid alatt).
@@ -754,27 +790,46 @@ ipcMain.handle("imap:listInbox", async (_e, { accountId } = {}) => {
 ipcMain.handle("smtp:send", async (_e, { accountId, to, cc, bcc, subject, html, text }) => {
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("A fiók nem található.");
+  if (!account.smtpHost) throw new Error("Hiányzó SMTP szerver — szerkeszd a fiókot.");
+  const smtpUser = account.smtpUser || account.authUser || account.user;
+  const smtpPass = decryptPassword(account.smtpPassword || account.password);
+  if (!smtpUser || !smtpPass) {
+    throw new Error("Hiányzó SMTP felhasználónév vagy jelszó — szerkeszd a fiókot és add meg újra a jelszót.");
+  }
+  // STARTTLS heurisztika: 587-es port → secure=false + requireTLS, 465 → secure=true.
+  const port = account.smtpPort || 465;
+  const explicitSecure = typeof account.smtpSecure === "boolean";
+  const secure = explicitSecure ? account.smtpSecure : port === 465;
   const transporter = nodemailer.createTransport({
     host: account.smtpHost,
-    port: account.smtpPort || 465,
-    secure: account.smtpSecure !== false,
-    auth: {
-      user: account.smtpUser || account.authUser || account.user,
-      pass: decryptPassword(account.smtpPassword || account.password),
-    },
-    tls: { rejectUnauthorized: false },
-    connectionTimeout: 15000,
-    greetingTimeout: 10000,
-    socketTimeout: 30000,
+    port,
+    secure,
+    requireTLS: !secure, // STARTTLS kötelezővé tétele 587-en
+    auth: { user: smtpUser, pass: smtpPass },
+    tls: { rejectUnauthorized: false, minVersion: "TLSv1.2" },
+    connectionTimeout: 30000,
+    greetingTimeout: 20000,
+    socketTimeout: 60000,
   });
   const fromAddress = account.displayName
     ? `"${String(account.displayName).replace(/"/g, '\\"')}" <${account.user}>`
     : account.from || account.user;
-  const info = await transporter.sendMail({
-    from: fromAddress,
-    to, cc, bcc, subject, html, text,
-  });
-  return { ok: true, messageId: info.messageId };
+  try {
+    const info = await transporter.sendMail({
+      from: fromAddress,
+      to, cc, bcc, subject, html, text,
+    });
+    console.log(`[smtp] sent ${info.messageId} via ${account.smtpHost}:${port} (secure=${secure})`);
+    return { ok: true, messageId: info.messageId };
+  } catch (err) {
+    const code = err?.code || err?.responseCode || "?";
+    const detail = err?.response || err?.message || String(err);
+    console.error(`[smtp] FAILED (${code}) ${account.smtpHost}:${port} secure=${secure} — ${detail}`);
+    // Részletesebb hibaüzenet a felhasználónak
+    throw new Error(`SMTP hiba (${code}): ${detail}`);
+  } finally {
+    try { transporter.close(); } catch { /* ignore */ }
+  }
 });
 
 // ---- IPC: Draft mentés a szerverre (IMAP APPEND a Drafts mappába) ----
