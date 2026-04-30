@@ -473,7 +473,10 @@ async function syncMailbox(account, logicalMailbox) {
         realName = await resolveMailbox(imap, logicalMailbox);
         if (realName) setCachedMailbox(account.id, logicalMailbox, realName);
       }
-      if (!realName) return { added: 0, total: 0, mailbox: logicalMailbox, missing: true };
+      if (!realName) {
+        const state = cache.read(userDataDir(), account.id, logicalMailbox);
+        return { added: 0, total: 0, mailbox: logicalMailbox, missing: true, messages: state.messages, updatedAt: state.updatedAt };
+      }
       const box = await openBox(imap, realName);
       const uidvalidity = box.uidvalidity ?? null;
       let state = cache.read(userDataDir(), account.id, logicalMailbox);
@@ -492,7 +495,7 @@ async function syncMailbox(account, logicalMailbox) {
         // Csak az updatedAt-ot frissítjük; ha tartós, a felhasználó kézi
         // szinkronnal vagy UIDVALIDITY váltással úgyis tisztul.
         cache.write(userDataDir(), account.id, logicalMailbox, { ...state, updatedAt: Date.now() });
-        return { added: 0, total: 0, mailbox: logicalMailbox };
+        return { added: 0, total: 0, mailbox: logicalMailbox, messages: state.messages, updatedAt: Date.now() };
       }
 
       const uidSearch = (criteria) => new Promise((resolve, reject) => {
@@ -560,8 +563,9 @@ async function syncMailbox(account, logicalMailbox) {
 
       if (uidsToFetch.length === 0) {
         const synced = flagSyncNeeded ? await resyncFlags(state) : state;
-        cache.write(userDataDir(), account.id, logicalMailbox, { ...synced, updatedAt: Date.now() });
-        return { added: 0, total: box.messages.total, mailbox: logicalMailbox };
+        const next = { ...synced, updatedAt: Date.now() };
+        cache.write(userDataDir(), account.id, logicalMailbox, next);
+        return { added: 0, total: box.messages.total, mailbox: logicalMailbox, messages: next.messages, updatedAt: next.updatedAt };
       }
 
       const minUid = Math.min(...uidsToFetch);
@@ -580,7 +584,7 @@ async function syncMailbox(account, logicalMailbox) {
       const merged = cache.mergeNewMessages(baseState, newOnly);
       const next = (flagSyncNeeded || newOnly.length > 0) ? await resyncFlags(merged) : merged;
       cache.write(userDataDir(), account.id, logicalMailbox, next);
-      return { added: newOnly.length, total: box.messages.total, mailbox: logicalMailbox };
+      return { added: newOnly.length, total: box.messages.total, mailbox: logicalMailbox, messages: next.messages, updatedAt: next.updatedAt };
     }),
   );
 }
@@ -593,7 +597,9 @@ async function loadOlder(account, logicalMailbox, pageSize) {
       realName = await resolveMailbox(imap, logicalMailbox);
       if (realName) setCachedMailbox(account.id, logicalMailbox, realName);
     }
-    if (!realName) return { added: 0, mailbox: logicalMailbox, missing: true };
+    if (!realName) {
+      return { added: 0, mailbox: logicalMailbox, missing: true, messages: state.messages, updatedAt: state.updatedAt };
+    }
     const box = await openBox(imap, realName);
     let state = cache.read(userDataDir(), account.id, logicalMailbox);
     if (!state.oldestUid || state.oldestUid <= 1) {
