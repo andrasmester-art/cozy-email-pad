@@ -111,7 +111,7 @@ export function MessageView({ message, onReply, onReplyAll, onForward, onToggleF
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="px-8 py-6">
+        <div className="px-8 py-6 min-h-full bg-surface">
           {message.bodyLoaded === false && !message.html && !message.text ? (
             <div className="text-sm text-muted-foreground italic">
               Levél tartalmának betöltése…
@@ -122,7 +122,7 @@ export function MessageView({ message, onReply, onReplyAll, onForward, onToggleF
             // reset / `prose` stílusokkal — különben a komplexebb levelek
             // (HTML kampányok, számlák, hírlevelek) „puszta szövegként"
             // jelennek meg.
-            <EmailHtmlFrame html={message.html} />
+            <EmailHtmlFrame html={message.html} className="bg-surface" />
           ) : (
             <pre className="whitespace-pre-wrap font-sans text-sm">{message.text}</pre>
           )}

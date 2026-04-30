@@ -78,7 +78,10 @@ export function EmailHtmlFrame({ html, className }: Props) {
     const doc = iframe?.contentDocument;
     if (!doc?.body) return;
 
+    const containerHeight = iframe.parentElement?.getBoundingClientRect().height ?? 0;
+
     const next = Math.max(
+      containerHeight,
       doc.body.scrollHeight,
       doc.body.offsetHeight,
       doc.documentElement.scrollHeight,
@@ -124,12 +127,15 @@ export function EmailHtmlFrame({ html, className }: Props) {
       attachObservers();
     }
 
+    window.addEventListener("resize", updateHeight);
+
     return () => {
       iframe.removeEventListener("load", onLoad);
+      window.removeEventListener("resize", updateHeight);
       observerRef.current?.disconnect();
       observerRef.current = null;
     };
-  }, [srcDoc, attachObservers]);
+  }, [srcDoc, attachObservers, updateHeight]);
 
   return (
     <iframe
