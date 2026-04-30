@@ -1270,7 +1270,21 @@ async function loadMessageBody(account, logicalMailbox, uid) {
     const next = cache.updateMessageBody(state, numericUid, body);
     cache.write(userDataDir(), account.id, logicalMailbox, next);
     const updated = next.messages.find((m) => m.uid === numericUid) || null;
-    return { ok: true, message: updated };
+    // A body-t is rámergeljuk a cache-objektumra, hogy a friss `attachments`
+    // és `hasAttachments` mezők mindenképp megérkezzenek a renderernek —
+    // akkor is, ha a cache valamiért régi adatot adna vissza.
+    const merged = updated
+      ? {
+          ...updated,
+          text: body.text ?? updated.text,
+          html: body.html ?? updated.html,
+          snippet: body.snippet ?? updated.snippet,
+          attachments: Array.isArray(body.attachments) ? body.attachments : (updated.attachments || []),
+          hasAttachments: typeof body.hasAttachments === "boolean" ? body.hasAttachments : !!updated.hasAttachments,
+          bodyLoaded: true,
+        }
+      : { ...body, bodyLoaded: true };
+    return { ok: true, message: merged };
   });
 }
 
