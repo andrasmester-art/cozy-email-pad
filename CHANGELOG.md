@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.34.2] – 2026-04-30
+
+### Javítás
+- **Kritikus indítási hiba javítása (`SyntaxError: Unexpected end of input` a main process-ben).** Az 1.34.0-ban bevezetett `mail:delete` IPC handler `electron/main.cjs`-ben hiányzott a `});` lezárás → a teljes `main.cjs` szintaktikailag érvénytelen lett, az Electron főfolyamat el sem indult ("A JavaScript error occurred in the main process" hiba a frissítés után). Pótoltam a hiányzó lezárást a `mail:delete` handler után.
+
 ## [1.34.1] – 2026-04-30
 
 ### Javítás
