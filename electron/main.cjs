@@ -124,6 +124,63 @@ function withSyncLock(accountId, mailbox, fn) {
   return next;
 }
 
+// ---- Retry helper átmeneti hibákra (SMTP/IMAP) ----
+//
+// Általános szabály: 3× próbálkozás exponenciális backoff-fal (1s, 2s, 4s).
+// PERMANENS hibákat (pl. authentication failed, 5xx response code, hiányzó
+// fiók, misszing mailbox) NEM próbálja újra — felesleges és csak elhúzza
+// a hibajelzést a felhasználó felé. Az átmeneti hibákhoz tartozik minden
+// hálózati eredetű probléma: timeout, ECONNRESET, ECONNREFUSED, EHOSTUNREACH,
+// 4xx greylisting/rate limit, valamint a kapcsolat-szint kódok.
+//
+// A `label` csak a logoláshoz kell — `[retry] <label> attempt N/3 …` formában.
+function isPermanentError(err) {
+  if (!err) return false;
+  const msg = String(err.message || err.response || err).toLowerCase();
+  const code = err.code || "";
+  const responseCode = Number(err.responseCode || 0);
+  // SMTP 5xx → permanens (auth failed, mailbox not found, message rejected)
+  if (responseCode >= 500 && responseCode < 600) return true;
+  // Authentication / authorization → ne próbáljuk újra
+  if (/(authentication failed|invalid login|invalid credentials|authentication unsuccessful|535|534|538)/i.test(msg)) {
+    return true;
+  }
+  // Konfigurációs / állandó hibák
+  if (/no such mailbox|mailbox.*not.*exist|550|553|554/i.test(msg)) return true;
+  if (code === "EAUTH") return true;
+  return false;
+}
+
+async function runWithRetry(label, fn, { maxAttempts = 3, baseDelayMs = 1000 } = {}) {
+  let lastErr;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const result = await fn(attempt);
+      if (attempt > 1) {
+        console.log(`[retry] ${label} succeeded on attempt ${attempt}/${maxAttempts}`);
+      }
+      return result;
+    } catch (err) {
+      lastErr = err;
+      const permanent = isPermanentError(err);
+      const detail = err?.message || err?.response || String(err);
+      const code = err?.code || err?.responseCode || "?";
+      if (permanent) {
+        console.warn(`[retry] ${label} PERMANENT error on attempt ${attempt}/${maxAttempts} (code=${code}) — not retrying: ${detail}`);
+        throw err;
+      }
+      if (attempt >= maxAttempts) {
+        console.warn(`[retry] ${label} TRANSIENT error on attempt ${attempt}/${maxAttempts} (code=${code}) — giving up: ${detail}`);
+        throw err;
+      }
+      const wait = baseDelayMs * Math.pow(2, attempt - 1);
+      console.warn(`[retry] ${label} TRANSIENT error on attempt ${attempt}/${maxAttempts} (code=${code}) — waiting ${wait}ms before retry: ${detail}`);
+      await new Promise((r) => setTimeout(r, wait));
+    }
+  }
+  throw lastErr;
+}
+
 // ---- IPC: accounts ----
 ipcMain.handle("accounts:list", () =>
   loadAccounts().map((a) => ({ ...a, password: undefined, smtpPassword: undefined })),
@@ -780,7 +837,11 @@ ipcMain.handle("cache:syncMailbox", async (_e, { accountId, mailbox }) => {
   console.log(`[ipc cache:syncMailbox] ← ${accountId}/${mailbox}`);
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("A fiók nem található.");
-  const result = await syncMailbox(account, mailbox);
+  // 3× retry exp. backoff-fal — átmeneti hibákra (timeout, ECONNRESET).
+  // Permanens hibák (auth fail, missing mailbox) azonnal megálltják.
+  const result = await runWithRetry(`syncMailbox ${accountId}/${mailbox}`, () =>
+    syncMailbox(account, mailbox),
+  );
   if (Array.isArray(result?.messages)) {
     console.log(`[ipc cache:syncMailbox] → ${accountId}/${mailbox} memory msgs=${result.messages.length} added=${result.added}`);
     return { ...result, messages: result.messages, updatedAt: result.updatedAt || Date.now() };
@@ -795,7 +856,10 @@ ipcMain.handle("cache:loadOlder", async (_e, { accountId, mailbox, pageSize }) =
   console.log(`[ipc cache:loadOlder] ← ${accountId}/${mailbox} pageSize=${pageSize}`);
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("A fiók nem található.");
-  const result = await loadOlder(account, mailbox, pageSize);
+  // 3× retry exp. backoff-fal (lásd syncMailbox kommentet).
+  const result = await runWithRetry(`loadOlder ${accountId}/${mailbox}`, () =>
+    loadOlder(account, mailbox, pageSize),
+  );
   if (Array.isArray(result?.messages)) {
     console.log(`[ipc cache:loadOlder] → ${accountId}/${mailbox} memory msgs=${result.messages.length} added=${result.added} exhausted=${!!result.exhausted}`);
     return { ...result, messages: result.messages, updatedAt: result.updatedAt || Date.now() };
@@ -970,9 +1034,17 @@ ipcMain.handle("smtp:send", async (_e, { accountId, to, cc, bcc, subject, html, 
     ? `"${String(account.displayName).replace(/"/g, '\\"')}" <${account.user}>`
     : account.from || account.user;
   try {
-    const info = await transporter.sendMail({
-      from: fromAddress,
-      to, cc, bcc, subject, html, text,
+    // 3× retry exp. backoff-fal — átmeneti hibákra (pl. timeout, ECONNRESET,
+    // 4xx greylisting). Permanens hibáknál (5xx, AUTH fail) az első próba
+    // után azonnal megáll, nem húzzuk a felhasználó idegeit.
+    const info = await runWithRetry(`smtp:send acct=${account.id}`, async (attempt) => {
+      if (attempt > 1) {
+        console.log(`[smtp] retry attempt=${attempt} acct=${account.id} ${account.smtpHost}:${port}`);
+      }
+      return await transporter.sendMail({
+        from: fromAddress,
+        to, cc, bcc, subject, html, text,
+      });
     });
     const dur = Date.now() - tStart;
     const accepted = (info.accepted || []).length;
@@ -992,12 +1064,50 @@ ipcMain.handle("smtp:send", async (_e, { accountId, to, cc, bcc, subject, html, 
     const detail = err?.response || err?.message || String(err);
     const stack = err?.stack ? String(err.stack).split("\n").slice(0, 4).join(" | ") : "";
     const dur = Date.now() - tStart;
+    const permanent = isPermanentError(err);
     console.error(
-      `[smtp] FAILED acct=${account.id} ${account.smtpHost}:${port} secure=${secure} code=${code} responseCode=${responseCode} command=${command} duration=${dur}ms — ${detail}`,
+      `[smtp] FAILED acct=${account.id} ${account.smtpHost}:${port} secure=${secure} permanent=${permanent} code=${code} responseCode=${responseCode} command=${command} duration=${dur}ms — ${detail}`,
     );
     if (stack) console.error(`[smtp] stack: ${stack}`);
-    // Részletesebb hibaüzenet a felhasználónak
-    throw new Error(`SMTP hiba (${code}): ${detail}`);
+
+    // Sikertelen küldés → mentsük a szerver Drafts mappájába, hogy ne vesszen el
+    // a fáradságos szöveg. Best-effort: ha ez is hibára fut, csak logoljuk.
+    let draftSaved = false;
+    let draftError = null;
+    try {
+      console.log(`[smtp] saving failed send to server Drafts acct=${account.id}`);
+      const raw = await buildRawMime(account, { to, cc, bcc, subject, html, text });
+      await withImap(account, 60000, async (imap) => {
+        let realName = getCachedMailbox(account.id, "Drafts");
+        if (!realName) {
+          realName = await resolveMailbox(imap, "Drafts");
+          if (realName) setCachedMailbox(account.id, "Drafts", realName);
+        }
+        if (!realName) throw new Error("Drafts mappa nem található a szerveren.");
+        await appendToMailbox(imap, realName, raw, ["\\Draft"]);
+      });
+      draftSaved = true;
+      console.log(`[smtp] failed send saved to Drafts acct=${account.id}`);
+      // Inkrementális szinkron a háttérben, ne blokkolja a hibadobást.
+      syncMailbox(account, "Drafts").catch((e) => {
+        console.warn(`[smtp] post-fail Drafts sync error: ${e?.message || e}`);
+      });
+    } catch (saveErr) {
+      draftError = saveErr?.message || String(saveErr);
+      console.warn(`[smtp] failed to save to Drafts after send error: ${draftError}`);
+    }
+
+    // Részletesebb hibaüzenet a felhasználónak — benne a kategória és a Drafts-mentés státusza.
+    const category = permanent ? "végleges" : "átmeneti, 3 próbálkozás után";
+    const draftNote = draftSaved
+      ? " A piszkozat a szerver Drafts mappájába mentve."
+      : (draftError ? ` Drafts-mentés is sikertelen: ${draftError}` : "");
+    const userMsg = `SMTP hiba (${category}, ${code}): ${detail}.${draftNote}`;
+    const e = new Error(userMsg);
+    e.code = code;
+    e.permanent = permanent;
+    e.draftSaved = draftSaved;
+    throw e;
   } finally {
     try { transporter.close(); } catch { /* ignore */ }
   }
