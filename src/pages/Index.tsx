@@ -401,7 +401,7 @@ const Index = () => {
         await mailAPI.mail.setFlag({
           accountId: activeAccountId,
           mailbox: activeMailbox,
-          uid: m.uid as number,
+          uid: m.uid as string | number,
           patch: { seen: true },
         });
       } catch { failed++; }
