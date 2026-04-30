@@ -1027,9 +1027,17 @@ ipcMain.handle("smtp:send", async (_e, { accountId, to, cc, bcc, subject, html, 
     ? `"${String(account.displayName).replace(/"/g, '\\"')}" <${account.user}>`
     : account.from || account.user;
   try {
-    const info = await transporter.sendMail({
-      from: fromAddress,
-      to, cc, bcc, subject, html, text,
+    // 3× retry exp. backoff-fal — átmeneti hibákra (pl. timeout, ECONNRESET,
+    // 4xx greylisting). Permanens hibáknál (5xx, AUTH fail) az első próba
+    // után azonnal megáll, nem húzzuk a felhasználó idegeit.
+    const info = await runWithRetry(`smtp:send acct=${account.id}`, async (attempt) => {
+      if (attempt > 1) {
+        console.log(`[smtp] retry attempt=${attempt} acct=${account.id} ${account.smtpHost}:${port}`);
+      }
+      return await transporter.sendMail({
+        from: fromAddress,
+        to, cc, bcc, subject, html, text,
+      });
     });
     const dur = Date.now() - tStart;
     const accepted = (info.accepted || []).length;
@@ -1049,12 +1057,50 @@ ipcMain.handle("smtp:send", async (_e, { accountId, to, cc, bcc, subject, html, 
     const detail = err?.response || err?.message || String(err);
     const stack = err?.stack ? String(err.stack).split("\n").slice(0, 4).join(" | ") : "";
     const dur = Date.now() - tStart;
+    const permanent = isPermanentError(err);
     console.error(
-      `[smtp] FAILED acct=${account.id} ${account.smtpHost}:${port} secure=${secure} code=${code} responseCode=${responseCode} command=${command} duration=${dur}ms — ${detail}`,
+      `[smtp] FAILED acct=${account.id} ${account.smtpHost}:${port} secure=${secure} permanent=${permanent} code=${code} responseCode=${responseCode} command=${command} duration=${dur}ms — ${detail}`,
     );
     if (stack) console.error(`[smtp] stack: ${stack}`);
-    // Részletesebb hibaüzenet a felhasználónak
-    throw new Error(`SMTP hiba (${code}): ${detail}`);
+
+    // Sikertelen küldés → mentsük a szerver Drafts mappájába, hogy ne vesszen el
+    // a fáradságos szöveg. Best-effort: ha ez is hibára fut, csak logoljuk.
+    let draftSaved = false;
+    let draftError = null;
+    try {
+      console.log(`[smtp] saving failed send to server Drafts acct=${account.id}`);
+      const raw = await buildRawMime(account, { to, cc, bcc, subject, html, text });
+      await withImap(account, 60000, async (imap) => {
+        let realName = getCachedMailbox(account.id, "Drafts");
+        if (!realName) {
+          realName = await resolveMailbox(imap, "Drafts");
+          if (realName) setCachedMailbox(account.id, "Drafts", realName);
+        }
+        if (!realName) throw new Error("Drafts mappa nem található a szerveren.");
+        await appendToMailbox(imap, realName, raw, ["\\Draft"]);
+      });
+      draftSaved = true;
+      console.log(`[smtp] failed send saved to Drafts acct=${account.id}`);
+      // Inkrementális szinkron a háttérben, ne blokkolja a hibadobást.
+      syncMailbox(account, "Drafts").catch((e) => {
+        console.warn(`[smtp] post-fail Drafts sync error: ${e?.message || e}`);
+      });
+    } catch (saveErr) {
+      draftError = saveErr?.message || String(saveErr);
+      console.warn(`[smtp] failed to save to Drafts after send error: ${draftError}`);
+    }
+
+    // Részletesebb hibaüzenet a felhasználónak — benne a kategória és a Drafts-mentés státusza.
+    const category = permanent ? "végleges" : "átmeneti, 3 próbálkozás után";
+    const draftNote = draftSaved
+      ? " A piszkozat a szerver Drafts mappájába mentve."
+      : (draftError ? ` Drafts-mentés is sikertelen: ${draftError}` : "");
+    const userMsg = `SMTP hiba (${category}, ${code}): ${detail}.${draftNote}`;
+    const e = new Error(userMsg);
+    e.code = code;
+    e.permanent = permanent;
+    e.draftSaved = draftSaved;
+    throw e;
   } finally {
     try { transporter.close(); } catch { /* ignore */ }
   }
