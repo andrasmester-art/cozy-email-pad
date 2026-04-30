@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.33.3] – 2026-04-30
+
+### Javítás
+- **Megbízhatóbb inline kép-megjelenítés a csatolmány-listában.** Az `AttachmentList` szűrése mostantól **minden** `image/*` content-type-ú inline csatolmányt megjelenít — akkor is, ha még nincs fájlnév vagy a `data` mező még nem érkezett meg (a sor maga jelzi, hogy csatolmány érkezik; a Letöltés gomb addig disabled marad, amíg a tartalom be nem töltődik). Korábban a feltétel `(hasName || hasData) && image/*` volt, ami egy frissen érkező, még tölt-állapotú inline képnél elrejtette a sort. A nem-kép típusú inline részeket (pl. `multipart/related` üres cid-referenciák, alternatív text/html partok) továbbra is kiszűrjük, mert a usernek nincs önálló értelmük.
+
 ## [1.33.2] – 2026-04-30
 
 ### Új
