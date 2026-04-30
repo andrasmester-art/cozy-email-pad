@@ -685,6 +685,8 @@ async function syncMailbox(account, logicalMailbox) {
 
 // Lazy-load: a cache-nél régebbi leveleket tölti le (oldestUid alatt).
 async function loadOlder(account, logicalMailbox, pageSize) {
+  const warnings = [];
+  const warn = (msg) => { warnings.push(msg); };
   return withImap(account, 120000, async (imap) => {
     let state = cache.read(userDataDir(), account.id, logicalMailbox);
     let realName = getCachedMailbox(account.id, logicalMailbox);
@@ -693,14 +695,15 @@ async function loadOlder(account, logicalMailbox, pageSize) {
       if (realName) setCachedMailbox(account.id, logicalMailbox, realName);
     }
     if (!realName) {
-      return { added: 0, mailbox: logicalMailbox, missing: true, messages: state.messages, updatedAt: state.updatedAt };
+      warn(`Mappa nem található a szerveren: „${logicalMailbox}".`);
+      return { added: 0, mailbox: logicalMailbox, missing: true, messages: state.messages, updatedAt: state.updatedAt, warnings };
     }
     const box = await openBox(imap, realName);
     if (!state.oldestUid || state.oldestUid <= 1) {
-      return { added: 0, mailbox: logicalMailbox, exhausted: true, messages: state.messages, updatedAt: state.updatedAt };
+      return { added: 0, mailbox: logicalMailbox, exhausted: true, messages: state.messages, updatedAt: state.updatedAt, warnings };
     }
     const upper = state.oldestUid - 1;
-    if (upper < 1) return { added: 0, mailbox: logicalMailbox, exhausted: true, messages: state.messages, updatedAt: state.updatedAt };
+    if (upper < 1) return { added: 0, mailbox: logicalMailbox, exhausted: true, messages: state.messages, updatedAt: state.updatedAt, warnings };
 
     // Kérdezzük meg a szervert, mely UID-ok léteznek 1..upper között.
     // (UID-ok nem összefüggőek — a törölt levelek hézagokat hagynak, ezért
@@ -712,7 +715,10 @@ async function loadOlder(account, logicalMailbox, pageSize) {
     let olderUids = [];
     try {
       olderUids = await uidSearch([["UID", `1:${upper}`]]);
-    } catch {
+    } catch (err) {
+      const msg = (err && err.message) || String(err);
+      warn(`Régebbi UID search sikertelen (UID 1:${upper}): ${msg}`);
+      console.warn(`[loadOlder] search FAILED ${account.id}/${logicalMailbox}: ${msg}`);
       olderUids = [];
     }
     olderUids = olderUids.filter((u) => u >= 1 && u <= upper).sort((a, b) => a - b);
@@ -721,7 +727,7 @@ async function loadOlder(account, logicalMailbox, pageSize) {
       // Tényleg nincs több régebbi → jelöljük kimerítettnek.
       const next = { ...state, oldestUid: 1, updatedAt: Date.now() };
       cache.write(userDataDir(), account.id, logicalMailbox, next);
-      return { added: 0, mailbox: logicalMailbox, exhausted: true, messages: next.messages, updatedAt: next.updatedAt };
+      return { added: 0, mailbox: logicalMailbox, exhausted: true, messages: next.messages, updatedAt: next.updatedAt, warnings };
     }
 
     const limit = pageSize || cache.PAGE_SIZE;
@@ -730,7 +736,14 @@ async function loadOlder(account, logicalMailbox, pageSize) {
     const minUid = Math.min(...pageUids);
     const maxUid = Math.max(...pageUids);
 
-    const fetched = await fetchHeadersByUidRange(imap, `${minUid}:${maxUid}`);
+    let fetched = [];
+    try {
+      fetched = await fetchHeadersByUidRange(imap, `${minUid}:${maxUid}`);
+    } catch (err) {
+      const msg = (err && err.message) || String(err);
+      warn(`Régebbi fejléc-letöltés sikertelen (UID ${minUid}:${maxUid}): ${msg}`);
+      console.warn(`[loadOlder] header fetch FAILED ${account.id}/${logicalMailbox}: ${msg}`);
+    }
     const wanted = new Set(pageUids);
     const filtered = fetched.filter((m) => wanted.has(m.uid));
 
@@ -757,6 +770,7 @@ async function loadOlder(account, logicalMailbox, pageSize) {
       exhausted,
       messages: next.messages,
       updatedAt: next.updatedAt,
+      warnings,
     };
   });
 }
