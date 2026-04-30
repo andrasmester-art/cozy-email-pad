@@ -190,6 +190,10 @@ export function MessageList({ messages, selectedSeqno, onSelect, onOpen, onToggl
         onSelect={onSelect}
         onOpen={onOpen}
         onToggleFlag={onToggleFlag}
+        onToggleSeen={onToggleSeen}
+        onReply={onReply}
+        onReplyAll={onReplyAll}
+        onForward={onForward}
         onLoadMore={onLoadMore}
         loadingMore={loadingMore}
         exhausted={exhausted}
