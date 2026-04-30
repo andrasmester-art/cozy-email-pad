@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { Account, MailMessage, mailAPI } from "@/lib/mailBridge";
 import { MessageView } from "@/components/mail/MessageView";
 import { Composer } from "@/components/mail/Composer";
+import { SendStatusOverlay } from "@/components/mail/SendStatusOverlay";
 import { toast } from "sonner";
 
 // Új ablakban megnyitott egyetlen levél nézete. URL: /message?accountId=..&mailbox=..&seqno=..&uid=..
@@ -220,6 +221,9 @@ const MessagePage = () => {
         initial={composerInitial}
         mode={composerMode}
       />
+
+      {/* Küldési állapot panel — minden ablakban külön példány. */}
+      <SendStatusOverlay />
     </div>
   );
 };
