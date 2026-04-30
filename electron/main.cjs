@@ -662,6 +662,7 @@ function fetchBodyByUid(imap, uid) {
             cid: a.cid || undefined,
             inline: !!a.contentDisposition && a.contentDisposition === "inline",
           })),
+          hasAttachments: (parsed.attachments || []).some((a) => (a.size || 0) > 0 || a.filename),
         });
       } catch (err) {
         reject(err);
