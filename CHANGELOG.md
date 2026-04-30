@@ -18,6 +18,11 @@ A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 ### Javítás
 - **A rövid HTML levelek sem „egy sávként” jelennek meg a jobb oldalon.** Ha a levél tartalma alacsony volt, a jobb oldali panel sötét üres háttérrel túl kicsinek hatott. A levéltest konténere most legalább a teljes olvasópanel-magasságot kitölti, és az iframe újraméri magát ablakméret-váltáskor is.
 
+## [1.25.4] – 2026-04-30
+
+### Javítás
+- **Apple Mail-szerűbb tipográfia a levélnézetben.** A felület és a levéltest most SF Pro / rendszerfont alapú, finomabb méretskálával és súlyokkal jelenik meg, hogy közelebb álljon a mellékelt referencia kinézetéhez.
+
 ## [1.25.0] – 2026-04-29
 
 ### Új

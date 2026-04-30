@@ -95,15 +95,15 @@ export function MessageView({ message, onReply, onReplyAll, onForward, onToggleF
         <Button size="sm" variant="ghost" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
       </div>
 
-      <div className="px-8 py-6 border-b border-border">
-        <h1 className="text-2xl font-semibold leading-tight">{message.subject}</h1>
+      <div className="px-8 py-5 border-b border-border bg-surface">
+        <h1 className="text-[19px] font-medium leading-[1.2] [font-family:var(--font-display)]">{message.subject}</h1>
         <div className="mt-3 flex items-start justify-between gap-4">
           <div>
-            <div className="text-sm font-medium">{message.from}</div>
-            <div className="text-xs text-muted-foreground mt-0.5">→ {message.to}</div>
+            <div className="text-[14px] font-medium text-foreground">{message.from}</div>
+            <div className="text-[13px] text-muted-foreground mt-0.5">→ {message.to}</div>
           </div>
           {message.date && (
-            <div className="text-xs text-muted-foreground shrink-0">
+            <div className="text-[13px] text-muted-foreground shrink-0">
               {format(new Date(message.date), "yyyy. MMM d. HH:mm")}
             </div>
           )}
@@ -124,7 +124,7 @@ export function MessageView({ message, onReply, onReplyAll, onForward, onToggleF
             // jelennek meg.
             <EmailHtmlFrame html={message.html} className="bg-surface" />
           ) : (
-            <pre className="whitespace-pre-wrap font-sans text-sm">{message.text}</pre>
+            <pre className="whitespace-pre-wrap text-[17px] leading-[1.47] [font-family:var(--font-ui)]">{message.text}</pre>
           )}
         </div>
         {message.attachments && message.attachments.length > 0 && (

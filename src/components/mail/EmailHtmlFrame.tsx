@@ -50,13 +50,17 @@ export function EmailHtmlFrame({ html, className }: Props) {
 <style>
   html, body { margin: 0; padding: 0; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
-    font-size: 15px;
-    line-height: 1.55;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-size: 17px;
+    line-height: 1.47;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     color: #1c1c1e;
     word-wrap: break-word;
     overflow-wrap: anywhere;
   }
+  p, div, li { margin-top: 0; }
   img, table, video { max-width: 100%; }
   img { height: auto; }
   table { border-collapse: collapse; }
@@ -67,7 +71,11 @@ export function EmailHtmlFrame({ html, className }: Props) {
     padding: 0 0 0 0.75em;
     color: #555;
   }
-  pre { white-space: pre-wrap; }
+  pre {
+    white-space: pre-wrap;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 14px;
+  }
 </style>
 </head>
 <body>${html}</body>
