@@ -24,9 +24,10 @@ type Props = {
   onForward?: (m: MailMessage) => void;
   onToggleFlag?: (m: MailMessage) => void;
   onToggleSeen?: (m: MailMessage) => void;
+  onOpenInNewWindow?: (m: MailMessage) => void;
 };
 
-export function MessageView({ message, onReply, onReplyAll, onForward, onToggleFlag, onToggleSeen }: Props) {
+export function MessageView({ message, onReply, onReplyAll, onForward, onToggleFlag, onToggleSeen, onOpenInNewWindow }: Props) {
   if (!message) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground bg-background">
@@ -40,9 +41,23 @@ export function MessageView({ message, onReply, onReplyAll, onForward, onToggleF
   const flagged = !!message.flagged;
   const seen = message.seen !== false;
 
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${label} másolva`);
+    } catch { toast.error("Másolás sikertelen"); }
+  };
+
+  const savePdf = async () => {
+    try { await exportEmailToPdf(message); }
+    catch (e: any) { toast.error("PDF mentése sikertelen", { description: String(e?.message || e) }); }
+  };
+
   return (
-    <div className="flex-1 flex flex-col h-full bg-background">
-      <div className="mac-titlebar shrink-0 flex items-center justify-end px-3 gap-1 border-b border-border">
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div className="flex-1 flex flex-col h-full bg-background">
+          <div className="mac-titlebar shrink-0 flex items-center justify-end px-3 gap-1 border-b border-border">
         <Button size="sm" variant="ghost" onClick={() => onReply(message)}>
           <Reply className="h-4 w-4 mr-1.5" /> Válasz
         </Button>
