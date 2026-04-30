@@ -155,6 +155,55 @@ export function MessageView({ message, onReply, onReplyAll, onForward, onToggleF
           <AttachmentList attachments={message.attachments} />
         )}
       </div>
-    </div>
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-56">
+        <ContextMenuItem onSelect={() => onReply(message)}>
+          <Reply className="h-4 w-4 mr-2" /> Válasz
+        </ContextMenuItem>
+        {onReplyAll && (
+          <ContextMenuItem onSelect={() => onReplyAll(message)}>
+            <ReplyAll className="h-4 w-4 mr-2" /> Válasz mindenkinek
+          </ContextMenuItem>
+        )}
+        {onForward && (
+          <ContextMenuItem onSelect={() => onForward(message)}>
+            <Forward className="h-4 w-4 mr-2" /> Továbbítás
+          </ContextMenuItem>
+        )}
+        {onOpenInNewWindow && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem onSelect={() => onOpenInNewWindow(message)}>
+              <ExternalLink className="h-4 w-4 mr-2" /> Megnyitás új ablakban
+            </ContextMenuItem>
+          </>
+        )}
+        <ContextMenuSeparator />
+        {onToggleSeen && (
+          <ContextMenuItem onSelect={() => onToggleSeen(message)}>
+            {seen ? <MailOpen className="h-4 w-4 mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
+            {seen ? "Megjelölés olvasatlannak" : "Megjelölés olvasottnak"}
+          </ContextMenuItem>
+        )}
+        {onToggleFlag && (
+          <ContextMenuItem onSelect={() => onToggleFlag(message)}>
+            <Star className={cn("h-4 w-4 mr-2", flagged && "fill-current text-amber-500")} />
+            {flagged ? "Csillag eltávolítása" : "Megjelölés csillaggal"}
+          </ContextMenuItem>
+        )}
+        <ContextMenuSeparator />
+        <ContextMenuItem onSelect={() => copyToClipboard(extractEmail(message.from), "Feladó címe")}>
+          <Copy className="h-4 w-4 mr-2" /> Feladó címének másolása
+        </ContextMenuItem>
+        <ContextMenuItem onSelect={() => copyToClipboard(message.subject || "", "Tárgy")}>
+          <Copy className="h-4 w-4 mr-2" /> Tárgy másolása
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onSelect={savePdf}>
+          <FileDown className="h-4 w-4 mr-2" /> Mentés PDF-ként
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
