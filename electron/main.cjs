@@ -450,6 +450,12 @@ function fetchByUidRange(imap, range) {
           Promise.resolve(simpleParser(raw))
             .then((parsed) => {
               const flags = Array.isArray(attrs?.flags) ? attrs.flags : [];
+              // hasAttachments: van-e bármilyen letölthető csatolmány — beleértve
+              // az inline ágyazott KÉPEKET is, hiszen a felhasználó ezeket is
+              // szeretné külön elmenteni. Csak a tisztán „belső" cid-referenciás,
+              // 0 byte-os részeket hagyjuk figyelmen kívül.
+              const atts = parsed.attachments || [];
+              const hasAttachments = atts.some((a) => (a.size || 0) > 0 || a.filename);
               out.push({
                 uid: attrs?.uid,
                 from: parsed.from?.text || "",
@@ -461,6 +467,7 @@ function fetchByUidRange(imap, range) {
                 snippet: (parsed.text || "").slice(0, 140),
                 flagged: flags.includes("\\Flagged"),
                 seen: flags.includes("\\Seen"),
+                hasAttachments,
               });
             })
             .catch(() => {
