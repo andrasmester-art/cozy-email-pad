@@ -413,6 +413,14 @@ function fetchBodyByUid(imap, uid) {
           flagged: flags.includes("\\Flagged"),
           seen: flags.includes("\\Seen"),
           bodyLoaded: true,
+          attachments: (parsed.attachments || []).map((a) => ({
+            filename: a.filename || "melléklet",
+            contentType: a.contentType || "application/octet-stream",
+            size: a.size || 0,
+            data: a.content ? a.content.toString("base64") : undefined,
+            cid: a.cid || undefined,
+            inline: !!a.contentDisposition && a.contentDisposition === "inline",
+          })),
         });
       } catch (err) {
         reject(err);
@@ -521,8 +529,10 @@ async function syncMailbox(account, logicalMailbox) {
       }
     }
 
+    const flagSyncNeeded = (Date.now() - (state.updatedAt || 0)) > 10 * 60 * 1000;
+
     if (uidsToFetch.length === 0) {
-      const synced = await resyncFlags(state);
+      const synced = flagSyncNeeded ? await resyncFlags(state) : state;
       cache.write(userDataDir(), account.id, logicalMailbox, { ...synced, updatedAt: Date.now() });
       return { added: 0, total: box.messages.total, mailbox: logicalMailbox };
     }
@@ -533,7 +543,7 @@ async function syncMailbox(account, logicalMailbox) {
     const wanted = new Set(uidsToFetch);
     const newOnly = fetched.filter((m) => wanted.has(m.uid) && m.uid > (state.lastUid || 0));
     const merged = cache.mergeNewMessages(state, newOnly);
-    const next = await resyncFlags(merged);
+    const next = (flagSyncNeeded || newOnly.length > 0) ? await resyncFlags(merged) : merged;
     cache.write(userDataDir(), account.id, logicalMailbox, next);
     return { added: newOnly.length, total: box.messages.total, mailbox: logicalMailbox };
   });
