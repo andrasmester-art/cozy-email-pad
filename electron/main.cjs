@@ -98,15 +98,71 @@ const MAILBOX_ALIASES = {
   Trash: ["Trash", "Deleted", "Deleted Items", "INBOX.Trash", "[Gmail]/Trash", "[Google Mail]/Trash"],
 };
 
-// Per-session mappafeloldás cache: accountId → { logicalName → realName }
+// IMAP SPECIAL-USE attribútumok (RFC 6154) → logikai mappanevek leképzése.
+// Ez a leghitelesebb forrás a Drafts/Sent/Trash/Junk/Archive azonosításra,
+// függetlenül a szerver névsémájától (Drafts vs INBOX.Drafts vs [Gmail]/Drafts).
+const SPECIAL_USE_TO_LOGICAL = {
+  "\\Drafts": "Drafts",
+  "\\Sent": "Sent",
+  "\\Trash": "Trash",
+  "\\Junk": "Spam",
+  "\\Archive": "Archive",
+  "\\All": "Archive", // Gmail "All Mail" — archive-szerű viselkedés
+};
+
+// Mappa-feloldás cache. Memóriában (per accountId), ÉS perzisztensen lemezen
+// (mailbox-resolutions.json), hogy indulásokon át gyors maradjon a felhasználói
+// élmény és ne kelljen mindig LIST-elni a szervert.
+//
+// Struktúra: { [accountId]: { [logical]: realName } }
 const resolvedMailboxCache = new Map();
+let resolvedMailboxLoaded = false;
+
+function loadResolvedMailboxesFromDisk() {
+  if (resolvedMailboxLoaded) return;
+  resolvedMailboxLoaded = true;
+  try {
+    const raw = readStore("mailbox-resolutions", {});
+    for (const [accId, map] of Object.entries(raw || {})) {
+      const m = new Map();
+      for (const [logical, real] of Object.entries(map || {})) {
+        if (typeof real === "string" && real) m.set(logical, real);
+      }
+      resolvedMailboxCache.set(accId, m);
+    }
+  } catch (e) {
+    console.warn(`[mailbox] failed to load resolutions from disk: ${e?.message || e}`);
+  }
+}
+
+function persistResolvedMailboxes() {
+  try {
+    const out = {};
+    for (const [accId, m] of resolvedMailboxCache.entries()) {
+      out[accId] = Object.fromEntries(m.entries());
+    }
+    writeStore("mailbox-resolutions", out);
+  } catch (e) {
+    console.warn(`[mailbox] failed to persist resolutions: ${e?.message || e}`);
+  }
+}
 
 function getCachedMailbox(accountId, logical) {
+  loadResolvedMailboxesFromDisk();
   return resolvedMailboxCache.get(accountId)?.get(logical) ?? null;
 }
 function setCachedMailbox(accountId, logical, real) {
+  loadResolvedMailboxesFromDisk();
   if (!resolvedMailboxCache.has(accountId)) resolvedMailboxCache.set(accountId, new Map());
+  const prev = resolvedMailboxCache.get(accountId).get(logical);
+  if (prev === real) return;
   resolvedMailboxCache.get(accountId).set(logical, real);
+  if (prev && prev !== real) {
+    console.log(`[mailbox] resolution changed acct=${accountId} ${logical}: "${prev}" → "${real}"`);
+  } else {
+    console.log(`[mailbox] resolution stored acct=${accountId} ${logical} → "${real}"`);
+  }
+  persistResolvedMailboxes();
 }
 
 // Per-mailbox sync lock: ugyanarra a (accountId, mailbox) párra egyszerre csak
@@ -278,43 +334,103 @@ function listBoxes(imap) {
   });
 }
 
-function flattenBoxNames(boxes, prefix = "") {
+// Bejárja a node-imap getBoxes() fájának egészét, és minden mappához visszaadja
+// a teljes elérési utat ÉS a SPECIAL-USE attribútumokat (RFC 6154).
+//   pl. { name: "INBOX.Drafts", attribs: ["\\HasNoChildren", "\\Drafts"] }
+function flattenBoxesWithAttribs(boxes, prefix = "") {
   const out = [];
   for (const [name, info] of Object.entries(boxes || {})) {
     const full = prefix + name;
-    out.push(full);
+    const attribs = Array.isArray(info?.attribs) ? info.attribs : [];
+    out.push({ name: full, attribs });
     if (info && info.children) {
       const sep = info.delimiter || "/";
-      out.push(...flattenBoxNames(info.children, full + sep));
+      out.push(...flattenBoxesWithAttribs(info.children, full + sep));
     }
   }
   return out;
 }
 
+// Visszamenőleges kompatibilitás (csak nevek listája).
+function flattenBoxNames(boxes, prefix = "") {
+  return flattenBoxesWithAttribs(boxes, prefix).map((b) => b.name);
+}
+
 // Megpróbálja megtalálni az adott logikai mappához tartozó valódi nevet a szerveren.
+//
+// Stratégia (prioritás szerint):
+//   1) IMAP SPECIAL-USE attribútumok (RFC 6154) — a leghitelesebb.
+//      Pl. \Drafts attribútumú mappa = Drafts, függetlenül a névtől.
+//   2) Név-alias egyezés (Drafts, INBOX.Drafts, [Gmail]/Drafts, …).
+//      Ha több jelölt is létezik, a nem-üres mappát preferáljuk
+//      (elkerüli a „server box EMPTY" helyzetet, ha a kliens egy másik
+//      mappában tartja ténylegesen a piszkozatokat).
+//   3) Suffix egyezés (bármi, ami `/Drafts`-ra vagy `.Drafts`-ra végződik).
 async function resolveMailbox(imap, logical) {
   if (logical === "INBOX") return "INBOX";
-  const aliases = MAILBOX_ALIASES[logical] || [logical];
-  let allBoxes = null;
-  for (const candidate of aliases) {
-    try {
-      await openBox(imap, candidate);
-      return candidate;
-    } catch {
-      if (!allBoxes) {
-        try { allBoxes = flattenBoxNames(await listBoxes(imap)); } catch { allBoxes = []; }
-      }
-      const found = allBoxes.find(
-        (n) => n.toLowerCase() === candidate.toLowerCase()
-            || n.toLowerCase().endsWith(`/${candidate.toLowerCase()}`)
-            || n.toLowerCase().endsWith(`.${candidate.toLowerCase()}`),
-      );
-      if (found) {
-        try { await openBox(imap, found); return found; } catch { /* keep trying */ }
-      }
+  let allBoxes;
+  try {
+    allBoxes = flattenBoxesWithAttribs(await listBoxes(imap));
+  } catch {
+    allBoxes = [];
+  }
+
+  // 1) SPECIAL-USE
+  const wantedAttrib = Object.entries(SPECIAL_USE_TO_LOGICAL)
+    .find(([, log]) => log === logical)?.[0];
+  if (wantedAttrib) {
+    const matches = allBoxes.filter((b) => b.attribs.includes(wantedAttrib));
+    const picked = await pickBestCandidate(imap, matches.map((m) => m.name));
+    if (picked) {
+      console.log(`[mailbox] ${logical}: SPECIAL-USE ${wantedAttrib} → "${picked}"`);
+      return picked;
     }
   }
+
+  // 2) Név-aliasok
+  const aliases = MAILBOX_ALIASES[logical] || [logical];
+  const aliasLower = new Set(aliases.map((a) => a.toLowerCase()));
+  const aliasMatches = allBoxes
+    .filter((b) => aliasLower.has(b.name.toLowerCase()))
+    .map((b) => b.name);
+  const picked2 = await pickBestCandidate(imap, aliasMatches);
+  if (picked2) {
+    console.log(`[mailbox] ${logical}: name-alias → "${picked2}"`);
+    return picked2;
+  }
+
+  // 3) Suffix egyezés (delimiter-független)
+  const suffixMatches = allBoxes
+    .filter((b) => {
+      const lower = b.name.toLowerCase();
+      return aliases.some((a) => {
+        const al = a.toLowerCase();
+        return lower.endsWith(`/${al}`) || lower.endsWith(`.${al}`);
+      });
+    })
+    .map((b) => b.name);
+  const picked3 = await pickBestCandidate(imap, suffixMatches);
+  if (picked3) {
+    console.log(`[mailbox] ${logical}: suffix-match → "${picked3}"`);
+    return picked3;
+  }
+
   return null;
+}
+
+// Több jelölt közül a legjobb kiválasztása: az első nyitható, és lehetőleg
+// nem üres mappa. Ha mind üres, az elsőt adjuk vissza (jobb mint a semmi).
+async function pickBestCandidate(imap, names) {
+  if (!names || !names.length) return null;
+  let firstOpenable = null;
+  for (const name of names) {
+    try {
+      const box = await openBox(imap, name);
+      if (!firstOpenable) firstOpenable = name;
+      if (box && box.messages && box.messages.total > 0) return name;
+    } catch { /* not openable, skip */ }
+  }
+  return firstOpenable;
 }
 
 function fetchByUidRange(imap, range) {
@@ -584,7 +700,9 @@ async function syncMailbox(account, logicalMailbox) {
   return withSyncLock(account.id, logicalMailbox, () =>
     withImap(account, 120000, async (imap) => {
       console.log(`[syncMailbox] imap connected ${account.id}/${logicalMailbox} (+${Date.now() - tStart}ms)`);
+      // 1. Mappa-feloldás: cache → ha nincs, friss LIST + SPECIAL-USE alapján.
       let realName = getCachedMailbox(account.id, logicalMailbox);
+      let cameFromCache = !!realName;
       if (!realName) {
         realName = await resolveMailbox(imap, logicalMailbox);
         if (realName) setCachedMailbox(account.id, logicalMailbox, realName);
@@ -597,7 +715,28 @@ async function syncMailbox(account, logicalMailbox) {
         console.warn(`[syncMailbox] MISSING mailbox ${account.id}/${logicalMailbox} → returning ${state.messages.length} cached msgs`);
         return { added: 0, total: 0, mailbox: logicalMailbox, missing: true, messages: state.messages, updatedAt: state.updatedAt, warnings };
       }
-      const box = await openBox(imap, realName);
+
+      // 2. Cache-validáció: a cache-elt valós nevet megpróbáljuk megnyitni.
+      // Ha nem nyitható (törölték / átnevezték), újra-feloldunk és frissítjük a cache-t.
+      let box;
+      try {
+        box = await openBox(imap, realName);
+      } catch (openErr) {
+        if (cameFromCache) {
+          const reResolved = await resolveMailbox(imap, logicalMailbox);
+          if (reResolved && reResolved !== realName) {
+            console.warn(`[syncMailbox] cached "${realName}" not openable (${openErr?.message || openErr}) — re-resolved to "${reResolved}"`);
+            warn(`A korábbi mappa-feloldás („${realName}") már nem érvényes, áttértünk erre: „${reResolved}".`);
+            realName = reResolved;
+            setCachedMailbox(account.id, logicalMailbox, realName);
+            box = await openBox(imap, realName);
+          } else {
+            throw openErr;
+          }
+        } else {
+          throw openErr;
+        }
+      }
       const uidvalidity = box.uidvalidity ?? null;
       let state = cache.read(userDataDir(), account.id, logicalMailbox);
       console.log(`[syncMailbox] opened box ${realName} server.total=${box.messages.total} uidvalidity=${uidvalidity} cache.uidvalidity=${state.uidvalidity} cache.lastUid=${state.lastUid} cache.msgs=${state.messages.length}`);
@@ -613,6 +752,27 @@ async function syncMailbox(account, logicalMailbox) {
         state.uidvalidity = uidvalidity;
       }
 
+      // 3. Üres-mappa egyeztetés: ha a feloldott mappa üres, megnézzük, hogy
+      //    egy másik jelölt (más név vagy SPECIAL-USE) tartalmazza-e a leveleket.
+      //    Ha igen, áttérünk arra (ez szünteti meg a discrepancy warningot,
+      //    pl. ha eddig „Drafts" volt a cache-elt, de a kliens valójában az
+      //    „INBOX.Drafts"-ba teszi a piszkozatokat).
+      if (!box.messages.total && cameFromCache) {
+        const reResolved = await resolveMailbox(imap, logicalMailbox);
+        if (reResolved && reResolved !== realName) {
+          try {
+            const altBox = await openBox(imap, reResolved);
+            if (altBox.messages.total > 0) {
+              console.warn(`[syncMailbox] "${realName}" empty, but "${reResolved}" has ${altBox.messages.total} msgs — switching cache`);
+              warn(`Mappa egyeztetés: „${realName}" üres a szerveren, áttértünk erre: „${reResolved}" (${altBox.messages.total} levél).`);
+              realName = reResolved;
+              setCachedMailbox(account.id, logicalMailbox, realName);
+              box = altBox;
+            }
+          } catch { /* ignore */ }
+        }
+      }
+
       if (!box.messages.total) {
         const w = `A szerver szerint a(z) „${realName}" mappa üres — megtartjuk a meglévő ${state.messages.length} cache-elt levelet (lehet tranziens IMAP állapot).`;
         warn(w);
@@ -620,6 +780,7 @@ async function syncMailbox(account, logicalMailbox) {
         cache.write(userDataDir(), account.id, logicalMailbox, { ...state, updatedAt: Date.now() });
         return { added: 0, total: 0, mailbox: logicalMailbox, messages: state.messages, updatedAt: Date.now(), warnings };
       }
+
 
       const uidSearch = (criteria) => new Promise((resolve, reject) => {
         imap.search(criteria, (err, results) => (err ? reject(err) : resolve(results || [])));
