@@ -295,37 +295,103 @@ function ScrollList({
               const flagged = !!m.flagged;
               return (
                 <li key={m.seqno + ":" + (m.uid ?? "")} className="relative">
-                  <button
-                    onClick={() => onSelect(m)}
-                    onDoubleClick={() => onOpen?.(m)}
-                    className={cn(
-                      "w-full text-left pl-4 pr-10 border-b border-border/60 transition-colors",
-                      DENSITY_STYLES[density].padding,
-                      active ? "bg-accent" : "hover:bg-muted/60",
-                      flagged && !active && "bg-amber-50/60 dark:bg-amber-950/20",
-                    )}
-                  >
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="flex items-center gap-2 min-w-0">
-                        {unread && (
-                          <span
-                            className="h-2 w-2 rounded-full bg-primary shrink-0"
-                            aria-label="Olvasatlan"
-                          />
+                  <ContextMenu>
+                    <ContextMenuTrigger asChild>
+                      <button
+                        onClick={() => onSelect(m)}
+                        onDoubleClick={() => onOpen?.(m)}
+                        className={cn(
+                          "w-full text-left pl-4 pr-10 border-b border-border/60 transition-colors",
+                          DENSITY_STYLES[density].padding,
+                          active ? "bg-accent" : "hover:bg-muted/60",
+                          flagged && !active && "bg-amber-50/60 dark:bg-amber-950/20",
                         )}
-                        <span className={cn("text-sm truncate", unread || active ? "font-semibold" : "font-medium")}>
-                          {senderName(m.from)}
-                        </span>
-                      </span>
-                      <span className="text-[11px] text-muted-foreground shrink-0">
-                        {m.date
-                          ? formatDistanceToNowStrict(new Date(m.date), { locale: hu, addSuffix: false })
-                          : ""}
-                      </span>
-                    </div>
-                    <div className={cn("text-sm truncate", DENSITY_STYLES[density].gap, unread && "font-semibold")}>{m.subject}</div>
-                    <div className={cn("text-xs text-muted-foreground truncate", DENSITY_STYLES[density].gap)}>{m.snippet}</div>
-                  </button>
+                      >
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className="flex items-center gap-2 min-w-0">
+                            {unread && (
+                              <span
+                                className="h-2 w-2 rounded-full bg-primary shrink-0"
+                                aria-label="Olvasatlan"
+                              />
+                            )}
+                            <span className={cn("text-sm truncate", unread || active ? "font-semibold" : "font-medium")}>
+                              {senderName(m.from)}
+                            </span>
+                          </span>
+                          <span className="text-[11px] text-muted-foreground shrink-0">
+                            {m.date
+                              ? formatDistanceToNowStrict(new Date(m.date), { locale: hu, addSuffix: false })
+                              : ""}
+                          </span>
+                        </div>
+                        <div className={cn("text-sm truncate", DENSITY_STYLES[density].gap, unread && "font-semibold")}>{m.subject}</div>
+                        <div className={cn("text-xs text-muted-foreground truncate", DENSITY_STYLES[density].gap)}>{m.snippet}</div>
+                      </button>
+                    </ContextMenuTrigger>
+                    <ContextMenuContent className="w-56">
+                      {onReply && (
+                        <ContextMenuItem onSelect={() => onReply(m)}>
+                          <Reply className="h-4 w-4 mr-2" /> Válasz
+                        </ContextMenuItem>
+                      )}
+                      {onReplyAll && (
+                        <ContextMenuItem onSelect={() => onReplyAll(m)}>
+                          <ReplyAll className="h-4 w-4 mr-2" /> Válasz mindenkinek
+                        </ContextMenuItem>
+                      )}
+                      {onForward && (
+                        <ContextMenuItem onSelect={() => onForward(m)}>
+                          <Forward className="h-4 w-4 mr-2" /> Továbbítás
+                        </ContextMenuItem>
+                      )}
+                      {onOpen && (
+                        <>
+                          <ContextMenuSeparator />
+                          <ContextMenuItem onSelect={() => onOpen(m)}>
+                            <ExternalLink className="h-4 w-4 mr-2" /> Megnyitás új ablakban
+                          </ContextMenuItem>
+                        </>
+                      )}
+                      <ContextMenuSeparator />
+                      {onToggleSeen && (
+                        <ContextMenuItem onSelect={() => onToggleSeen(m)}>
+                          {unread ? (
+                            <><Mail className="h-4 w-4 mr-2" /> Megjelölés olvasottnak</>
+                          ) : (
+                            <><MailOpen className="h-4 w-4 mr-2" /> Megjelölés olvasatlannak</>
+                          )}
+                        </ContextMenuItem>
+                      )}
+                      {onToggleFlag && (
+                        <ContextMenuItem onSelect={() => onToggleFlag(m)}>
+                          <Star className={cn("h-4 w-4 mr-2", flagged && "fill-current text-amber-500")} />
+                          {flagged ? "Csillag eltávolítása" : "Megjelölés csillaggal"}
+                        </ContextMenuItem>
+                      )}
+                      <ContextMenuSeparator />
+                      <ContextMenuItem
+                        onSelect={async () => {
+                          try {
+                            await navigator.clipboard.writeText(extractEmail(m.from));
+                            toast.success("Feladó címe másolva");
+                          } catch { toast.error("Másolás sikertelen"); }
+                        }}
+                      >
+                        <Copy className="h-4 w-4 mr-2" /> Feladó címének másolása
+                      </ContextMenuItem>
+                      <ContextMenuItem
+                        onSelect={async () => {
+                          try {
+                            await navigator.clipboard.writeText(m.subject || "");
+                            toast.success("Tárgy másolva");
+                          } catch { toast.error("Másolás sikertelen"); }
+                        }}
+                      >
+                        <Copy className="h-4 w-4 mr-2" /> Tárgy másolása
+                      </ContextMenuItem>
+                    </ContextMenuContent>
+                  </ContextMenu>
                   {onToggleFlag && (
                     <button
                       type="button"
