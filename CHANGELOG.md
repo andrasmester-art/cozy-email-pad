@@ -3,6 +3,12 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.31.0] – 2026-04-30
+
+### Új
+- **Automatikus retry SMTP küldéshez és IMAP szinkronhoz.** Az `smtp:send`, `cache:syncMailbox` és `cache:loadOlder` IPC hívások mostantól egy közös `runWithRetry` burkolón mennek át, ami **3× próbálkozik** exponenciális várakozással (1 s → 2 s → 4 s) átmeneti hibák esetén — pl. `ETIMEDOUT`, `ECONNRESET`, `ECONNREFUSED`, 4xx greylisting/rate limit. **Permanens hibákat** (5xx response code, authentication failed / 535 / 538, missing mailbox / 550 / 553 / 554, `EAUTH`) az első próba után azonnal megáll, hogy a felhasználó ne várjon feleslegesen. A retry-folyamat minden próbálkozása megjelenik a logban `[retry] <label> attempt N/3 …` formában, így a Hibanapló-ban utólag is rekonstruálható.
+- **Sikertelen SMTP küldés → automatikus mentés a szerver Drafts mappájába.** Ha mind a 3 próbálkozás elbukik (vagy az első permanens hiba volt), a main process best-effort módon **felépíti az RFC822 üzenetet** (`MailComposer`) és IMAP `APPEND`-tel beteszi a fiók Drafts mappájába `\Draft` flag-gel — így a fáradságos szöveg nem vész el, és más kliensekben (Gmail web, Mail.app) is megjelenik. A felhasználói hibaüzenet ezt is jelzi: pl. *„SMTP hiba (átmeneti, 3 próbálkozás után, ETIMEDOUT): connect ETIMEDOUT … A piszkozat a szerver Drafts mappájába mentve."* Ha a Drafts-mentés is sikertelen (pl. IMAP is le van állva), azt is a hibaüzenet végén látja: *„Drafts-mentés is sikertelen: …"*. A háttér-szinkron a Drafts mappára azonnal lefut, hogy a piszkozat a saját UI-ban is azonnal látszódjon.
+
 ## [1.30.1] – 2026-04-30
 
 ### Javítás
