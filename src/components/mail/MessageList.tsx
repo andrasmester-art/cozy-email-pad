@@ -244,9 +244,12 @@ function FilterChip({
   );
 }
 
-function ScrollList({
-  loading, messages, filtered, selectedSeqno, onSelect, onOpen, onToggleFlag, onToggleSeen, onReply, onReplyAll, onForward, onLoadMore, loadingMore, exhausted, searching, emptyHint, density,
-}: {
+// `forwardRef`-tel definiáljuk, hogy a Radix `ContextMenu` (és bármely más
+// szülő, ami a children-en keresztül ref-et próbál átadni) ne dobja a
+// „Function components cannot be given refs … Check the render method of
+// `ScrollList`" dev-warningot. A külső ref-et a görgethető konténerre kötjük,
+// hogy a hívó pl. programatikusan tudna scrollozni / méretet mérni.
+const ScrollList = React.forwardRef<HTMLDivElement, {
   loading: boolean;
   messages: MailMessage[];
   filtered: MailMessage[];
@@ -264,8 +267,12 @@ function ScrollList({
   searching: boolean;
   emptyHint?: string;
   density: ListDensity;
-}) {
+}>(function ScrollList({
+  loading, messages, filtered, selectedSeqno, onSelect, onOpen, onToggleFlag, onToggleSeen, onReply, onReplyAll, onForward, onLoadMore, loadingMore, exhausted, searching, emptyHint, density,
+}, forwardedRef) {
   const ref = useRef<HTMLDivElement>(null);
+  // A belső ref-et és a kívülről kapott ref-et ugyanarra a DOM-elemre kötjük.
+  React.useImperativeHandle(forwardedRef, () => ref.current as HTMLDivElement);
   useEffect(() => {
     const el = ref.current;
     if (!el || !onLoadMore || searching) return;
