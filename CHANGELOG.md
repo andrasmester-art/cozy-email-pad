@@ -3,6 +3,14 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.26.1] – 2026-04-30
+
+### Javítás
+- **Levelek nem tűnnek el már a beérkezett mappából.** Per-mailbox sync lock került a `syncMailbox`-ba: ugyanarra a (fiók, mappa) párra egyszerre csak egy IMAP szinkron futhat. A korábbi viselkedés race-t okozott — két konkurens szinkron felülírta egymás cache-írását, és a frissen letöltött levelek „eltűntek". A merge előtt a state-et is újraolvassuk a diszkről, hogy közbejövő flag-állítások se vesszenek el.
+- **Konzervatívabb cache reset.** Csak akkor dobjuk el a teljes cache-t, ha az `ALL` UID search **sikeresen** futott és tényleg jelentős eltérést talált. Korábban tranziens IMAP hiba is reset-et okozhatott.
+- **Drafts szinkron nem ütközik az INBOX-szal.** Fiókváltáskor csak a Drafts mappát szinkronizáljuk háttérben — az aktív mappát úgyis a `loadMessages` kezeli, így nincs duplikált IMAP kör.
+- **SMTP küldés megbízhatóbb.** Ellenőrizzük, hogy van-e SMTP felhasználónév és jelszó (érthető hibaüzenet, ha hiányzik). 587-es portnál automatikus STARTTLS (`requireTLS`). Hosszabb timeoutok (30s connect / 60s socket) lassú szervereknél. SMTP hibák részletesen logolva (kód + szerver-válasz) és érthetően jelennek meg a felhasználónak.
+
 ## [1.26.0] – 2026-04-30
 
 ### Új
