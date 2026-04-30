@@ -298,6 +298,22 @@ export function Sidebar({
         <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={onOpenUpdater}>
           <Download className="h-4 w-4" /> App frissítése
         </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start gap-2"
+          title="A legutóbbi levélbetöltési és cache-események mentése .log fájlba"
+          onClick={async () => {
+            try {
+              const r = await exportDebugLog();
+              toast.success("Hibanapló mentve", { description: `${r.filename} · ${(r.bytes / 1024).toFixed(1)} KB` });
+            } catch (err: any) {
+              toast.error("Mentés sikertelen", { description: String(err?.message || err) });
+            }
+          }}
+        >
+          <Bug className="h-4 w-4" /> Hibanapló mentése
+        </Button>
         <ThemeToggle />
       </div>
       {/* Átméretező fogantyú a jobb szélen */}
