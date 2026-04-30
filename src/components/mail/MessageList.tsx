@@ -48,6 +48,10 @@ type Props = {
   onSelect: (m: MailMessage) => void;
   onOpen?: (m: MailMessage) => void;
   onToggleFlag?: (m: MailMessage) => void;
+  onToggleSeen?: (m: MailMessage) => void;
+  onReply?: (m: MailMessage) => void;
+  onReplyAll?: (m: MailMessage) => void;
+  onForward?: (m: MailMessage) => void;
   loading: boolean;
   onRefresh: () => void;
   mailbox: string;
@@ -61,6 +65,14 @@ type Props = {
 function senderName(from: string) {
   const m = from.match(/^"?([^"<]+?)"?\s*<.+>$/);
   return (m ? m[1] : from).trim() || from;
+}
+
+// Email cím kinyerése egy "Név <a@b>" stílusú stringből — a context menü
+// "Feladó címének másolása" pontja használja.
+function extractEmail(s: string): string {
+  if (!s) return "";
+  const m = s.match(/<\s*([^<>\s]+@[^<>\s]+)\s*>/);
+  return (m ? m[1] : s).trim();
 }
 
 type FilterMode = "all" | "unread" | "flagged";
