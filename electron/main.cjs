@@ -592,6 +592,7 @@ async function syncMailbox(account, logicalMailbox) {
 // Lazy-load: a cache-nél régebbi leveleket tölti le (oldestUid alatt).
 async function loadOlder(account, logicalMailbox, pageSize) {
   return withImap(account, 120000, async (imap) => {
+    let state = cache.read(userDataDir(), account.id, logicalMailbox);
     let realName = getCachedMailbox(account.id, logicalMailbox);
     if (!realName) {
       realName = await resolveMailbox(imap, logicalMailbox);
@@ -601,12 +602,11 @@ async function loadOlder(account, logicalMailbox, pageSize) {
       return { added: 0, mailbox: logicalMailbox, missing: true, messages: state.messages, updatedAt: state.updatedAt };
     }
     const box = await openBox(imap, realName);
-    let state = cache.read(userDataDir(), account.id, logicalMailbox);
     if (!state.oldestUid || state.oldestUid <= 1) {
-      return { added: 0, mailbox: logicalMailbox, exhausted: true };
+      return { added: 0, mailbox: logicalMailbox, exhausted: true, messages: state.messages, updatedAt: state.updatedAt };
     }
     const upper = state.oldestUid - 1;
-    if (upper < 1) return { added: 0, mailbox: logicalMailbox, exhausted: true };
+    if (upper < 1) return { added: 0, mailbox: logicalMailbox, exhausted: true, messages: state.messages, updatedAt: state.updatedAt };
 
     // Kérdezzük meg a szervert, mely UID-ok léteznek 1..upper között.
     // (UID-ok nem összefüggőek — a törölt levelek hézagokat hagynak, ezért
@@ -627,7 +627,7 @@ async function loadOlder(account, logicalMailbox, pageSize) {
       // Tényleg nincs több régebbi → jelöljük kimerítettnek.
       const next = { ...state, oldestUid: 1, updatedAt: Date.now() };
       cache.write(userDataDir(), account.id, logicalMailbox, next);
-      return { added: 0, mailbox: logicalMailbox, exhausted: true };
+      return { added: 0, mailbox: logicalMailbox, exhausted: true, messages: next.messages, updatedAt: next.updatedAt };
     }
 
     const limit = pageSize || cache.PAGE_SIZE;
@@ -661,6 +661,8 @@ async function loadOlder(account, logicalMailbox, pageSize) {
       added: filtered.length,
       mailbox: logicalMailbox,
       exhausted,
+      messages: next.messages,
+      updatedAt: next.updatedAt,
     };
   });
 }
