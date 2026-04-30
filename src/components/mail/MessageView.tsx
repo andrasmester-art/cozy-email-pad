@@ -1,12 +1,21 @@
 import { MailMessage } from "@/lib/mailBridge";
 import { Button } from "@/components/ui/button";
-import { Reply, ReplyAll, Forward, Trash2, Archive, Star, Mail, MailOpen, FileDown } from "lucide-react";
+import { Reply, ReplyAll, Forward, Trash2, Archive, Star, Mail, MailOpen, FileDown, Copy, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { EmailHtmlFrame } from "./EmailHtmlFrame";
 import { exportEmailToPdf } from "@/lib/exportPdf";
 import { AttachmentList } from "./AttachmentList";
+import {
+  ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { toast } from "sonner";
+
+function extractEmail(s: string): string {
+  if (!s) return "";
+  const m = s.match(/<\s*([^<>\s]+@[^<>\s]+)\s*>/);
+  return (m ? m[1] : s).trim();
+}
 
 type Props = {
   message: MailMessage | null;
