@@ -13,6 +13,7 @@ import {
   ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { toast } from "sonner";
+import * as React from "react";
 import { useState, useMemo, useRef, useEffect } from "react";
 
 // A levéllista sortávolsága (sűrűsége). A választás localStorage-ben
