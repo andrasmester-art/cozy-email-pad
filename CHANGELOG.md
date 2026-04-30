@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.33.4] – 2026-04-30
+
+### Javítás
+- **Pontosabb 📎 gemkapocs detektálás minden csatolmány-típusra.** A `hasAttachments` flag számolása mostantól egy közös `countRealAttachments(parsed)` segédfüggvényen keresztül történik (`electron/main.cjs`), ami a content-type-tól függetlenül felismer minden csatolmányt — **PDF, szöveg (.txt/.csv/.json), Office (doc/xlsx/pptx), zip, kép, hang, video, stb.** A szabályok: csatolmánynak számít minden olyan rész, aminek (a) van fájlneve, vagy (b) van content-disposition (`attachment` / `inline`) ÉS méret > 0, vagy (c) `image/*` cid-vel ágyazott inline kép. **Nem** számít csatolmánynak a 0 byte-os, fájlnév és disposition nélküli „üres" rész (hibás multipart wrapper, üres cid-stub) — így nem lesz hamis 📎 jelzés. A számolás a header-szinkron során fut, így body letöltése nélkül is azonnal pontos.
+
 ## [1.33.3] – 2026-04-30
 
 ### Javítás
