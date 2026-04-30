@@ -481,13 +481,16 @@ const Index = () => {
   }, []);
 
   // Kiválasztáskor: 1) automatikus \\Seen, 2) ha nincs még betöltve a body,
-  // lazy lekérjük a teljes szöveget/HTML-t (a sync csak fejléceket húz le).
+  // VAGY régi cache miatt nincs csatolmány-meta egy csatolmányos levélnél,
+  // lazy lekérjük a teljes szöveget/HTML-t.
   useEffect(() => {
     if (!selected || !selected.uid || !activeAccountId) return;
     if (selected.seen === false) {
       applyFlagPatch(selected, { seen: true });
     }
-    if (selected.bodyLoaded === false) {
+    const needsAttachmentHydration = !!selected.hasAttachments
+      && (!Array.isArray(selected.attachments) || selected.attachments.length === 0);
+    if (selected.bodyLoaded === false || needsAttachmentHydration) {
       let cancelled = false;
       mailAPI.mail
         .fetchBody({ accountId: activeAccountId, mailbox: activeMailbox, uid: selected.uid })

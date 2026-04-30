@@ -507,6 +507,39 @@ function hasAttachmentsInStruct(struct) {
   return false;
 }
 
+const ATTACHMENT_META_VERSION = 1;
+
+async function refreshAttachmentFlagsFromServer(imap, state) {
+  if (!state || !Array.isArray(state.messages) || state.messages.length === 0) {
+    return state;
+  }
+  const cachedUids = state.messages
+    .map((m) => (typeof m.uid === "number" ? m.uid : null))
+    .filter((u) => u != null);
+  if (cachedUids.length === 0) {
+    return { ...state, attachmentMetaVersion: ATTACHMENT_META_VERSION };
+  }
+  const minUid = Math.min(...cachedUids);
+  const maxUid = Math.max(...cachedUids);
+  const headers = await fetchHeadersByUidRange(imap, `${minUid}:${maxUid}`);
+  const byUid = new Map(headers.map((m) => [m.uid, !!m.hasAttachments]));
+  let changed = false;
+  const nextMessages = state.messages.map((m) => {
+    if (!m || typeof m !== "object" || typeof m.uid !== "number") return m;
+    if (!byUid.has(m.uid)) return m;
+    const nextHasAttachments = byUid.get(m.uid);
+    if (m.hasAttachments === nextHasAttachments) return m;
+    changed = true;
+    return { ...m, hasAttachments: nextHasAttachments };
+  });
+  return {
+    ...state,
+    messages: changed ? nextMessages : state.messages,
+    attachmentMetaVersion: ATTACHMENT_META_VERSION,
+    updatedAt: changed ? Date.now() : state.updatedAt,
+  };
+}
+
 function fetchByUidRange(imap, range) {
   return new Promise((resolve, reject) => {
     const out = [];
@@ -948,7 +981,18 @@ async function syncMailbox(account, logicalMailbox) {
       const flagSyncNeeded = (Date.now() - (state.updatedAt || 0)) > 10 * 60 * 1000;
 
       if (uidsToFetch.length === 0) {
-        const synced = flagSyncNeeded ? await resyncFlags(state) : state;
+        let migrated = state;
+        if (state.attachmentMetaVersion < ATTACHMENT_META_VERSION) {
+          try {
+            migrated = await refreshAttachmentFlagsFromServer(imap, state);
+          } catch (err) {
+            const msg = (err && err.message) || String(err);
+            warn(`Csatolmány-meta frissítés sikertelen — a gemkapocs ikon elavult lehet: ${msg}`);
+            console.warn(`[syncMailbox] attachment meta refresh FAILED ${account.id}/${logicalMailbox}: ${msg}`);
+            migrated = { ...state, attachmentMetaVersion: ATTACHMENT_META_VERSION };
+          }
+        }
+        const synced = flagSyncNeeded ? await resyncFlags(migrated) : migrated;
         const next = { ...synced, updatedAt: Date.now() };
         cache.write(userDataDir(), account.id, logicalMailbox, next);
         console.log(`[syncMailbox] DONE ${account.id}/${logicalMailbox} added=0 returning msgs=${next.messages.length} (+${Date.now() - tStart}ms)`);

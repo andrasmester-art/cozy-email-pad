@@ -3,10 +3,15 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
-## [1.34.2] – 2026-04-30
+## [1.34.3] – 2026-04-30
+
+### Javítás
+- **Visszamenőleges csatolmány-helyreállítás a régi cache-hez.** Az 1.34.1 javítása az újonnan szinkronizált leveleknél már jól számolta a `hasAttachments` mezőt és mentette az `attachments` listát, de a korábban cache-elt leveleknél két maradék hiba bent maradt: (1) ha egy mappában nem érkezett új levél, a régi cache-be mentett üzenetek `hasAttachments` mezője nem frissült vissza, ezért a listanézetben továbbra sem jelent meg a 📎 gemkapocs ikon; (2) ha egy levél body-ja még egy korábbi verzióval lett elmentve `bodyLoaded=true` állapotban, de `attachments` nélkül, akkor megnyitáskor már nem indult új `fetchBody`, így a csatolmánylista üres maradt. Most a `syncMailbox` a már cache-elt UID-tartományra visszamenőleg újraolvassa a header/BODYSTRUCTURE adatokat és újraszámolja a `hasAttachments` jelzőt, a renderer pedig akkor is újrahidratálja a body-t, ha a levél csatolmányosnak van jelölve, de az `attachments` tömb hiányzik vagy üres.
 
 ### Javítás
 - **Kritikus indítási hiba javítása (`SyntaxError: Unexpected end of input` a main process-ben).** Az 1.34.0-ban bevezetett `mail:delete` IPC handler `electron/main.cjs`-ben hiányzott a `});` lezárás → a teljes `main.cjs` szintaktikailag érvénytelen lett, az Electron főfolyamat el sem indult ("A JavaScript error occurred in the main process" hiba a frissítés után). Pótoltam a hiányzó lezárást a `mail:delete` handler után.
+
+## [1.34.2] – 2026-04-30
 
 ## [1.34.1] – 2026-04-30
 

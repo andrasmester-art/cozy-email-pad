@@ -160,13 +160,16 @@ const MessagePage = () => {
   };
 
   // Levél megnyitásakor: 1) automatikus \\Seen, 2) lazy body fetch, ha még
-  // nincs letöltve a teljes tartalom (a sync csak fejléceket húz).
+  // nincs letöltve a teljes tartalom, vagy régi cache miatt hiányzik a
+  // csatolmánylista egy csatolmányos levélnél.
   useEffect(() => {
     if (!message || !message.uid) return;
     if (message.seen === false) {
       applyFlagPatch(message, { seen: true });
     }
-    if (message.bodyLoaded === false && accountId) {
+    const needsAttachmentHydration = !!message.hasAttachments
+      && (!Array.isArray(message.attachments) || message.attachments.length === 0);
+    if ((message.bodyLoaded === false || needsAttachmentHydration) && accountId) {
       let cancelled = false;
       mailAPI.mail
         .fetchBody({ accountId, mailbox, uid: message.uid })
