@@ -22,7 +22,7 @@ import {
 import { loadDraft, saveDraft, clearDraft, isDraftMeaningful, type Draft } from "@/lib/draft";
 import { sanitizeEmailHtml } from "@/lib/sanitizeHtml";
 import { RecipientInput } from "./RecipientInput";
-import { rememberAddresses } from "@/lib/addressBook";
+
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
