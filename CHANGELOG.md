@@ -3,6 +3,13 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.32.0] – 2026-04-30
+
+### Új
+- **IMAP mappa-feloldás SPECIAL-USE attribútumokkal és automatikus egyeztetéssel.** A `Drafts` / `Sent` / `Trash` / `Spam` / `Archive` logikai mappák feloldása mostantól **háromszintű prioritást** követ: (1) RFC 6154 SPECIAL-USE attribútumok a LIST-ben (`\Drafts`, `\Sent`, `\Trash`, `\Junk`, `\Archive`, `\All`) — ez a leghitelesebb forrás, független a szerver névsémájától; (2) név-alias egyezés (pl. `Drafts`, `INBOX.Drafts`, `[Gmail]/Drafts`); (3) suffix egyezés (delimiter-független). Több jelölt esetén a **nem-üres mappát preferáljuk**, így megszűnik az a helyzet, amikor a kliens (pl. Thunderbird) az `INBOX.Drafts`-ba teszi a piszkozatokat, miközben a feloldó eddig a tényleg létező, de üres `Drafts` mappára mutatott.
+- **Automatikus mappa-egyeztetés a syncMailbox alatt.** Két új védelmi mechanizmus: (a) **cache-validáció** — ha a korábban cache-elt valós mappanév (pl. `Drafts`) már nem nyitható, a rendszer automatikusan újra-feloldja és frissíti a cache-t (warning is a felhasználónak); (b) **üres-mappa egyeztetés** — ha a cache-elt mappa üres a szerveren, megnézzük, hogy egy másik jelölt (más név vagy SPECIAL-USE attribútum) tartalmaz-e leveleket; ha igen, áttérünk arra. Ez szünteti meg a *„server box EMPTY"* discrepancy warningot azoknál a fiókoknál, ahol a Drafts/Sent két különböző néven is létezik (pl. `Drafts` és `INBOX.Drafts` egyszerre).
+- **Perzisztens mappa-feloldás cache.** A feloldott logikai → valós név leképzés mostantól lemezre is mentődik (`mailbox-resolutions.json` a felhasználói adatkönyvtárban), így újraindítás után nem kell minden mappához újra LIST-elni a szervert — gyorsabb hidegindulás. Ha a feloldás változik (pl. SPECIAL-USE-os mappa megjelenik), a cache automatikusan átáll: `[mailbox] resolution changed acct=… Drafts: "Drafts" → "INBOX.Drafts"` log-bejegyzéssel.
+
 ## [1.31.0] – 2026-04-30
 
 ### Új
