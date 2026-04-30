@@ -454,8 +454,12 @@ ipcMain.handle("imap:test", async (_e, { accountId } = {}) => {
 
 // Cache azonnali olvasása — a UI render-first ezt hívja.
 ipcMain.handle("cache:read", (_e, { accountId, mailbox }) => {
-  if (!accountId || !mailbox) return { messages: [], updatedAt: 0 };
+  if (!accountId || !mailbox) {
+    console.warn(`[ipc cache:read] missing args accountId=${accountId} mailbox=${mailbox}`);
+    return { messages: [], updatedAt: 0 };
+  }
   const state = cache.read(userDataDir(), accountId, mailbox);
+  console.log(`[ipc cache:read] → ${accountId}/${mailbox} returning msgs=${state.messages.length} updatedAt=${state.updatedAt}`);
   return { messages: state.messages, updatedAt: state.updatedAt };
 });
 
