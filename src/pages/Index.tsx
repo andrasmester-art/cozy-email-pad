@@ -615,6 +615,7 @@ const Index = () => {
             onForward={handleForward}
             onToggleFlag={toggleFlag}
             onToggleSeen={toggleSeen}
+            onOpenInNewWindow={openInNewWindow}
           />
         </div>
       </div>
