@@ -462,6 +462,51 @@ function countRealAttachments(parsed) {
   return n;
 }
 
+// Ugyanaz a logika, de a `node-imap` BODYSTRUCTURE-jén (rekurzív tömb).
+// Ezt a HEADER-szinkron használja: nem kell teljes body letöltés, így gyors,
+// és pontosan jelzi a 📎 ikont a listanézetben — minden csatolmány-típushoz
+// (pdf, kép, szöveg, zip, doc, hang, video, …).
+//
+// A `node-imap` `struct` formátum: nested array. Egy levél alkatrésze (part)
+// vagy egy alkatrész-tömb (multipart). Az alkatrész egy objektum, amiben:
+//   - type, subtype          (pl. "image", "png")
+//   - disposition            (pl. { type: "attachment", params: { filename } })
+//   - id                     (Content-ID, cid)
+//   - size                   (byte)
+function hasAttachmentsInStruct(struct) {
+  if (!Array.isArray(struct)) return false;
+  for (const item of struct) {
+    if (Array.isArray(item)) {
+      if (hasAttachmentsInStruct(item)) return true;
+      continue;
+    }
+    if (!item || typeof item !== "object") continue;
+    const type = String(item.type || "").toLowerCase();
+    const subtype = String(item.subtype || "").toLowerCase();
+    if (!type) continue;
+    // Multipart wrapper-eket átugorjuk — a tartalmukat a tömb-rekurzió
+    // járja be (lásd fent), itt magát a wrapper-objektumot nem nézzük.
+    if (type === "multipart") continue;
+
+    const disp = item.disposition || null;
+    const dispType = disp && typeof disp === "object" ? String(disp.type || "").toLowerCase() : null;
+    const params = item.params || (disp && disp.params) || {};
+    const filename = params && (params.filename || params.name);
+    const size = Number(item.size) || 0;
+    const cid = item.id || null;
+    const isInlineImage = !!cid && type === "image";
+
+    if (filename) return true;
+    if ((dispType === "attachment" || dispType === "inline") && size > 0) return true;
+    if (isInlineImage) return true;
+
+    // Tipikus „nyilvánvalóan csatolmány" típusok body-disposition nélkül is.
+    if (type === "application" && size > 0 && subtype && subtype !== "pkcs7-signature") return true;
+    if (type === "image" && size > 0 && (filename || cid)) return true;
+  }
+  return false;
+}
+
 function fetchByUidRange(imap, range) {
   return new Promise((resolve, reject) => {
     const out = [];
