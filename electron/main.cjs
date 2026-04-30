@@ -334,43 +334,103 @@ function listBoxes(imap) {
   });
 }
 
-function flattenBoxNames(boxes, prefix = "") {
+// Bejárja a node-imap getBoxes() fájának egészét, és minden mappához visszaadja
+// a teljes elérési utat ÉS a SPECIAL-USE attribútumokat (RFC 6154).
+//   pl. { name: "INBOX.Drafts", attribs: ["\\HasNoChildren", "\\Drafts"] }
+function flattenBoxesWithAttribs(boxes, prefix = "") {
   const out = [];
   for (const [name, info] of Object.entries(boxes || {})) {
     const full = prefix + name;
-    out.push(full);
+    const attribs = Array.isArray(info?.attribs) ? info.attribs : [];
+    out.push({ name: full, attribs });
     if (info && info.children) {
       const sep = info.delimiter || "/";
-      out.push(...flattenBoxNames(info.children, full + sep));
+      out.push(...flattenBoxesWithAttribs(info.children, full + sep));
     }
   }
   return out;
 }
 
+// Visszamenőleges kompatibilitás (csak nevek listája).
+function flattenBoxNames(boxes, prefix = "") {
+  return flattenBoxesWithAttribs(boxes, prefix).map((b) => b.name);
+}
+
 // Megpróbálja megtalálni az adott logikai mappához tartozó valódi nevet a szerveren.
+//
+// Stratégia (prioritás szerint):
+//   1) IMAP SPECIAL-USE attribútumok (RFC 6154) — a leghitelesebb.
+//      Pl. \Drafts attribútumú mappa = Drafts, függetlenül a névtől.
+//   2) Név-alias egyezés (Drafts, INBOX.Drafts, [Gmail]/Drafts, …).
+//      Ha több jelölt is létezik, a nem-üres mappát preferáljuk
+//      (elkerüli a „server box EMPTY" helyzetet, ha a kliens egy másik
+//      mappában tartja ténylegesen a piszkozatokat).
+//   3) Suffix egyezés (bármi, ami `/Drafts`-ra vagy `.Drafts`-ra végződik).
 async function resolveMailbox(imap, logical) {
   if (logical === "INBOX") return "INBOX";
-  const aliases = MAILBOX_ALIASES[logical] || [logical];
-  let allBoxes = null;
-  for (const candidate of aliases) {
-    try {
-      await openBox(imap, candidate);
-      return candidate;
-    } catch {
-      if (!allBoxes) {
-        try { allBoxes = flattenBoxNames(await listBoxes(imap)); } catch { allBoxes = []; }
-      }
-      const found = allBoxes.find(
-        (n) => n.toLowerCase() === candidate.toLowerCase()
-            || n.toLowerCase().endsWith(`/${candidate.toLowerCase()}`)
-            || n.toLowerCase().endsWith(`.${candidate.toLowerCase()}`),
-      );
-      if (found) {
-        try { await openBox(imap, found); return found; } catch { /* keep trying */ }
-      }
+  let allBoxes;
+  try {
+    allBoxes = flattenBoxesWithAttribs(await listBoxes(imap));
+  } catch {
+    allBoxes = [];
+  }
+
+  // 1) SPECIAL-USE
+  const wantedAttrib = Object.entries(SPECIAL_USE_TO_LOGICAL)
+    .find(([, log]) => log === logical)?.[0];
+  if (wantedAttrib) {
+    const matches = allBoxes.filter((b) => b.attribs.includes(wantedAttrib));
+    const picked = await pickBestCandidate(imap, matches.map((m) => m.name));
+    if (picked) {
+      console.log(`[mailbox] ${logical}: SPECIAL-USE ${wantedAttrib} → "${picked}"`);
+      return picked;
     }
   }
+
+  // 2) Név-aliasok
+  const aliases = MAILBOX_ALIASES[logical] || [logical];
+  const aliasLower = new Set(aliases.map((a) => a.toLowerCase()));
+  const aliasMatches = allBoxes
+    .filter((b) => aliasLower.has(b.name.toLowerCase()))
+    .map((b) => b.name);
+  const picked2 = await pickBestCandidate(imap, aliasMatches);
+  if (picked2) {
+    console.log(`[mailbox] ${logical}: name-alias → "${picked2}"`);
+    return picked2;
+  }
+
+  // 3) Suffix egyezés (delimiter-független)
+  const suffixMatches = allBoxes
+    .filter((b) => {
+      const lower = b.name.toLowerCase();
+      return aliases.some((a) => {
+        const al = a.toLowerCase();
+        return lower.endsWith(`/${al}`) || lower.endsWith(`.${al}`);
+      });
+    })
+    .map((b) => b.name);
+  const picked3 = await pickBestCandidate(imap, suffixMatches);
+  if (picked3) {
+    console.log(`[mailbox] ${logical}: suffix-match → "${picked3}"`);
+    return picked3;
+  }
+
   return null;
+}
+
+// Több jelölt közül a legjobb kiválasztása: az első nyitható, és lehetőleg
+// nem üres mappa. Ha mind üres, az elsőt adjuk vissza (jobb mint a semmi).
+async function pickBestCandidate(imap, names) {
+  if (!names || !names.length) return null;
+  let firstOpenable = null;
+  for (const name of names) {
+    try {
+      const box = await openBox(imap, name);
+      if (!firstOpenable) firstOpenable = name;
+      if (box && box.messages && box.messages.total > 0) return name;
+    } catch { /* not openable, skip */ }
+  }
+  return firstOpenable;
 }
 
 function fetchByUidRange(imap, range) {
