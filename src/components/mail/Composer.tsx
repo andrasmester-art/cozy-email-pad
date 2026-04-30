@@ -21,6 +21,8 @@ import {
 } from "@/lib/signatures";
 import { loadDraft, saveDraft, clearDraft, isDraftMeaningful, type Draft } from "@/lib/draft";
 import { sanitizeEmailHtml } from "@/lib/sanitizeHtml";
+import { RecipientInput } from "./RecipientInput";
+import { rememberAddresses } from "@/lib/addressBook";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -385,6 +387,8 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
       setSending(true);
       try {
         await mailAPI.smtp.send(payload);
+        // Tanuljuk meg a most használt címeket az autocomplete-hez.
+        rememberAddresses([to, cc, bcc].filter(Boolean).join(","));
         clearDraft();
         toast.success("Levél elküldve");
         onClose();
@@ -421,6 +425,7 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
       setSending(true);
       try {
         await mailAPI.smtp.send(payload);
+        rememberAddresses([to, cc, bcc].filter(Boolean).join(","));
         clearDraft();
         toast.success("Levél elküldve");
         onClose();
@@ -626,7 +631,7 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
           </div>
           <div className="flex items-center gap-2">
             <Label className="w-14 text-xs text-muted-foreground">Címzett</Label>
-            <Input value={to} onChange={(e) => setTo(e.target.value)} placeholder="valaki@példa.hu" className="h-8 flex-1" />
+            <RecipientInput value={to} onChange={setTo} placeholder="valaki@példa.hu" ariaLabel="Címzett" />
             {!showCc && (
               <Button variant="ghost" size="sm" className="text-xs h-8" onClick={() => setShowCc(true)}>
                 Cc / Bcc
@@ -637,11 +642,11 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
             <>
               <div className="flex items-center gap-2">
                 <Label className="w-14 text-xs text-muted-foreground">Cc</Label>
-                <Input value={cc} onChange={(e) => setCc(e.target.value)} className="h-8 flex-1" />
+                <RecipientInput value={cc} onChange={setCc} ariaLabel="Másolatot kap" />
               </div>
               <div className="flex items-center gap-2">
                 <Label className="w-14 text-xs text-muted-foreground">Bcc</Label>
-                <Input value={bcc} onChange={(e) => setBcc(e.target.value)} className="h-8 flex-1" />
+                <RecipientInput value={bcc} onChange={setBcc} ariaLabel="Titkos másolat" />
               </div>
             </>
           )}
