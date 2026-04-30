@@ -220,21 +220,28 @@ const Index = () => {
     }
   }, [activeAccountId, activeMailbox, loadingMore, exhausted]);
 
-  // Fiókváltáskor csak az INBOX-ot szinkronizáljuk háttérben — a többi
-  // mappa csak akkor töltődik, ha a felhasználó rákattint.
+  // Fiókváltáskor a háttérben szinkronizáljuk a Drafts mappát is, hogy
+  // gyorsan elérhető legyen — az INBOX-ot a `loadMessages` már lekezeli,
+  // így itt nem hívjuk újra (különben két konkurens IMAP sync futna ugyanarra
+  // a mailbox-ra, ami race-t okozhat a cache-írásban).
   useEffect(() => {
     if (!activeAccountId || !mailAPI.isElectron) return;
     let cancelled = false;
     (async () => {
       try {
-        await mailAPI.cache.syncAccount(activeAccountId);
+        // Csak a Drafts-ot szinkronizáljuk háttérben — az aktív mappát
+        // (általában INBOX) a loadMessages kezeli.
+        await mailAPI.cache.syncMailbox({ accountId: activeAccountId, mailbox: "Drafts" });
         if (cancelled) return;
-        const fresh = await mailAPI.imap.fetch({
-          accountId: activeAccountId,
-          mailbox: activeMailbox,
-          limit: 5000,
-        });
-        if (!cancelled) setMessages((prev) => (fresh.length >= prev.length ? fresh : prev));
+        // Ha épp a Drafts-ot nézzük, frissítsük a listát.
+        if (activeMailbox === "Drafts") {
+          const fresh = await mailAPI.imap.fetch({
+            accountId: activeAccountId,
+            mailbox: "Drafts",
+            limit: 5000,
+          });
+          if (!cancelled) setMessages(fresh);
+        }
       } catch { /* ignore */ }
     })();
     return () => { cancelled = true; };
