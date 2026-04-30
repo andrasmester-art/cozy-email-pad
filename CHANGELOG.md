@@ -3,6 +3,14 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.34.1] – 2026-04-30
+
+### Javítás
+- **Csatolmányok valódi javítása — listanézet 📎 ikon + megnyitásnál csatolmány-lista.** Két különálló bug volt:
+  1. **A header-szinkron eddig sosem számolt csatolmányt.** A `fetchHeadersByUidRange` `struct: false`-szal hívta az IMAP fetch-et, így a `BODYSTRUCTURE` nem érkezett meg, és a `hasAttachments` flag mindig undefined maradt → a 📎 gemkapocs ikon **soha** nem jelent meg új szinkron után. Most `struct: true`-ra váltottunk, és bevezettünk egy új `hasAttachmentsInStruct(struct)` segédet (`electron/main.cjs`), ami rekurzívan bejárja a `node-imap` BODYSTRUCTURE-t és felismeri az összes valódi csatolmányt (filename, disposition, méret, inline image cid, vagy `application/*` típus) — body letöltése nélkül.
+  2. **A `cache.updateMessageBody` nem mentette el az `attachments` és `hasAttachments` mezőket.** Ezért a `mail.fetchBody` IPC-válasz a cache-ből visszaolvasott objektumot adta vissza csatolmányok nélkül → az `Index` `selected` state sem kapott `attachments`-et → az `AttachmentList` üres maradt → a megnyitott levél alatt nem jelent meg a csatolmány-lista. Most a cache is menti az `attachments`-et és `hasAttachments`-et, és a `loadMessageBody` extra biztonságból a friss body-t is rámergeli a visszatérési értékre.
+- **Hatás:** új szinkron / új levél után azonnal megjelenik a 📎 ikon a listán mindenféle csatolmány-típusra (PDF, kép, doc, zip, txt, …); levél megnyitásakor pedig a body letöltése után rögtön látszik a csatolmány-lista a Letöltés / Előnézet gombokkal.
+
 ## [1.34.0] – 2026-04-30
 
 ### Új
