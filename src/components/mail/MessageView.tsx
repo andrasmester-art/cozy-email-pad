@@ -24,10 +24,11 @@ type Props = {
   onForward?: (m: MailMessage) => void;
   onToggleFlag?: (m: MailMessage) => void;
   onToggleSeen?: (m: MailMessage) => void;
+  onDelete?: (m: MailMessage) => void;
   onOpenInNewWindow?: (m: MailMessage) => void;
 };
 
-export function MessageView({ message, onReply, onReplyAll, onForward, onToggleFlag, onToggleSeen, onOpenInNewWindow }: Props) {
+export function MessageView({ message, onReply, onReplyAll, onForward, onToggleFlag, onToggleSeen, onDelete, onOpenInNewWindow }: Props) {
   if (!message) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground bg-background">
