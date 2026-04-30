@@ -144,6 +144,21 @@ const MessagePage = () => {
   const toggleFlag = (m: MailMessage) => applyFlagPatch(m, { flagged: !m.flagged });
   const toggleSeen = (m: MailMessage) => applyFlagPatch(m, { seen: m.seen === false ? true : false });
 
+  const deleteMessage = async (m: MailMessage) => {
+    if (!accountId || !m.uid) {
+      toast.error("Ezt az üzenetet nem lehet törölni (hiányzó UID).");
+      return;
+    }
+    try {
+      const r = await mailAPI.mail.delete({ accountId, mailbox, uid: m.uid });
+      toast.success(r?.mode === "expunge" ? "Levél véglegesen törölve" : "Levél a Kukába helyezve");
+      // Új ablak: zárjuk be a sikeres törlés után.
+      window.close();
+    } catch (e: any) {
+      toast.error("Törlés sikertelen", { description: String(e?.message || e) });
+    }
+  };
+
   // Levél megnyitásakor: 1) automatikus \\Seen, 2) lazy body fetch, ha még
   // nincs letöltve a teljes tartalom (a sync csak fejléceket húz).
   useEffect(() => {
@@ -197,6 +212,7 @@ const MessagePage = () => {
               onForward={handleForward}
               onToggleFlag={toggleFlag}
               onToggleSeen={toggleSeen}
+              onDelete={deleteMessage}
             />
             {mailbox.toLowerCase().includes("draft") && (
               <div className="border-t border-border px-3 py-2 flex justify-end">
