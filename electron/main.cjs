@@ -287,9 +287,9 @@ function imapClient(account) {
     host: account.imapHost,
     port: account.imapPort || 993,
     tls: account.imapTls !== false,
-    authTimeout: 12000,
-    connTimeout: 12000,
-    socketTimeout: 25000,
+    authTimeout: 8000,      // gyorsabb hibajelzés lassú szervereknél (volt: 12000)
+    connTimeout: 8000,      // gyorsabb hibajelzés lassú szervereknél (volt: 12000)
+    socketTimeout: 20000,   // (volt: 25000)
     keepalive: false,
     tlsOptions: { rejectUnauthorized: false },
   });
