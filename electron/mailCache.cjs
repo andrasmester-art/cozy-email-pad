@@ -198,6 +198,9 @@ function updateMessageBody(state, uid, body) {
   const prev = next[idx];
   next[idx] = {
     ...prev,
+    from: body.from ?? prev.from ?? "",
+    to: body.to ?? prev.to ?? "",
+    subject: body.subject ?? prev.subject ?? "(nincs tárgy)",
     text: body.text ?? prev.text ?? "",
     html: body.html ?? prev.html ?? "",
     snippet: body.snippet ?? prev.snippet ?? "",
