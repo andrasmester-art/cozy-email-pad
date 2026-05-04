@@ -710,6 +710,11 @@ const Index = () => {
       <TemplatesDialog open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
       <SignaturesDialog open={signaturesOpen} onClose={() => setSignaturesOpen(false)} />
       <UpdaterDialog open={updaterOpen} onClose={() => setUpdaterOpen(false)} />
+      <SettingsDialog
+        open={appSettingsOpen}
+        onOpenChange={setAppSettingsOpen}
+        onOpenUpdater={() => setUpdaterOpen(true)}
+      />
       <ContactsDialog
         open={contactsOpen}
         onClose={() => setContactsOpen(false)}
