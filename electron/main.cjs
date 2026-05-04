@@ -641,34 +641,67 @@ function parseHeaderBlock(raw) {
   return headers;
 }
 
-// MIME encoded-word dekódolás (=?UTF-8?B?...?= és =?UTF-8?Q?...?=) — fejlécek
-// (Subject, From) gyakran tartalmaznak ilyet nem-ASCII karaktereknél.
+// MIME encoded-word dekódolás (RFC 2047) — fejlécek (Subject, From, To)
+// gyakran tartalmaznak `=?CHARSET?B?...?=` (Base64) vagy `=?CHARSET?Q?...?=`
+// (Quoted-Printable) tokeneket nem-ASCII karaktereknél.
+//
+// Két ismert hibát javít a korábbi naiv implementációhoz képest:
+//   1) `Buffer.toString(charset)` csak `utf8/latin1/ascii/utf16le`-t ismer →
+//      `iso-8859-2`, `windows-1250`, `iso-8859-1` esetén szemetet adott vissza
+//      (pl. magyar feladónév: `J=E1nos_Kozma-Conde` → "J=E1nos_Kozma-Conde",
+//      mert a try/catch ága a nyers stringet ejtette ki). Most `TextDecoder`-t
+//      használunk, ami a WHATWG encodings spec szerint sok charset-et ismer
+//      (utf-8, iso-8859-1..16, windows-125x, koi8-r, gb18030, shift_jis, …).
+//   2) RFC 2047 előírja, hogy két SZOMSZÉDOS encoded-word között a fehér
+//      karaktereket (space, CRLF + WSP folding) **el kell hagyni**. A korábbi
+//      kód ezt a már dekódolt szövegen próbálta megtenni, így nem találta meg.
+//      Most a regex-cseréből nyert eredmény-szegmenseket fűzzük össze, és a
+//      szomszédos encoded-word-ök közötti whitespace-t a feldolgozás során
+//      eltüntetjük.
 function decodeMimeWords(input) {
   if (!input) return "";
-  return String(input).replace(
+  const s = String(input);
+  // Először eltüntetjük a header folding-ot (CRLF + WSP), majd a
+  // szomszédos encoded-word-ök közötti whitespace-t — RFC 2047 §6.2.
+  const collapsed = s
+    .replace(/\r?\n[ \t]+/g, " ")
+    .replace(/(\?=)\s+(=\?)/g, "$1$2");
+
+  return collapsed.replace(
     /=\?([^?]+)\?([BbQq])\?([^?]*)\?=/g,
     (_, charset, enc, data) => {
       try {
         const cs = String(charset).toLowerCase();
+        let bytes;
         if (enc.toUpperCase() === "B") {
-          return Buffer.from(data, "base64").toString(cs);
+          bytes = new Uint8Array(Buffer.from(data, "base64"));
+        } else {
+          // Q-encoding: `_` = space, `=XX` = hex byte, minden más literál byte.
+          const arr = [];
+          for (let i = 0; i < data.length; i++) {
+            const c = data[i];
+            if (c === "_") arr.push(0x20);
+            else if (c === "=" && i + 2 < data.length) {
+              arr.push(parseInt(data.substr(i + 1, 2), 16));
+              i += 2;
+            } else arr.push(c.charCodeAt(0) & 0xff);
+          }
+          bytes = new Uint8Array(arr);
         }
-        // Q-encoding: _ = space, =XX = hex byte
-        const bytes = [];
-        for (let i = 0; i < data.length; i++) {
-          const c = data[i];
-          if (c === "_") bytes.push(0x20);
-          else if (c === "=" && i + 2 < data.length) {
-            bytes.push(parseInt(data.substr(i + 1, 2), 16));
-            i += 2;
-          } else bytes.push(c.charCodeAt(0));
+        try {
+          // `fatal: false` → ismeretlen byte-ot U+FFFD-vel pótol, nem dob hibát.
+          return new TextDecoder(cs, { fatal: false }).decode(bytes);
+        } catch {
+          // Ha a charset-nevet a TextDecoder nem ismeri (pl. egzotikus alias),
+          // utolsó esélyként latin1 → így legalább egyetlen byte-ot egy
+          // karakterre képezünk, nem maradnak `=XX` tokenek a UI-ban.
+          return new TextDecoder("latin1").decode(bytes);
         }
-        return Buffer.from(bytes).toString(cs);
       } catch {
         return data;
       }
     },
-  ).replace(/\?=\s+=\?[^?]+\?[BbQq]\?/g, ""); // szomszédos encoded-word szóköz eltüntetése
+  );
 }
 
 // Csak fejléceket tölt le (FROM, TO, SUBJECT, DATE) + BODYSTRUCTURE-t a
