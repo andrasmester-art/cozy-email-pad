@@ -633,6 +633,7 @@ const Index = () => {
           onOpenTemplates={() => setTemplatesOpen(true)}
           onOpenSignatures={() => setSignaturesOpen(true)}
           onOpenUpdater={() => setUpdaterOpen(true)}
+          onOpenAppSettings={() => setAppSettingsOpen(true)}
           onOpenContacts={() => setContactsOpen(true)}
           onReorderAccounts={reorderAccounts}
           onOpenSettings={() => {
