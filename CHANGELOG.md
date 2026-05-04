@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.34.5] – 2026-05-04
+
+### Javítás
+- **IMAP timeoutok csökkentése — gyorsabb hibajelzés lassú szervereknél.** Az `imapClient`-ben (`electron/main.cjs`) az `authTimeout` és `connTimeout` 12000 → 8000 ms, a `socketTimeout` 25000 → 20000 ms. Ezzel egy lassan válaszoló vagy elérhetetlen IMAP szerver hamarabb dob hibát, és a felhasználó nem ragad bent egy 12+ mp-es néma várakozásban a kapcsolódásnál.
+
 ## [1.34.4] – 2026-05-04
 
 ### Javítás
