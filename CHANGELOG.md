@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.34.8] – 2026-05-04
+
+### Javítás
+- **`lang="hu"` deklaráció a HTML gyökerén és a levéltörzs iframe-ben.** Az `index.html` `<html lang="en">` → `<html lang="hu">`, és az `EmailHtmlFrame` `srcDoc` template literalja is `<html lang="hu">`-val nyit. A `<meta charset="UTF-8">` és a SF Pro / system-ui font stack már korábban is jól volt beállítva mindkét helyen, így a magyar diakritikák helyes nyelvi hinttel renderelődnek (jobb karakter-shaping, kerning és a megfelelő szövegtagolás Electron Chromium környezetben).
+
 ## [1.34.7] – 2026-05-04
 
 ### Javítás
