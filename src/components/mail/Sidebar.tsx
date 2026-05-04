@@ -1,16 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Account } from "@/lib/mailBridge";
 import { cn } from "@/lib/utils";
-import { Inbox, Send, FileText, Archive, Trash2, AlertOctagon, Plus, Settings, FileCode2, Pencil, X, AlertCircle, CheckCircle2, Circle, PenSquare, FileSignature, RefreshCw, Download, GripVertical, Users, Bug, MailCheck } from "lucide-react";
+import { Inbox, Send, FileText, Archive, Trash2, AlertOctagon, Plus, Settings, FileCode2, Pencil, X, AlertCircle, CheckCircle2, Circle, PenSquare, FileSignature, RefreshCw, GripVertical, Users, UserCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-  ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger,
-} from "@/components/ui/context-menu";
 import { getAllAccountStatuses, formatRelative, formatCountdown, type AccountStatus } from "@/lib/accountStatus";
-import { ThemeToggle } from "./ThemeToggle";
-import { exportDebugLog } from "@/lib/debugLog";
-import { toast } from "sonner";
 
 const WIDTH_KEY = "mailwise.sidebarWidth";
 const MIN_WIDTH = 200;
@@ -32,6 +26,7 @@ type Props = {
   onOpenTemplates: () => void;
   onOpenSignatures: () => void;
   onOpenSettings: () => void;
+  onOpenAppSettings: () => void;
   onOpenUpdater: () => void;
   onOpenContacts: () => void;
   onReorderAccounts?: (fromId: string, toId: string) => void;
@@ -50,7 +45,7 @@ const COLORS = ["bg-primary", "bg-success", "bg-warning", "bg-destructive", "bg-
 
 export function Sidebar({
   accounts, activeAccountId, activeMailbox,
-  onSelectAccount, onSelectMailbox, onAddAccount, onEditAccount, onDeleteAccount, onCompose, onSyncAll, syncing, onOpenTemplates, onOpenSignatures, onOpenSettings, onOpenUpdater, onOpenContacts, onReorderAccounts,
+  onSelectAccount, onSelectMailbox, onAddAccount, onEditAccount, onDeleteAccount, onCompose, onSyncAll, syncing, onOpenTemplates, onOpenSignatures, onOpenSettings, onOpenAppSettings, onOpenUpdater, onOpenContacts, onReorderAccounts,
 }: Props) {
   const [statuses, setStatuses] = useState<Record<string, AccountStatus>>(() => getAllAccountStatuses());
   const [dragId, setDragId] = useState<string | null>(null);
@@ -296,28 +291,11 @@ export function Sidebar({
           <FileSignature className="h-4 w-4" /> Aláírások
         </Button>
         <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={onOpenSettings}>
+          <UserCog className="h-4 w-4" /> Fiók szerkesztése
+        </Button>
+        <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={onOpenAppSettings}>
           <Settings className="h-4 w-4" /> Beállítások
         </Button>
-        <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={onOpenUpdater}>
-          <Download className="h-4 w-4" /> App frissítése
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start gap-2"
-          title="A legutóbbi levélbetöltési és cache-események mentése .log fájlba"
-          onClick={async () => {
-            try {
-              const r = await exportDebugLog();
-              toast.success("Hibanapló mentve", { description: `${r.filename} · ${(r.bytes / 1024).toFixed(1)} KB` });
-            } catch (err: any) {
-              toast.error("Mentés sikertelen", { description: String(err?.message || err) });
-            }
-          }}
-        >
-          <Bug className="h-4 w-4" /> Hibanapló mentése
-        </Button>
-        <ThemeToggle />
       </div>
       {/* Átméretező fogantyú a jobb szélen */}
       <div

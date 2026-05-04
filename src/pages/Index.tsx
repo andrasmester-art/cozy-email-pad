@@ -12,6 +12,7 @@ import { AccountDialog } from "@/components/mail/AccountDialog";
 import { TemplatesDialog } from "@/components/mail/TemplatesDialog";
 import { SignaturesDialog } from "@/components/mail/SignaturesDialog";
 import { UpdaterDialog } from "@/components/mail/UpdaterDialog";
+import { SettingsDialog } from "@/components/mail/SettingsDialog";
 import { ContactsDialog } from "@/components/mail/ContactsDialog";
 import { SendStatusOverlay } from "@/components/mail/SendStatusOverlay";
 import { Button } from "@/components/ui/button";
@@ -100,6 +101,7 @@ const Index = () => {
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [signaturesOpen, setSignaturesOpen] = useState(false);
   const [updaterOpen, setUpdaterOpen] = useState(false);
+  const [appSettingsOpen, setAppSettingsOpen] = useState(false);
   const [contactsOpen, setContactsOpen] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState<Account | null>(null);
 
@@ -631,6 +633,7 @@ const Index = () => {
           onOpenTemplates={() => setTemplatesOpen(true)}
           onOpenSignatures={() => setSignaturesOpen(true)}
           onOpenUpdater={() => setUpdaterOpen(true)}
+          onOpenAppSettings={() => setAppSettingsOpen(true)}
           onOpenContacts={() => setContactsOpen(true)}
           onReorderAccounts={reorderAccounts}
           onOpenSettings={() => {
@@ -707,6 +710,11 @@ const Index = () => {
       <TemplatesDialog open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
       <SignaturesDialog open={signaturesOpen} onClose={() => setSignaturesOpen(false)} />
       <UpdaterDialog open={updaterOpen} onClose={() => setUpdaterOpen(false)} />
+      <SettingsDialog
+        open={appSettingsOpen}
+        onOpenChange={setAppSettingsOpen}
+        onOpenUpdater={() => setUpdaterOpen(true)}
+      />
       <ContactsDialog
         open={contactsOpen}
         onClose={() => setContactsOpen(false)}

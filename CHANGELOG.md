@@ -3,6 +3,15 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.35.0] – 2026-05-04
+
+### Új
+- **Új „Beállítások" menü a sidebar alján** — a Téma választó, az „App frissítése" és a „Hibanapló mentése" most egy közös, tiszta dialógusba (`SettingsDialog`) kerültek. A sidebar alja így rendezettebb és átláthatóbb.
+
+### Változás
+- **A korábbi „Beállítások" menüpont átnevezve „Fiók szerkesztése" néven** — a régi gomb mindig is az aktív fiók szerkesztő dialógusát nyitotta meg, ezt most már a neve is jelzi (`UserCog` ikon). Az új „Beállítások" gomb (`Settings` ikon) nyitja az alkalmazás-szintű beállításokat.
+- A duplikált Sidebar-aljas akciók (App frissítése, Hibanapló mentése, ThemeToggle) eltávolítva — funkcionalitás változatlan, csak a Beállítások dialóguson keresztül érhetők el.
+
 ## [1.34.10] – 2026-05-04
 
 ### Javítás
