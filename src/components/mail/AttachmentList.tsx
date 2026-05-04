@@ -42,7 +42,7 @@ function iconFor(ct: string) {
 }
 
 function isPreviewable(ct: string): "image" | "pdf" | "text" | null {
-  if (ct.startsWith("image/")) return "image";
+  if (ct.startsWith("image/")) return "image"; // svg, png, jpg, webp, gif mind ide esik
   if (ct === "application/pdf") return "pdf";
   if (ct.startsWith("text/") || ct === "application/json") return "text";
   return null;
