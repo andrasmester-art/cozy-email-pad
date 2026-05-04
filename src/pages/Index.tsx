@@ -643,7 +643,7 @@ const Index = () => {
           onForward={handleForward}
           onDelete={deleteMessage}
           loading={loading}
-          onRefresh={loadMessages}
+          onRefresh={refreshMailbox}
           mailbox={activeMailbox}
           onLoadMore={loadOlder}
           loadingMore={loadingMore}
