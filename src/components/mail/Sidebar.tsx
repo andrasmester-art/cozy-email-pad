@@ -45,7 +45,7 @@ const COLORS = ["bg-primary", "bg-success", "bg-warning", "bg-destructive", "bg-
 
 export function Sidebar({
   accounts, activeAccountId, activeMailbox,
-  onSelectAccount, onSelectMailbox, onAddAccount, onEditAccount, onDeleteAccount, onCompose, onSyncAll, syncing, onOpenTemplates, onOpenSignatures, onOpenSettings, onOpenUpdater, onOpenContacts, onReorderAccounts,
+  onSelectAccount, onSelectMailbox, onAddAccount, onEditAccount, onDeleteAccount, onCompose, onSyncAll, syncing, onOpenTemplates, onOpenSignatures, onOpenSettings, onOpenAppSettings, onOpenUpdater, onOpenContacts, onReorderAccounts,
 }: Props) {
   const [statuses, setStatuses] = useState<Record<string, AccountStatus>>(() => getAllAccountStatuses());
   const [dragId, setDragId] = useState<string | null>(null);
