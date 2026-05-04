@@ -165,7 +165,6 @@ function setCachedMailbox(accountId, logical, real) {
   persistResolvedMailboxes();
 }
 
-// Per-mailbox sync lock: ugyanarra a (accountId, mailbox) párra egyszerre csak
 // ---- Sync lock + in-flight deduplikáció ----
 // Account+mailbox párokra biztosítjuk, hogy egyszerre csak EGY syncMailbox
 // fusson. Ha érkezik egy második hívás MIALATT az első még fut, NEM indítunk
