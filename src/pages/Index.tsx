@@ -267,33 +267,49 @@ const Index = () => {
     }
   }, [activeAccountId, activeMailbox, loadingMore, exhausted]);
 
-  // Fiókváltáskor a háttérben szinkronizáljuk a Drafts mappát is, hogy
-  // gyorsan elérhető legyen — az INBOX-ot a `loadMessages` már lekezeli,
-  // így itt nem hívjuk újra (különben két konkurens IMAP sync futna ugyanarra
-  // a mailbox-ra, ami race-t okozhat a cache-írásban).
+  // Fiók/mappa váltáskor egyszer indítunk háttér-szinkront az aktív mappára,
+  // és a Drafts-ot is felfrissítjük (gyors hozzáférés a piszkozatokhoz).
+  // Ez váltja ki a korábbi loadMessages-en belüli sync-et — így nincs dupla
+  // IMAP session ugyanarra a mailboxra.
   useEffect(() => {
     if (!activeAccountId || !mailAPI.isElectron) return;
     let cancelled = false;
+    const tag = `[bgSync] ${activeAccountId}/${activeMailbox}`;
     (async () => {
+      // 1) Aktív mappa szinkronja — ez frissíti a UI-t, ha új levél jött.
+      const t0 = performance.now();
+      setLoading(true);
       try {
-        // Csak a Drafts-ot szinkronizáljuk háttérben — az aktív mappát
-        // (általában INBOX) a loadMessages kezeli.
-        await mailAPI.cache.syncMailbox({ accountId: activeAccountId, mailbox: "Drafts" });
+        const r = await mailAPI.cache.syncMailbox({
+          accountId: activeAccountId,
+          mailbox: activeMailbox,
+        });
+        console.log(`${tag} active sync added=${r.added} msgs=${r.messages.length} in ${(performance.now() - t0).toFixed(0)}ms`);
         if (cancelled) return;
-        // Ha épp a Drafts-ot nézzük, frissítsük a listát.
-        if (activeMailbox === "Drafts") {
-          const fresh = await mailAPI.imap.fetch({
-            accountId: activeAccountId,
-            mailbox: "Drafts",
-            limit: 5000,
+        setMessages(r.messages);
+        if (r.added > 0) toast.success(`${r.added} új levél`);
+        if (r.warnings && r.warnings.length > 0) {
+          toast.warning("Frissítés részleges hibákkal", {
+            description: r.warnings.join("\n• ").replace(/^/, "• "),
+            duration: 12000,
           });
-          if (!cancelled) setMessages(fresh);
         }
-      } catch { /* ignore */ }
+      } catch (e: any) {
+        if (!cancelled) console.error(`${tag} active sync FAILED`, e);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+      if (cancelled) return;
+      // 2) Drafts háttérszinkron (csak ha nem ez az aktív mappa).
+      if (activeMailbox !== "Drafts") {
+        try {
+          await mailAPI.cache.syncMailbox({ accountId: activeAccountId, mailbox: "Drafts" });
+        } catch { /* ignore */ }
+      }
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeAccountId]);
+  }, [activeAccountId, activeMailbox]);
 
   // Automatikus háttér-szinkron értesítés: ha a main process új levelet talált
   // 5 percenként, és pont azt a fiók/mappa kombót nézzük, frissítsük a listát.
