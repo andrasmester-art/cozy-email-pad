@@ -175,16 +175,18 @@ const Index = () => {
     })();
   }, []);
 
-  // Cache-first betöltés: azonnal kirakjuk a lokálisan tárolt leveleket,
-  // majd háttérben inkrementális szinkronnal lehúzzuk az újakat.
+  // Cache-first betöltés: csak a lokális cache-t olvassuk be, NEM indítunk
+  // szerver-szinkront. A szerver-szinkronért egy külön useEffect felel, ami
+  // fiók/mappa váltáskor egyszer fut le — így elkerüljük, hogy két konkurens
+  // IMAP kapcsolat nyíljon ugyanarra a mailboxra (loadMessages + syncAccount),
+  // ami korábban 50+ másodperces indulási lassúságot okozott.
   const loadMessages = useCallback(async () => {
     if (!activeAccountId) return;
     const tag = `[loadMessages] ${activeAccountId}/${activeMailbox}`;
     const t0 = performance.now();
-    console.log(`${tag} start`);
+    console.log(`${tag} start (cache-only)`);
     setSelected(null);
     setExhausted(false);
-    // 1) Cache azonnal — nincs spinner, nincs várakozás.
     try {
       const cached = await mailAPI.imap.fetch({
         accountId: activeAccountId,
@@ -200,25 +202,26 @@ const Index = () => {
       console.error(`${tag} cache READ FAILED`, err);
       setMessages([]);
     }
-    // 2) Háttér-szinkron: csak az új UID-okat húzza le.
+  }, [activeAccountId, activeMailbox]);
+
+  useEffect(() => { loadMessages(); }, [loadMessages]);
+
+  // Felhasználó által kezdeményezett frissítés (Frissítés gomb): tényleges
+  // szerver-szinkron. Ezt szándékosan külön választjuk a loadMessages-től,
+  // hogy a fiók/mappa váltás ne indítson dupla IMAP sessiont.
+  const refreshMailbox = useCallback(async () => {
+    if (!activeAccountId) return;
+    const tag = `[refreshMailbox] ${activeAccountId}/${activeMailbox}`;
+    const t0 = performance.now();
     setLoading(true);
-    const tSync = performance.now();
     try {
       const r = await mailAPI.cache.syncMailbox({
         accountId: activeAccountId,
         mailbox: activeMailbox,
       });
-      console.log(`${tag} sync returned added=${r.added} msgs=${r.messages.length} warnings=${r.warnings?.length || 0} in ${(performance.now() - tSync).toFixed(0)}ms`);
-      if (r.messages.length === 0) {
-        console.warn(`${tag} ⚠ sync returned 0 msgs — server empty or sync failed silently`);
-      }
+      console.log(`${tag} sync added=${r.added} msgs=${r.messages.length} in ${(performance.now() - t0).toFixed(0)}ms`);
       setMessages(r.messages);
-      if (r.added > 0) {
-        toast.success(`${r.added} új levél`);
-      }
-      // Részleges hibák (UIDVALIDITY váltás, ALL/incremental search hiba,
-      // hiányzó mappa, üres szerver-mailbox, race) → érthető figyelmeztetés
-      // a felhasználónak, hogy lássa miért nem teljes a lista.
+      if (r.added > 0) toast.success(`${r.added} új levél`);
       if (r.warnings && r.warnings.length > 0) {
         toast.warning("Frissítés részleges hibákkal", {
           description: r.warnings.join("\n• ").replace(/^/, "• "),
@@ -233,11 +236,8 @@ const Index = () => {
       });
     } finally {
       setLoading(false);
-      console.log(`${tag} done in ${(performance.now() - t0).toFixed(0)}ms`);
     }
   }, [activeAccountId, activeMailbox]);
-
-  useEffect(() => { loadMessages(); }, [loadMessages]);
 
   // Régebbi levelek lazy-load betöltése (görgetésre).
   const loadOlder = useCallback(async () => {
