@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.34.10] – 2026-05-04
+
+### Javítás
+- **MIME encoded-word fejlécek (RFC 2047) helyes dekódolása nem-UTF-8 charset esetén.** A levéllistában a feladók nevei `J=E1nos_Kozma-Conde` formában jelentek meg ahelyett, hogy `János Kozma-Conde`-ként renderelődtek volna — a felhasználó ezt "rossz betűkészletnek" érzékelte, valójában dekódolási hiba volt. Az `electron/main.cjs` `decodeMimeWords` függvénye eddig `Buffer.toString(charset)`-tel dekódolt, ami csak `utf8/latin1/ascii/utf16le`-t ismer Node.js-ben → `iso-8859-2`, `windows-1250`, `iso-8859-1` esetén csendben elhasalt és visszaadta a nyers `=XX` tokeneket. Mostantól `TextDecoder`-t használunk (WHATWG encodings), ami széles charset-támogatással rendelkezik (utf-8, iso-8859-1..16, windows-125x, koi8-r, gb18030, shift_jis, …). Plusz javítás: a header folding (CRLF + WSP) és a szomszédos encoded-word-ök közötti whitespace eltüntetése immár a regex-csere ELŐTT történik, RFC 2047 §6.2 szerint helyesen — a többszörös encoded-word-ből álló nevek/tárgyak (pl. `=?utf-8?Q?Hello?= =?utf-8?Q?_World?=`) szóköz nélkül fűződnek össze. Önteszttel ellenőrizve: `=?ISO-8859-2?Q?J=E1nos?=` → `János`, `=?windows-1250?Q?=C1rp=E1d?=` → `Árpád`.
+
 ## [1.34.9] – 2026-05-04
 
 ### Javítás
