@@ -291,28 +291,11 @@ export function Sidebar({
           <FileSignature className="h-4 w-4" /> Aláírások
         </Button>
         <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={onOpenSettings}>
+          <UserCog className="h-4 w-4" /> Fiók szerkesztése
+        </Button>
+        <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={onOpenAppSettings}>
           <Settings className="h-4 w-4" /> Beállítások
         </Button>
-        <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={onOpenUpdater}>
-          <Download className="h-4 w-4" /> App frissítése
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start gap-2"
-          title="A legutóbbi levélbetöltési és cache-események mentése .log fájlba"
-          onClick={async () => {
-            try {
-              const r = await exportDebugLog();
-              toast.success("Hibanapló mentve", { description: `${r.filename} · ${(r.bytes / 1024).toFixed(1)} KB` });
-            } catch (err: any) {
-              toast.error("Mentés sikertelen", { description: String(err?.message || err) });
-            }
-          }}
-        >
-          <Bug className="h-4 w-4" /> Hibanapló mentése
-        </Button>
-        <ThemeToggle />
       </div>
       {/* Átméretező fogantyú a jobb szélen */}
       <div
