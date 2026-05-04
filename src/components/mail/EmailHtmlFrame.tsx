@@ -42,7 +42,7 @@ export function EmailHtmlFrame({ html, className }: Props) {
   // wrap-pelt köré tesszük, hogy a `<body>` margók és a default linkszín a
   // levelekben jól nézzen ki, ha az adott levél nem ad sajátot.
   const srcDoc = `<!doctype html>
-<html>
+<html lang="hu">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
