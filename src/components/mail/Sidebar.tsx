@@ -26,6 +26,7 @@ type Props = {
   onOpenTemplates: () => void;
   onOpenSignatures: () => void;
   onOpenSettings: () => void;
+  onOpenAppSettings: () => void;
   onOpenUpdater: () => void;
   onOpenContacts: () => void;
   onReorderAccounts?: (fromId: string, toId: string) => void;
