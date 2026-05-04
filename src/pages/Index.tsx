@@ -383,25 +383,34 @@ const Index = () => {
   const quoteBody = (m: MailMessage) =>
     `<p></p><blockquote data-mwquote="1"><p><em>${m.from} írta:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`;
 
-  // Optimista flag-frissítés a lokális state-ben + szerverhívás. Ha hibázik, visszagörgetjük.
+  // Optimista flag-frissítés: azonnal módosítjuk a lokális state-et, és a
+  // szerverhívás sikere után NEM írjuk felül a teljes listát az r.messages-szel.
+  // A teljes tömb visszaírása felesleges re-rendert okozott (látható UI-laggot
+  // a csillag/olvasott togglenál), miközben az optimista update már a helyes
+  // állapotot tükrözi. Hibánál visszaolvassuk a cache-t a konzisztens állapotért.
   const applyFlagPatch = useCallback(async (m: MailMessage, patch: { flagged?: boolean; seen?: boolean }) => {
     if (!activeAccountId || !m.uid) return;
-    const prevMessages = messages;
     setMessages((arr) => arr.map((x) => (x.uid === m.uid ? { ...x, ...patch } : x)));
     setSelected((s) => (s && s.uid === m.uid ? { ...s, ...patch } : s));
     try {
-      const r = await mailAPI.mail.setFlag({
+      await mailAPI.mail.setFlag({
         accountId: activeAccountId,
         mailbox: activeMailbox,
         uid: m.uid,
         patch,
       });
-      if (r?.messages?.length) setMessages(r.messages);
     } catch (e: any) {
-      setMessages(prevMessages);
+      try {
+        const cached = await mailAPI.imap.fetch({
+          accountId: activeAccountId,
+          mailbox: activeMailbox,
+          limit: 5000,
+        });
+        setMessages(cached);
+      } catch { /* ignore */ }
       toast.error("Megjelölés sikertelen", { description: String(e?.message || e) });
     }
-  }, [activeAccountId, activeMailbox, messages]);
+  }, [activeAccountId, activeMailbox]);
 
   const toggleFlag = useCallback((m: MailMessage) => {
     applyFlagPatch(m, { flagged: !m.flagged });
