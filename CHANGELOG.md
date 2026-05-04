@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.34.4] – 2026-05-04
+
+### Javítás
+- **Indulási 50+ másodperces lassúság javítása lassú IMAP szervereknél.** A renderer fiókváltáskor két konkurens IMAP sessiont nyitott ugyanarra a mailboxra: a `loadMessages` callback a cache-olvasás után azonnal `cache:syncMailbox`-ot indított, miközben egy másik `useEffect` `cache:syncAccount`-ot is futtatott. A logokban ez 24,9 mp-es kapcsolódásként és 54 mp-es teljes szinkronként jelent meg (`acc-…/INBOX sync returned added=7 msgs=216 in 54033ms`). Mostantól a `loadMessages` kizárólag a lokális cache-t olvassa (azonnali UI), a szerver-szinkron pedig egyetlen `useEffect`-ben történik fiók/mappa váltáskor. A `Frissítés` gomb új, dedikált `refreshMailbox` callbackre kötve továbbra is kezdeményez explicit szerver-szinkront. Ez kiküszöböli a duplikált IMAP kapcsolatot és a vele járó cache-write race-eket is.
+
 ## [1.34.3] – 2026-04-30
 
 ### Javítás
