@@ -12,6 +12,11 @@ A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 - **A korábbi „Beállítások" menüpont átnevezve „Fiók szerkesztése" néven** — a régi gomb mindig is az aktív fiók szerkesztő dialógusát nyitotta meg, ezt most már a neve is jelzi (`UserCog` ikon). Az új „Beállítások" gomb (`Settings` ikon) nyitja az alkalmazás-szintű beállításokat.
 - A duplikált Sidebar-aljas akciók (App frissítése, Hibanapló mentése, ThemeToggle) eltávolítva — funkcionalitás változatlan, csak a Beállítások dialóguson keresztül érhetők el.
 
+## [1.35.1] – 2026-05-04
+
+### Javítás
+- **Nem szabványos, törött email-fejléc kódolás toleráns helyreállítása.** A képernyőn látható `J=E1nos_Kozma-Conde` és `MEpod_St=FAdi=F3` minták nem valódi font-hibák voltak, hanem olyan hibás `From`/`To` fejlécek, ahol a küldő kliens RFC 2047 wrapper nélkül hagyott bent quoted-printable byte-szekvenciákat (`=E1`, `=F3`, stb.). A `decodeMimeWords` eddig csak a szabványos `=?charset?Q?...?=` / `=?charset?B?...?=` alakot dekódolta, ezért ezek a törött nevek változatlanul jutottak a UI-ba. Mostantól, ha a dekódolás után még mindig látható `=XX` mintázat marad a fejlécben, egy konzervatív `windows-1250` quoted-printable fallback is lefut, ami helyreállítja a tipikus közép-európai neveket. Emellett a body-letöltés cache-merge-e most már a `from` / `to` / `subject` mezőket is frissíti, így a korábban rosszul cache-elt fejlécszöveg megnyitáskor azonnal lecserélődik a javított változatra.
+
 ## [1.34.10] – 2026-05-04
 
 ### Javítás

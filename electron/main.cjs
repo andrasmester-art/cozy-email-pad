@@ -667,7 +667,7 @@ function decodeMimeWords(input) {
     .replace(/\r?\n[ \t]+/g, " ")
     .replace(/(\?=)\s+(=\?)/g, "$1$2");
 
-  return collapsed.replace(
+  const decoded = collapsed.replace(
     /=\?([^?]+)\?([BbQq])\?([^?]*)\?=/g,
     (_, charset, enc, data) => {
       try {
@@ -702,6 +702,37 @@ function decodeMimeWords(input) {
       }
     },
   );
+
+  // Egyes hibás kliensek RFC 2047 wrapper nélkül írják a header display name-et,
+  // pl. `J=E1nos_Kozma-Conde <...>` vagy `MEpod_St=FAdi=F3 <...>`. Ez nem
+  // szabványos encoded-word, ezért a fenti regex nem fut rá. Ilyenkor egy
+  // konzervatív quoted-printable fallbackot alkalmazunk CSAK akkor, ha a string
+  // láthatóan tartalmaz `=XX` byte tokeneket. A `_` itt is szóköz lehet.
+  if (/=[0-9A-Fa-f]{2}/.test(decoded)) {
+    try {
+      const qp = decoded.replace(/_/g, " ");
+      const bytes = [];
+      for (let i = 0; i < qp.length; i++) {
+        const c = qp[i];
+        if (c === "=" && i + 2 < qp.length && /[0-9A-Fa-f]{2}/.test(qp.slice(i + 1, i + 3))) {
+          bytes.push(parseInt(qp.slice(i + 1, i + 3), 16));
+          i += 2;
+        } else {
+          const code = qp.charCodeAt(i);
+          if (code <= 0xff) bytes.push(code);
+          else bytes.push(0x3f);
+        }
+      }
+      const legacyDecoded = new TextDecoder("windows-1250", { fatal: false }).decode(new Uint8Array(bytes));
+      // Csak akkor fogadjuk el a fallback eredményt, ha tényleg eltűntek belőle
+      // a nyers =XX tokenek, különben inkább hagyjuk az eredeti szöveget.
+      if (!/=[0-9A-Fa-f]{2}/.test(legacyDecoded)) return legacyDecoded;
+    } catch {
+      // marad az eredeti decoded string
+    }
+  }
+
+  return decoded;
 }
 
 // Csak fejléceket tölt le (FROM, TO, SUBJECT, DATE) + BODYSTRUCTURE-t a
