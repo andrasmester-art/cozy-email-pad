@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.34.9] – 2026-05-04
+
+### Javítás
+- **Dupla IMAP szinkron auto-sync + manuális Frissítés egyidejű futásakor.** A logban tisztán látható volt: `acc-…/INBOX DONE added=7 (+54000ms)` után közvetlenül ugyanaz az INBOX **újra** lefutott (+25066 ms) — mert az auto-sync és a manuális (vagy fiók/mappa-váltó) szinkron egyszerre érkezett. A korábbi `withSyncLock` ugyan szerializálta a hívásokat, de a sor végére fűzött minden új `fn`-t, így mindkét hívás végigment egy önálló IMAP sessionnel. Mostantól in-flight deduplikáció: ha érkezik egy második `withSyncLock(account, mailbox, …)` hívás MIALATT az első Promise még pending, **ugyanazt** a futó Promise-t kapja vissza minden hívó — nem indul új IMAP kapcsolat, és minden hívó ugyanazt az eredményt látja. A diagnosztikához `[syncLock] reuse in-flight …` logsor kerül kiírásra a deduplikáció pillanatában.
+
 ## [1.34.8] – 2026-05-04
 
 ### Javítás
