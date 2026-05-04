@@ -170,12 +170,17 @@ export function AttachmentList({ attachments }: Props) {
             >
               <Icon className="h-5 w-5 shrink-0 text-muted-foreground" />
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium truncate" title={att.filename}>
+                <div
+                  className="text-sm font-medium truncate max-w-[180px]"
+                  title={att.filename}
+                >
                   {att.filename || "(névtelen)"}
                 </div>
                 <div className="text-[11px] text-muted-foreground">
                   {att.contentType || "ismeretlen típus"} · {humanSize(att.size)}
-                  {!canDownload && " · még tölt"}
+                  {!att.data && (
+                    <span className="text-amber-500"> · tartalom betöltés alatt</span>
+                  )}
                 </div>
               </div>
               {canPreview && (
