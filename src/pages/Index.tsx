@@ -101,6 +101,7 @@ const Index = () => {
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [signaturesOpen, setSignaturesOpen] = useState(false);
   const [updaterOpen, setUpdaterOpen] = useState(false);
+  const [appSettingsOpen, setAppSettingsOpen] = useState(false);
   const [contactsOpen, setContactsOpen] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState<Account | null>(null);
 
