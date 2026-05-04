@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.34.7] – 2026-05-04
+
+### Javítás
+- **Csatolmány-lista UX finomhangolás (SVG előnézet, fájlnév-csonkítás, betöltési állapot).** Az `AttachmentList.tsx` `isPreviewable` függvényét pontosítottam: explicit komment jelzi, hogy az `image/*` ág minden böngészőben renderelhető képformátumot (svg, png, jpg, webp, gif) lefed — így az SVG csatolmányoknál is automatikusan megjelenik az Előnézet gomb, amint a `data` mező megérkezik. A fájlnév div-re `max-w-[180px]` kapott, hogy a sor stabil szélességű maradjon, a teljes név pedig a `title` tooltipben olvasható. A státuszsor "még tölt" felirata helyett mostantól egyértelmű "tartalom betöltés alatt" üzenet jelenik meg ámbra színnel, amíg a base64 `data` mező hiányzik — így a felhasználó számára érthető, miért nincs Előnézet/Letöltés gomb.
+
 ## [1.34.6] – 2026-05-04
 
 ### Javítás
