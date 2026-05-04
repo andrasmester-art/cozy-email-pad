@@ -166,18 +166,27 @@ function setCachedMailbox(accountId, logical, real) {
 }
 
 // Per-mailbox sync lock: ugyanarra a (accountId, mailbox) párra egyszerre csak
-// EGY syncMailbox futhasson. Ha érkezik egy második hívás, megvárja az elsőt
-// és annak az eredményét adja vissza. Így elkerüljük azt a race-t, amikor két
-// konkurens IMAP szinkron felülírja egymás cache-írását és „eltűnnek" levelek.
+// ---- Sync lock + in-flight deduplikáció ----
+// Account+mailbox párokra biztosítjuk, hogy egyszerre csak EGY syncMailbox
+// fusson. Ha érkezik egy második hívás MIALATT az első még fut, NEM indítunk
+// új IMAP kapcsolatot a sor végére — visszaadjuk ugyanazt az in-flight
+// Promise-t, és minden hívó ugyanazt az eredményt kapja meg. Így elkerüljük:
+//   • a duplikált IMAP sessiont (auto-sync + manuális Frissítés egyszerre),
+//   • a felesleges 25+ mp-es várakozást a második kapcsolatnál lassú szervernél,
+//   • a cache-write race-t (két konkurens szinkron felülírná egymást).
 const syncLocks = new Map(); // key: `${accountId}::${mailbox}` → Promise
 function withSyncLock(accountId, mailbox, fn) {
   const key = `${accountId}::${mailbox}`;
-  const prev = syncLocks.get(key) || Promise.resolve();
-  const next = prev.catch(() => {}).then(fn);
-  syncLocks.set(key, next.finally(() => {
-    if (syncLocks.get(key) === next) syncLocks.delete(key);
-  }));
-  return next;
+  const inflight = syncLocks.get(key);
+  if (inflight) {
+    console.log(`[syncLock] reuse in-flight ${key}`);
+    return inflight;
+  }
+  const p = Promise.resolve().then(fn).finally(() => {
+    if (syncLocks.get(key) === p) syncLocks.delete(key);
+  });
+  syncLocks.set(key, p);
+  return p;
 }
 
 // ---- Retry helper átmeneti hibákra (SMTP/IMAP) ----
