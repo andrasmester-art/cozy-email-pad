@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.34.6] – 2026-05-04
+
+### Javítás
+- **Flag-jelölés (csillag / olvasott) láthatóan lassú volt.** Az `applyFlagPatch` (`src/pages/Index.tsx`) az optimista lokális update után a szerverválasz `r.messages` tömbjét visszaírta a state-be (`setMessages(r.messages)`), ami a teljes levéllista újrarenderelését váltotta ki minden egyes csillag/olvasott kattintáskor. Mostantól sikeres szerverhívás után nem írjuk felül a teljes listát — az optimista patch már a helyes állapotot tükrözi. Hibánál a cache visszaolvasásával állítjuk vissza a konzisztens állapotot a korábbi `prevMessages` snapshot helyett (ami amúgy is az `useCallback` deps `messages`-ét hizlalta és minden új üzenetnél újragyártotta a callbacket).
+
 ## [1.34.5] – 2026-05-04
 
 ### Javítás
