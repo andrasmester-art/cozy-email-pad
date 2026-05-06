@@ -1,5 +1,5 @@
 // Electron main process — fiók/sablon tárolás + IMAP/SMTP híd lokális cache-sel.
-const { app, BrowserWindow, ipcMain, safeStorage } = require("electron");
+const { app, BrowserWindow, ipcMain, safeStorage, powerMonitor } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const Imap = require("imap");
@@ -1866,11 +1866,41 @@ async function runAutoSync() {
   }
 }
 
+// ---- Globális hibakezelés ----
+// A laptop felnyitása után az alvás alatt megszakadt IMAP TCP-socketek
+// gyakran 'error' eseménnyel térnek vissza, és ha ezt nem kapjuk el,
+// az Electron főfolyamat „ismeretlen hiba miatt kilépett" üzenettel összeomlik.
+// Ezért minden el nem kapott hibát csak naplózunk és életben tartjuk az appot.
+process.on("uncaughtException", (err) => {
+  try { console.error("[uncaughtException]", err?.stack || err?.message || err); } catch {}
+});
+process.on("unhandledRejection", (reason) => {
+  try { console.error("[unhandledRejection]", reason?.stack || reason?.message || reason); } catch {}
+});
+
 app.whenReady().then(() => {
   createWindow();
   // Első futás 30 mp múlva, hogy az UI nyugodtan betöltsön; utána 5 percenként.
   setTimeout(runAutoSync, 30 * 1000);
   setInterval(runAutoSync, AUTO_SYNC_INTERVAL_MS);
+
+  // Alvás/ébredés kezelése — ébredés után rövid késleltetéssel friss
+  // szinkronizációt indítunk, hogy az alvás alatt megszakadt IMAP
+  // kapcsolatok helyett azonnal újak épüljenek fel.
+  try {
+    powerMonitor.on("suspend", () => {
+      console.log("[powerMonitor] suspend — alvás megkezdve");
+    });
+    powerMonitor.on("resume", () => {
+      console.log("[powerMonitor] resume — ébredés, auto-sync újraindítása");
+      // Engedjük, hogy a hálózat előbb visszaálljon.
+      setTimeout(() => { runAutoSync().catch((e) => console.error("[powerMonitor] resume sync hiba:", e?.message || e)); }, 5000);
+    });
+    powerMonitor.on("lock-screen", () => console.log("[powerMonitor] lock-screen"));
+    powerMonitor.on("unlock-screen", () => console.log("[powerMonitor] unlock-screen"));
+  } catch (e) {
+    console.warn("[powerMonitor] nem elérhető:", e?.message || e);
+  }
 });
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
