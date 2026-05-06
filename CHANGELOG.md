@@ -3,6 +3,12 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.35.2] – 2026-05-06
+
+### Javítás
+- **„Mepodmail ismeretlen hiba miatt kilépett" alvás után** — a laptop felnyitása után az alvás közben megszakadt IMAP TCP-kapcsolatok el nem kapott `error` eseményeket dobtak, ami a főfolyamat összeomlásához vezetett. Globális `uncaughtException` és `unhandledRejection` handler került be, így a megszakadt kapcsolatok már csak naplózva lesznek, az app életben marad.
+- **Alvás/ébredés tudatos auto-sync** — `powerMonitor` figyeli az alvás/ébredés eseményeket; ébredés után 5 másodperccel automatikusan friss INBOX-szinkront indít, hogy a megszakadt sockets helyett azonnal újak épüljenek fel.
+
 ## [1.35.0] – 2026-05-04
 
 ### Új
