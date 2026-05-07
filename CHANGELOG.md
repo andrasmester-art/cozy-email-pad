@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.38.0] – 2026-05-07
+
+### Új
+- Távoli képek alapértelmezetten blokkolva a beérkező levelekben (adatvédelmi és tracking-pixel védelem, mint az Apple Mail / Gmail). A levél tetején figyelmeztető sáv jelenik meg, ahol egy gombbal („Képek betöltése") engedélyezhető a távoli tartalom betöltése az adott levélhez. Az inline (`cid:`) csatolmányokat és a beágyazott (`data:`) képeket továbbra is azonnal megjeleníti.
+
 ## [1.37.1] – 2026-05-07
 
 ### Javítás
