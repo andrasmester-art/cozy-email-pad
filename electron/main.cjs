@@ -1050,7 +1050,9 @@ async function syncMailbox(account, logicalMailbox) {
         }
       }
 
-      const flagSyncNeeded = (Date.now() - (state.updatedAt || 0)) > 10 * 60 * 1000;
+      // v1.36.3: mindig szinkronizáljuk a flageket, hogy a más kliensben
+      // (pl. webmail) végzett csillag/olvasott változások is megjelenjenek.
+      const flagSyncNeeded = true;
 
       if (uidsToFetch.length === 0) {
         let migrated = state;
