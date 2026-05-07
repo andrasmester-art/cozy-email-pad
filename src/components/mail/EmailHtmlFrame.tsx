@@ -200,17 +200,27 @@ export function EmailHtmlFrame({ html, className }: Props) {
   }, [srcDoc, attachObservers, updateHeight]);
 
   return (
-    <iframe
-      ref={ref}
-      title="email-body"
-      // A preview-ban a teljes magasság méréséhez kell a same-origin hozzáférés.
-      // Az allow-popups + allow-popups-to-escape-sandbox engedi, hogy a levélben
-      // lévő linkek (target="_blank") új ablakban / a rendszer böngészőjében
-      // megnyíljanak. Script / form továbbra sincs engedélyezve.
-      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-      srcDoc={srcDoc}
-      style={{ width: "100%", height, border: "0", display: "block" }}
-      className={className}
-    />
+    <div className={className}>
+      {blockedCount > 0 && !showRemote && (
+        <div className="flex items-center justify-between gap-3 px-3 py-2 mb-2 rounded-md border border-border bg-muted/50 text-[13px]">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <ImageIcon className="h-4 w-4" />
+            <span>
+              A távoli képek (×{blockedCount}) az adatvédelmed érdekében blokkolva — a feladó nyomon követheti, ha betöltöd őket.
+            </span>
+          </div>
+          <Button size="sm" variant="secondary" onClick={() => setShowRemote(true)}>
+            Képek betöltése
+          </Button>
+        </div>
+      )}
+      <iframe
+        ref={ref}
+        title="email-body"
+        sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+        srcDoc={srcDoc}
+        style={{ width: "100%", height, border: "0", display: "block" }}
+      />
+    </div>
   );
 }
