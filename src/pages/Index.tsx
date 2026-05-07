@@ -91,6 +91,23 @@ const Index = () => {
   }, []);
   const [exhausted, setExhausted] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+
+  // Beérkezett fiókok olvasatlanjainak újraszámolása a cache-ből.
+  const refreshUnreadCounts = useCallback(async (list?: Account[]) => {
+    const accs = list || accounts;
+    if (!accs.length) { setUnreadCounts({}); return; }
+    const entries = await Promise.all(accs.map(async (a) => {
+      try {
+        const msgs = await mailAPI.imap.fetch({ accountId: a.id, mailbox: "INBOX", limit: 5000 });
+        const n = msgs.filter((m) => m.seen === false).length;
+        return [a.id, n] as const;
+      } catch {
+        return [a.id, 0] as const;
+      }
+    }));
+    setUnreadCounts(Object.fromEntries(entries));
+  }, [accounts]);
 
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerInitial, setComposerInitial] = useState<{ to?: string; cc?: string; bcc?: string; subject?: string; body?: string } | undefined>();
@@ -362,12 +379,26 @@ const Index = () => {
           if (active) setMessages(fresh);
         } catch { /* ignore */ }
       }
+      refreshUnreadCounts();
     });
     return () => {
       active = false;
       try { off?.(); } catch { /* ignore */ }
     };
-  }, [accounts, activeAccountId, activeMailbox]);
+  }, [accounts, activeAccountId, activeMailbox, refreshUnreadCounts]);
+
+  // Olvasatlan-számláló frissítés: fiókváltáskor / fiók-listaváltáskor / aktív INBOX
+  // üzenetváltozáskor (csillag/olvasott toggle, törlés) újraszámolunk.
+  useEffect(() => {
+    refreshUnreadCounts();
+  }, [accounts, refreshUnreadCounts]);
+
+  useEffect(() => {
+    if (activeMailbox === "INBOX" && activeAccountId) {
+      const n = messages.filter((m) => m.seen === false).length;
+      setUnreadCounts((prev) => (prev[activeAccountId] === n ? prev : { ...prev, [activeAccountId]: n }));
+    }
+  }, [messages, activeAccountId, activeMailbox]);
 
   // "Szinkronizálás" gomb: minden fiók összes mappáját inkrementálisan frissíti.
   const syncAll = useCallback(async () => {
@@ -398,13 +429,14 @@ const Index = () => {
       setMessages(fresh);
     }
     setSyncing(false);
+    refreshUnreadCounts();
     toast.dismiss(t);
     if (failCount === 0) {
       toast.success(totalAdded > 0 ? `Frissítve — ${totalAdded} új levél` : "Minden naprakész");
     } else {
       toast.warning(`${accounts.length - failCount} sikeres, ${failCount} hiba`);
     }
-  }, [accounts, syncing, activeAccountId, activeMailbox]);
+  }, [accounts, syncing, activeAccountId, activeMailbox, refreshUnreadCounts]);
 
   const quoteBody = (m: MailMessage) =>
     `<p></p><blockquote data-mwquote="1"><p><em>${m.from} írta:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`;
@@ -643,6 +675,7 @@ const Index = () => {
       )}
       <div className="flex-1 flex min-h-0">
         <Sidebar
+          unreadCounts={unreadCounts}
           accounts={accounts}
           activeAccountId={activeAccountId}
           activeMailbox={activeMailbox}

@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.37.0] – 2026-05-07
+
+### Új
+- A bal oldali fiók-listán minden fiók mellett kis jelvény mutatja a Beérkezett mappa olvasatlan üzeneteinek számát (99 felett "99+"). A szám automatikusan frissül szinkronizáláskor, automatikus háttér-szinkronkor, illetve amikor egy levelet olvasottnak/olvasatlannak jelölsz vagy törölsz.
+
 ## [1.36.3] – 2026-05-07
 
 ### Javítás
