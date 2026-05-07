@@ -1,5 +1,5 @@
 // Electron main process — fiók/sablon tárolás + IMAP/SMTP híd lokális cache-sel.
-const { app, BrowserWindow, ipcMain, safeStorage, powerMonitor } = require("electron");
+const { app, BrowserWindow, ipcMain, safeStorage, powerMonitor, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const Imap = require("imap");
@@ -1802,9 +1802,28 @@ function createWindow() {
   });
   if (savedMaximized) win.maximize();
   attachWindowStatePersistence(win, "main");
+  attachExternalLinkHandler(win);
   mainWindow = win;
   win.on("closed", () => { if (mainWindow === win) mainWindow = null; });
   loadRoute(win, "");
+}
+
+// A levelekben (vagy bárhol) található http(s) linkeket a rendszer alapértelmezett
+// böngészőjében nyitjuk meg, sose az Electron ablakban.
+function attachExternalLinkHandler(win) {
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//i.test(url) || /^mailto:/i.test(url)) {
+      shell.openExternal(url).catch(() => {});
+    }
+    return { action: "deny" };
+  });
+  win.webContents.on("will-navigate", (e, url) => {
+    const current = win.webContents.getURL();
+    if (url !== current && (/^https?:\/\//i.test(url) || /^mailto:/i.test(url))) {
+      e.preventDefault();
+      shell.openExternal(url).catch(() => {});
+    }
+  });
 }
 
 // Egy levél megnyitása új ablakban (dupla kattintás a listában).
@@ -1822,6 +1841,7 @@ function openMessageWindow({ accountId, mailbox, seqno, uid }) {
   });
   if (savedMaximized) win.maximize();
   attachWindowStatePersistence(win, "message");
+  attachExternalLinkHandler(win);
   childWindows.add(win);
   win.on("closed", () => childWindows.delete(win));
   const params = new URLSearchParams();

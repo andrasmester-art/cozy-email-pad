@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.37.1] – 2026-05-07
+
+### Javítás
+- A levelekben elhelyezett linkekre kattintva immár a rendszer alapértelmezett böngészőjében nyílnak meg. Eddig az iframe sandbox-beállítása blokkolta a `target="_blank"` linkeket, így semmi sem történt kattintásra.
+
 ## [1.37.0] – 2026-05-07
 
 ### Új

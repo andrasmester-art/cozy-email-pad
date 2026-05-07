@@ -149,9 +149,11 @@ export function EmailHtmlFrame({ html, className }: Props) {
     <iframe
       ref={ref}
       title="email-body"
-      // A preview-ban a teljes magasság méréséhez kell a same-origin hozzáférés,
-      // de script / form / popup továbbra sincs engedélyezve.
-      sandbox="allow-same-origin"
+      // A preview-ban a teljes magasság méréséhez kell a same-origin hozzáférés.
+      // Az allow-popups + allow-popups-to-escape-sandbox engedi, hogy a levélben
+      // lévő linkek (target="_blank") új ablakban / a rendszer böngészőjében
+      // megnyíljanak. Script / form továbbra sincs engedélyezve.
+      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
       srcDoc={srcDoc}
       style={{ width: "100%", height, border: "0", display: "block" }}
       className={className}
