@@ -16,7 +16,10 @@ const fs = require("fs");
 const path = require("path");
 
 const MAX_PER_MAILBOX = 5000;
-const INITIAL_PAGE_SIZE = 200;
+// Drasztikus gyorsítás v1.36.0: az első indulásnál csak a legfrissebb 50 fejlécet
+// húzzuk le (korábban 200 volt). Ez ~4× gyorsabb cold start, és a régebbi
+// levelek lazy-load-dal (loadOlder, PAGE_SIZE) töltődnek görgetésre.
+const INITIAL_PAGE_SIZE = 50;
 const PAGE_SIZE = 200;
 
 function ensureDir(dir) {
