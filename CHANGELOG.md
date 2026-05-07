@@ -3,6 +3,15 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.36.1] – 2026-05-07
+
+### Új
+- **Indítás utáni intelligens INBOX előtöltés** — közvetlenül indítás után (500 ms) elindul minden fiók INBOX-szinkronja, a cache állapotához igazítva:
+  - **Üres / sosem szinkronizált fiókok** kapnak elsőbbséget, párhuzamosan futnak.
+  - **Régi cache-ű fiókok (>5 perc)** a következő fázisban frissülnek, szintén párhuzamosan.
+  - **Friss cache-ű fiókok (<5 perc)** teljesen kimaradnak — semmi felesleges IMAP kapcsolat.
+  - A frissítés végén a renderert a megszokott `mail:auto-synced` eseménnyel értesítjük, hogy az aktívan nézett mappát automatikusan újratöltse.
+
 ## [1.36.0] – 2026-05-07
 
 ### Változás
