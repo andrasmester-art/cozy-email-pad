@@ -1,9 +1,47 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { ImageIcon } from "lucide-react";
 
 type Props = {
   html: string;
   className?: string;
 };
+
+/**
+ * A levélben hivatkozott TÁVOLI képeket (http/https) alapból blokkoljuk —
+ * ez a klasszikus „remote content" védelem (tracking pixel, IP-leak, stb.),
+ * pont mint az Apple Mail / Gmail. A `cid:` (inline csatolmány) és a
+ * `data:` URI-k bent maradnak. A felhasználó egy gombbal tudja a levélhez
+ * a távoli képeket engedélyezni.
+ */
+function blockRemoteImages(html: string): { html: string; blocked: number } {
+  if (typeof window === "undefined") return { html, blocked: 0 };
+  let blocked = 0;
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html;
+  tmp.querySelectorAll("img").forEach((img) => {
+    const src = (img.getAttribute("src") || "").trim();
+    if (/^https?:\/\//i.test(src)) {
+      img.setAttribute("data-blocked-src", src);
+      img.removeAttribute("src");
+      img.removeAttribute("srcset");
+      blocked++;
+    }
+  });
+  // Háttérképek (style="background-image:url(http...)")
+  tmp.querySelectorAll<HTMLElement>("[style]").forEach((el) => {
+    const s = el.getAttribute("style") || "";
+    if (/background(-image)?\s*:[^;]*url\(\s*['\"]?https?:/i.test(s)) {
+      el.setAttribute("data-blocked-style", s);
+      el.setAttribute(
+        "style",
+        s.replace(/background(-image)?\s*:[^;]*url\(\s*['\"]?https?:[^)]*\)[^;]*;?/gi, ""),
+      );
+      blocked++;
+    }
+  });
+  return { html: tmp.innerHTML, blocked };
+}
 
 /**
  * Beérkező email HTML törzsének izolált renderelése `<iframe srcDoc>`-ba.
