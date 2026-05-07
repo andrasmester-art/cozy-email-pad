@@ -10,6 +10,12 @@
 // mezőben — ebből a böngészőben Blob URL-t (`URL.createObjectURL`) képezünk
 // a megjelenítéshez és letöltéshez. A Blob URL-eket a komponens unmountkor
 // felszabadítja, hogy ne maradjon memória-szivárgás.
+//
+// CID inline képek kezelése:
+// Az inline CID képeket (amelyeket az EmailHtmlFrame már beágyazott a HTML-be
+// base64 data URL-ként) NEM jelenítjük meg duplikáltan a csatolmány-listában.
+// Ha viszont a CID-csere valamiért nem sikerült (nincs data mező), megmutatjuk
+// letölthetőként, hogy a felhasználó ne veszítse el a tartalmat.
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,7 +48,7 @@ function iconFor(ct: string) {
 }
 
 function isPreviewable(ct: string): "image" | "pdf" | "text" | null {
-  if (ct.startsWith("image/")) return "image"; // svg, png, jpg, webp, gif mind ide esik
+  if (ct.startsWith("image/")) return "image"; // png, jpg, gif, webp, svg mind ide esik
   if (ct === "application/pdf") return "pdf";
   if (ct.startsWith("text/") || ct === "application/json") return "text";
   return null;
@@ -67,22 +73,22 @@ function makeBlobUrl(att: MailAttachment): string | null {
 }
 
 export function AttachmentList({ attachments }: Props) {
-  // A csatolmányok közül azokat mutatjuk, amelyek a felhasználó számára
-  // önállóan értelmezhetők. Az inline ágyazott KÉPEKET is megjelenítjük — a
-  // HTML-ben már láthatók ugyan, de a user gyakran szeretné külön elmenteni
-  // őket.
-  //
   // Szűrési szabályok:
-  //   • image/* inline kép → MINDIG mutatjuk (akkor is, ha még tölt és nincs
-  //     se filename, se data — a sor maga jelzi, hogy érkezik csatolmány,
-  //     a Letöltés gomb pedig disabled marad amíg a `data` meg nem jön).
-  //   • egyéb inline rész (pl. multipart/related text/html, üres cid-ref) →
-  //     elrejtjük: a user számára nincs önálló értelme.
-  //   • nem-inline csatolmány → mutatjuk, ha van neve, mérete vagy tartalma.
+  //   • Inline CID kép (van cid mező) + van data → az EmailHtmlFrame már
+  //     beágyazta a HTML-be, NE mutassuk duplikáltan a listában.
+  //   • Inline CID kép + NINCS data → a CID-csere nem sikerült (betöltés alatt
+  //     vagy hiba), megmutatjuk letölthetőként, hogy a tartalom ne veszszen el.
+  //   • Inline kép CID nélkül → csak ha van data (valódi beágyazott kép).
+  //   • Normál (nem-inline) csatolmány → mutatjuk, ha van neve, mérete vagy tartalma.
   const visible = useMemo(
     () => (attachments || []).filter((a) => {
       const ct = (a.contentType || "").toLowerCase();
-      if (a.inline) return ct.startsWith("image/");
+      // CID-es inline kép: ha sikerült a feloldás (van data), az iframe-ben
+      // már látszik → nem duplikáljuk. Ha nincs data, megmutatjuk.
+      if (a.inline && a.cid) return !a.data;
+      // Inline kép CID nélkül: csak ha van adata
+      if (a.inline && ct.startsWith("image/")) return !!a.data;
+      // Normál csatolmány
       const hasName = !!(a.filename && a.filename !== "melléklet");
       const hasSize = (a.size || 0) > 0;
       const hasData = !!a.data;
@@ -109,7 +115,7 @@ export function AttachmentList({ attachments }: Props) {
   }, [visible]);
 
   const [previewIdx, setPreviewIdx] = useState<number | null>(null);
-  // Szöveges előnézet tartalma (lazy: csak megnyitáskor dekódoljuk).
+  // Szöveges előnézet tartalma (lazy: csak megnyitáskor dekódoljuk)
   const [textPreview, setTextPreview] = useState<string>("");
 
   const openPreview = (i: number) => {
@@ -170,16 +176,16 @@ export function AttachmentList({ attachments }: Props) {
             >
               <Icon className="h-5 w-5 shrink-0 text-muted-foreground" />
               <div className="min-w-0 flex-1">
-                <div
-                  className="text-sm font-medium truncate max-w-[180px]"
-                  title={att.filename}
-                >
+                <div className="text-sm font-medium truncate max-w-[180px]" title={att.filename}>
                   {att.filename || "(névtelen)"}
                 </div>
                 <div className="text-[11px] text-muted-foreground">
                   {att.contentType || "ismeretlen típus"} · {humanSize(att.size)}
-                  {!att.data && (
-                    <span className="text-amber-500"> · tartalom betöltés alatt</span>
+                  {att.inline && att.cid && (
+                    <span className="ml-1 text-muted-foreground/60">(beágyazott, CID nem oldható fel)</span>
+                  )}
+                  {!att.data && !att.inline && (
+                    <span className="ml-1 text-amber-500">· tartalom betöltés alatt</span>
                   )}
                 </div>
               </div>
