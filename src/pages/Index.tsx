@@ -91,6 +91,23 @@ const Index = () => {
   }, []);
   const [exhausted, setExhausted] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+
+  // Beérkezett fiókok olvasatlanjainak újraszámolása a cache-ből.
+  const refreshUnreadCounts = useCallback(async (list?: Account[]) => {
+    const accs = list || accounts;
+    if (!accs.length) { setUnreadCounts({}); return; }
+    const entries = await Promise.all(accs.map(async (a) => {
+      try {
+        const msgs = await mailAPI.imap.fetch({ accountId: a.id, mailbox: "INBOX", limit: 5000 });
+        const n = msgs.filter((m) => m.seen === false).length;
+        return [a.id, n] as const;
+      } catch {
+        return [a.id, 0] as const;
+      }
+    }));
+    setUnreadCounts(Object.fromEntries(entries));
+  }, [accounts]);
 
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerInitial, setComposerInitial] = useState<{ to?: string; cc?: string; bcc?: string; subject?: string; body?: string } | undefined>();
