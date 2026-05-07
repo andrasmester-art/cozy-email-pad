@@ -211,6 +211,14 @@ export function Sidebar({
                   >
                     <span className={cn("w-2 h-2 rounded-full shrink-0", COLORS[i % COLORS.length])} />
                     <span className="truncate">{a.label}</span>
+                    {!!unreadCounts?.[a.id] && (
+                      <span
+                        className="ml-auto shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold flex items-center justify-center"
+                        title={`${unreadCounts[a.id]} olvasatlan a Beérkezett mappában`}
+                      >
+                        {unreadCounts[a.id] > 99 ? "99+" : unreadCounts[a.id]}
+                      </span>
+                    )}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <StatusIcon className={cn("h-3.5 w-3.5 shrink-0", statusColor)} />
