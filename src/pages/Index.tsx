@@ -384,7 +384,27 @@ const Index = () => {
       active = false;
       try { off?.(); } catch { /* ignore */ }
     };
-  }, [accounts, activeAccountId, activeMailbox]);
+      }
+      refreshUnreadCounts();
+    });
+    return () => {
+      active = false;
+      try { off?.(); } catch { /* ignore */ }
+    };
+  }, [accounts, activeAccountId, activeMailbox, refreshUnreadCounts]);
+
+  // Olvasatlan-számláló frissítés: fiókváltáskor / fiók-listaváltáskor / aktív INBOX
+  // üzenetváltozáskor (csillag/olvasott toggle, törlés) újraszámolunk.
+  useEffect(() => {
+    refreshUnreadCounts();
+  }, [accounts, refreshUnreadCounts]);
+
+  useEffect(() => {
+    if (activeMailbox === "INBOX" && activeAccountId) {
+      const n = messages.filter((m) => m.seen === false).length;
+      setUnreadCounts((prev) => (prev[activeAccountId] === n ? prev : { ...prev, [activeAccountId]: n }));
+    }
+  }, [messages, activeAccountId, activeMailbox]);
 
   // "Szinkronizálás" gomb: minden fiók összes mappáját inkrementálisan frissíti.
   const syncAll = useCallback(async () => {
