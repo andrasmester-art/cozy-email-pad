@@ -436,7 +436,7 @@ const Index = () => {
     } else {
       toast.warning(`${accounts.length - failCount} sikeres, ${failCount} hiba`);
     }
-  }, [accounts, syncing, activeAccountId, activeMailbox]);
+  }, [accounts, syncing, activeAccountId, activeMailbox, refreshUnreadCounts]);
 
   const quoteBody = (m: MailMessage) =>
     `<p></p><blockquote data-mwquote="1"><p><em>${m.from} írta:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`;
