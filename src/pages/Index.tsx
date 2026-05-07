@@ -675,6 +675,7 @@ const Index = () => {
       )}
       <div className="flex-1 flex min-h-0">
         <Sidebar
+          unreadCounts={unreadCounts}
           accounts={accounts}
           activeAccountId={activeAccountId}
           activeMailbox={activeMailbox}
