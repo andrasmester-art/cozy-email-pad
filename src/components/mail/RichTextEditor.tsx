@@ -220,7 +220,10 @@ function Toolbar({ editor }: { editor: Editor | null }) {
       {/* Szövegigazítás: TextAlign extension-nel működik heading és paragraph típusokon */}
       <ToolbarBtn
         title="Balra igazítás"
-        active={editor.isActive({ textAlign: "left" })}
+        active={
+          editor.isActive({ textAlign: "left" }) ||
+          (!editor.isActive({ textAlign: "center" }) && !editor.isActive({ textAlign: "right" }))
+        }
         onClick={() => editor.chain().focus().setTextAlign("left").run()}
       ><AlignLeft className="h-4 w-4" /></ToolbarBtn>
       <ToolbarBtn

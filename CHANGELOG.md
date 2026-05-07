@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.39.1] – 2026-05-07
+
+### Javítás
+- A „Balra igazítás" gomb friss bekezdésnél is aktívnak látszik, ha nincs explicit `textAlign` attribútum (default állapot). A középre/jobbra gomb továbbra is csak akkor aktív, ha az adott igazítás be van állítva. Heading (H1/H2/H3) és paragraph esetén egyaránt helyesen vált.
+
 ## [1.39.0] – 2026-05-07
 
 ### Javítás
