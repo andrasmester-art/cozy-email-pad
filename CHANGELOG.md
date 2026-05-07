@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.36.2] – 2026-05-07
+
+### Javítás
+- **Indításkor üres fióklista — magától nem frissült** — ha a háttér-előtöltés (`runStartupPrefetch`) `mail:auto-synced` eseménye akkor érkezett, amikor a renderer listenere még nem regisztrálódott (mert épp a fiókokat töltötte), az értesítés elveszett, és a UI üreset mutatott amíg a felhasználó rá nem kattintott a fiókra. Mostantól üres cache esetén a `loadMessages` automatikus pollingba lép (1.5 mp-enként, max 30 mp), és amint a háttérben futó szinkron feltölti a cache-t, a lista magától megjelenik — kattintás nélkül.
+
 ## [1.36.1] – 2026-05-07
 
 ### Új
