@@ -178,33 +178,56 @@ const Index = () => {
   }, []);
 
   // Cache-first betöltés: csak a lokális cache-t olvassuk be, NEM indítunk
-  // szerver-szinkront. A szerver-szinkronért egy külön useEffect felel, ami
-  // fiók/mappa váltáskor egyszer fut le — így elkerüljük, hogy két konkurens
-  // IMAP kapcsolat nyíljon ugyanarra a mailboxra (loadMessages + syncAccount),
-  // ami korábban 50+ másodperces indulási lassúságot okozott.
+  // szerver-szinkront. Ha üres a cache (pl. első indulás), rövid polling
+  // figyeli, mikor tölti meg a háttérben futó startup-prefetch / bgSync —
+  // így a UI magától megjelenik, nem kell kattintani.
   const loadMessages = useCallback(async () => {
     if (!activeAccountId) return;
-    const tag = `[loadMessages] ${activeAccountId}/${activeMailbox}`;
+    const accountId = activeAccountId;
+    const mailbox = activeMailbox;
+    const tag = `[loadMessages] ${accountId}/${mailbox}`;
     const t0 = performance.now();
     console.log(`${tag} start (cache-only)`);
     setSelected(null);
     setExhausted(false);
     try {
-      const cached = await mailAPI.imap.fetch({
-        accountId: activeAccountId,
-        mailbox: activeMailbox,
-        limit: 5000,
-      });
+      const cached = await mailAPI.imap.fetch({ accountId, mailbox, limit: 5000 });
       console.log(`${tag} cache returned ${cached.length} msgs in ${(performance.now() - t0).toFixed(0)}ms`);
       setMessages(cached);
       if (cached.length === 0) {
-        console.warn(`${tag} ⚠ cache EMPTY — UI shows blank list until sync completes`);
+        console.warn(`${tag} ⚠ cache EMPTY — polling for background sync`);
+        // Polling: 1.5 mp-enként, max 20× (~30 mp). Ha közben fiókot/mappát
+        // vált a felhasználó, leállunk (a guard ellenőrzi).
+        let attempts = 0;
+        const interval = window.setInterval(async () => {
+          attempts++;
+          if (accountId !== activeAccountIdRef.current || mailbox !== activeMailboxRef.current) {
+            window.clearInterval(interval);
+            return;
+          }
+          try {
+            const fresh = await mailAPI.imap.fetch({ accountId, mailbox, limit: 5000 });
+            if (fresh.length > 0) {
+              console.log(`${tag} poll attempt ${attempts}: cache filled with ${fresh.length} msgs`);
+              setMessages(fresh);
+              window.clearInterval(interval);
+            } else if (attempts >= 20) {
+              window.clearInterval(interval);
+            }
+          } catch { /* ignore */ }
+        }, 1500);
       }
     } catch (err) {
       console.error(`${tag} cache READ FAILED`, err);
       setMessages([]);
     }
   }, [activeAccountId, activeMailbox]);
+
+  // A polling-hoz friss aktív kombó kell minden iterációban, ezért ref-ben tartjuk.
+  const activeAccountIdRef = useRef(activeAccountId);
+  const activeMailboxRef = useRef(activeMailbox);
+  useEffect(() => { activeAccountIdRef.current = activeAccountId; }, [activeAccountId]);
+  useEffect(() => { activeMailboxRef.current = activeMailbox; }, [activeMailbox]);
 
   useEffect(() => { loadMessages(); }, [loadMessages]);
 
