@@ -1,9 +1,47 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { ImageIcon } from "lucide-react";
 
 type Props = {
   html: string;
   className?: string;
 };
+
+/**
+ * A levélben hivatkozott TÁVOLI képeket (http/https) alapból blokkoljuk —
+ * ez a klasszikus „remote content" védelem (tracking pixel, IP-leak, stb.),
+ * pont mint az Apple Mail / Gmail. A `cid:` (inline csatolmány) és a
+ * `data:` URI-k bent maradnak. A felhasználó egy gombbal tudja a levélhez
+ * a távoli képeket engedélyezni.
+ */
+function blockRemoteImages(html: string): { html: string; blocked: number } {
+  if (typeof window === "undefined") return { html, blocked: 0 };
+  let blocked = 0;
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html;
+  tmp.querySelectorAll("img").forEach((img) => {
+    const src = (img.getAttribute("src") || "").trim();
+    if (/^https?:\/\//i.test(src)) {
+      img.setAttribute("data-blocked-src", src);
+      img.removeAttribute("src");
+      img.removeAttribute("srcset");
+      blocked++;
+    }
+  });
+  // Háttérképek (style="background-image:url(http...)")
+  tmp.querySelectorAll<HTMLElement>("[style]").forEach((el) => {
+    const s = el.getAttribute("style") || "";
+    if (/background(-image)?\s*:[^;]*url\(\s*['\"]?https?:/i.test(s)) {
+      el.setAttribute("data-blocked-style", s);
+      el.setAttribute(
+        "style",
+        s.replace(/background(-image)?\s*:[^;]*url\(\s*['\"]?https?:[^)]*\)[^;]*;?/gi, ""),
+      );
+      blocked++;
+    }
+  });
+  return { html: tmp.innerHTML, blocked };
+}
 
 /**
  * Beérkező email HTML törzsének izolált renderelése `<iframe srcDoc>`-ba.
@@ -37,6 +75,15 @@ export function EmailHtmlFrame({ html, className }: Props) {
   const ref = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState(200);
   const observerRef = useRef<ResizeObserver | null>(null);
+  const [showRemote, setShowRemote] = useState(false);
+
+  const { processedHtml, blockedCount } = useMemo(() => {
+    if (showRemote) return { processedHtml: html, blockedCount: 0 };
+    const r = blockRemoteImages(html);
+    return { processedHtml: r.html, blockedCount: r.blocked };
+  }, [html, showRemote]);
+
+  useEffect(() => { setShowRemote(false); }, [html]);
 
   // A beágyazott dokumentumot egy minimális reset + szellős alap-tipográfia
   // wrap-pelt köré tesszük, hogy a `<body>` margók és a default linkszín a
@@ -63,6 +110,13 @@ export function EmailHtmlFrame({ html, className }: Props) {
   p, div, li { margin-top: 0; }
   img, table, video { max-width: 100%; }
   img { height: auto; }
+  img[data-blocked-src] {
+    min-height: 24px;
+    min-width: 24px;
+    background: repeating-linear-gradient(45deg, #f2f2f4, #f2f2f4 6px, #e8e8ec 6px, #e8e8ec 12px);
+    border: 1px dashed #c7c7cc;
+    border-radius: 4px;
+  }
   table { border-collapse: collapse; }
   a { color: #0a64dc; }
   blockquote {
@@ -78,7 +132,7 @@ export function EmailHtmlFrame({ html, className }: Props) {
   }
 </style>
 </head>
-<body>${html}</body>
+<body>${processedHtml}</body>
 </html>`;
 
   const updateHeight = useCallback(() => {
@@ -146,17 +200,27 @@ export function EmailHtmlFrame({ html, className }: Props) {
   }, [srcDoc, attachObservers, updateHeight]);
 
   return (
-    <iframe
-      ref={ref}
-      title="email-body"
-      // A preview-ban a teljes magasság méréséhez kell a same-origin hozzáférés.
-      // Az allow-popups + allow-popups-to-escape-sandbox engedi, hogy a levélben
-      // lévő linkek (target="_blank") új ablakban / a rendszer böngészőjében
-      // megnyíljanak. Script / form továbbra sincs engedélyezve.
-      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-      srcDoc={srcDoc}
-      style={{ width: "100%", height, border: "0", display: "block" }}
-      className={className}
-    />
+    <div className={className}>
+      {blockedCount > 0 && !showRemote && (
+        <div className="flex items-center justify-between gap-3 px-3 py-2 mb-2 rounded-md border border-border bg-muted/50 text-[13px]">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <ImageIcon className="h-4 w-4" />
+            <span>
+              A távoli képek (×{blockedCount}) az adatvédelmed érdekében blokkolva — a feladó nyomon követheti, ha betöltöd őket.
+            </span>
+          </div>
+          <Button size="sm" variant="secondary" onClick={() => setShowRemote(true)}>
+            Képek betöltése
+          </Button>
+        </div>
+      )}
+      <iframe
+        ref={ref}
+        title="email-body"
+        sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+        srcDoc={srcDoc}
+        style={{ width: "100%", height, border: "0", display: "block" }}
+      />
+    </div>
   );
 }
