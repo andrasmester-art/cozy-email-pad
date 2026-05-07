@@ -429,6 +429,7 @@ const Index = () => {
       setMessages(fresh);
     }
     setSyncing(false);
+    refreshUnreadCounts();
     toast.dismiss(t);
     if (failCount === 0) {
       toast.success(totalAdded > 0 ? `Frissítve — ${totalAdded} új levél` : "Minden naprakész");
