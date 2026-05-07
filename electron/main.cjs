@@ -1866,6 +1866,50 @@ async function runAutoSync() {
   }
 }
 
+// Indítás utáni előtöltés: minden fiók INBOX-át lehúzzuk, de a cache
+// állapotához igazítva — az üres cache-ű fiókok elsőbbséget kapnak
+// (azonnal, párhuzamosan), a friss cache-ű fiókokat (<5 perc) pedig
+// teljesen kihagyjuk, hogy ne pazaroljunk IMAP-kapcsolatot.
+async function runStartupPrefetch() {
+  const accounts = loadAccounts();
+  if (!accounts.length) return;
+  const FRESH_TTL_MS = 5 * 60 * 1000;
+  const cold = []; // üres / sosem szinkronizált
+  const stale = []; // van cache, de régi
+  for (const account of accounts) {
+    const state = cache.read(userDataDir(), account.id, "INBOX");
+    const age = state.updatedAt ? (Date.now() - state.updatedAt) : Infinity;
+    if (!state.messages.length || !state.updatedAt) cold.push(account);
+    else if (age > FRESH_TTL_MS) stale.push(account);
+  }
+  console.log(`[startupPrefetch] cold=${cold.length} stale=${stale.length} fresh=${accounts.length - cold.length - stale.length}`);
+
+  const syncOne = async (account) => {
+    try {
+      const r = await syncMailbox(account, "INBOX");
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("mail:auto-synced", {
+          accountId: account.id,
+          mailbox: "INBOX",
+          added: (r && r.added) || 0,
+        });
+      }
+    } catch (e) {
+      console.error("[startupPrefetch] hiba:", account.id, e?.message || e);
+    }
+  };
+
+  // 1. fázis: üres cache-űeket azonnal, párhuzamosan
+  if (cold.length) {
+    await Promise.allSettled(cold.map(syncOne));
+  }
+  // 2. fázis: régi cache-űeket utána, párhuzamosan
+  if (stale.length) {
+    await Promise.allSettled(stale.map(syncOne));
+  }
+  console.log(`[startupPrefetch] DONE`);
+}
+
 // ---- Globális hibakezelés ----
 // A laptop felnyitása után az alvás alatt megszakadt IMAP TCP-socketek
 // gyakran 'error' eseménnyel térnek vissza, és ha ezt nem kapjuk el,
