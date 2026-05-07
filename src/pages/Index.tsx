@@ -379,12 +379,6 @@ const Index = () => {
           if (active) setMessages(fresh);
         } catch { /* ignore */ }
       }
-    });
-    return () => {
-      active = false;
-      try { off?.(); } catch { /* ignore */ }
-    };
-      }
       refreshUnreadCounts();
     });
     return () => {
