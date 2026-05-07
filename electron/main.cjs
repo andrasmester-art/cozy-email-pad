@@ -1881,7 +1881,10 @@ process.on("unhandledRejection", (reason) => {
 app.whenReady().then(() => {
   createWindow();
   // Első futás 30 mp múlva, hogy az UI nyugodtan betöltsön; utána 5 percenként.
-  setTimeout(runAutoSync, 30 * 1000);
+  // v1.36.0: az első auto-sync 2 mp múlva indul (korábban 30 mp), hogy a
+  // UI minden fiók INBOX-át gyorsan friss tartalommal töltse meg, miközben
+  // a renderelés a már meglévő cache-ből azonnal indul.
+  setTimeout(runAutoSync, 2 * 1000);
   setInterval(runAutoSync, AUTO_SYNC_INTERVAL_MS);
 
   // Alvás/ébredés kezelése — ébredés után rövid késleltetéssel friss
