@@ -1841,6 +1841,7 @@ function openMessageWindow({ accountId, mailbox, seqno, uid }) {
   });
   if (savedMaximized) win.maximize();
   attachWindowStatePersistence(win, "message");
+  attachExternalLinkHandler(win);
   childWindows.add(win);
   win.on("closed", () => childWindows.delete(win));
   const params = new URLSearchParams();
