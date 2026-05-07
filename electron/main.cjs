@@ -1,5 +1,5 @@
 // Electron main process — fiók/sablon tárolás + IMAP/SMTP híd lokális cache-sel.
-const { app, BrowserWindow, ipcMain, safeStorage, powerMonitor } = require("electron");
+const { app, BrowserWindow, ipcMain, safeStorage, powerMonitor, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const Imap = require("imap");
