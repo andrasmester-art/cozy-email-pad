@@ -75,6 +75,15 @@ export function EmailHtmlFrame({ html, className }: Props) {
   const ref = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState(200);
   const observerRef = useRef<ResizeObserver | null>(null);
+  const [showRemote, setShowRemote] = useState(false);
+
+  const { processedHtml, blockedCount } = useMemo(() => {
+    if (showRemote) return { processedHtml: html, blockedCount: 0 };
+    const r = blockRemoteImages(html);
+    return { processedHtml: r.html, blockedCount: r.blocked };
+  }, [html, showRemote]);
+
+  useEffect(() => { setShowRemote(false); }, [html]);
 
   // A beágyazott dokumentumot egy minimális reset + szellős alap-tipográfia
   // wrap-pelt köré tesszük, hogy a `<body>` margók és a default linkszín a
@@ -101,6 +110,13 @@ export function EmailHtmlFrame({ html, className }: Props) {
   p, div, li { margin-top: 0; }
   img, table, video { max-width: 100%; }
   img { height: auto; }
+  img[data-blocked-src] {
+    min-height: 24px;
+    min-width: 24px;
+    background: repeating-linear-gradient(45deg, #f2f2f4, #f2f2f4 6px, #e8e8ec 6px, #e8e8ec 12px);
+    border: 1px dashed #c7c7cc;
+    border-radius: 4px;
+  }
   table { border-collapse: collapse; }
   a { color: #0a64dc; }
   blockquote {
@@ -116,7 +132,7 @@ export function EmailHtmlFrame({ html, className }: Props) {
   }
 </style>
 </head>
-<body>${html}</body>
+<body>${processedHtml}</body>
 </html>`;
 
   const updateHeight = useCallback(() => {
