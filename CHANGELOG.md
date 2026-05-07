@@ -3,6 +3,15 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.36.0] – 2026-05-07
+
+### Változás
+- **Drasztikus indulási gyorsítás** — több ponton is csökkent az induláskor szükséges IMAP-forgalom:
+  - **Kezdeti fejléc-letöltés 200 → 50 db** (`INITIAL_PAGE_SIZE`). Egy új fiók első szinkronja így ~4× gyorsabb; a régebbi levelek görgetésre, lazy-load-dal töltődnek be (200-as oldalakban, változatlanul).
+  - **Cache-friss kihagyás (60 mp TTL)** — fiók/mappa váltáskor csak akkor indul új IMAP szinkron, ha az adott (fiók, mappa) cache-e 60 mp-nél régebbi. Friss cache esetén a váltás teljesen azonnali, nincs IMAP körút.
+  - **Drafts-háttérszinkron törölve a mappaváltásból** — eddig minden fiók/mappa váltás extra Drafts IMAP kapcsolatot is nyitott. Ezt az auto-sync (5 percenként) és a manuális Frissítés gomb már így is lefedi.
+  - **Auto-sync első futás 30 mp → 2 mp** — az app indulása után szinte azonnal elindul a háttér-szinkron minden fiók INBOX-ára (párhuzamosan). A UI közben a már meglévő cache-ből azonnal renderel, az új levelek pedig néhány másodpercen belül megjelennek.
+
 ## [1.35.2] – 2026-05-06
 
 ### Javítás
