@@ -269,16 +269,23 @@ const Index = () => {
     }
   }, [activeAccountId, activeMailbox, loadingMore, exhausted]);
 
-  // Fiók/mappa váltáskor egyszer indítunk háttér-szinkront az aktív mappára,
-  // és a Drafts-ot is felfrissítjük (gyors hozzáférés a piszkozatokhoz).
-  // Ez váltja ki a korábbi loadMessages-en belüli sync-et — így nincs dupla
-  // IMAP session ugyanarra a mailboxra.
+  // Fiók/mappa váltáskor háttér-szinkron — DE csak ha a cache régebbi, mint
+  // FRESH_TTL. Friss cache esetén nem indítunk IMAP kapcsolatot, így a váltás
+  // azonnali. A Drafts háttérszinkront teljesen elhagyjuk innen — az auto-sync
+  // (5 percenként) és a manuális Frissítés gomb úgyis elintézi.
+  const FRESH_TTL_MS = 60 * 1000;
+  const lastSyncRef = (Index as any)._lastSyncRef || ((Index as any)._lastSyncRef = new Map<string, number>());
   useEffect(() => {
     if (!activeAccountId || !mailAPI.isElectron) return;
     let cancelled = false;
+    const key = `${activeAccountId}::${activeMailbox}`;
+    const last = lastSyncRef.get(key) || 0;
+    if (Date.now() - last < FRESH_TTL_MS) {
+      console.log(`[bgSync] skip ${key} — cache fresh (age=${Date.now() - last}ms)`);
+      return;
+    }
     const tag = `[bgSync] ${activeAccountId}/${activeMailbox}`;
     (async () => {
-      // 1) Aktív mappa szinkronja — ez frissíti a UI-t, ha új levél jött.
       const t0 = performance.now();
       setLoading(true);
       try {
@@ -288,6 +295,7 @@ const Index = () => {
         });
         console.log(`${tag} active sync added=${r.added} msgs=${r.messages.length} in ${(performance.now() - t0).toFixed(0)}ms`);
         if (cancelled) return;
+        lastSyncRef.set(key, Date.now());
         setMessages(r.messages);
         if (r.added > 0) toast.success(`${r.added} új levél`);
         if (r.warnings && r.warnings.length > 0) {
@@ -300,13 +308,6 @@ const Index = () => {
         if (!cancelled) console.error(`${tag} active sync FAILED`, e);
       } finally {
         if (!cancelled) setLoading(false);
-      }
-      if (cancelled) return;
-      // 2) Drafts háttérszinkron (csak ha nem ez az aktív mappa).
-      if (activeMailbox !== "Drafts") {
-        try {
-          await mailAPI.cache.syncMailbox({ accountId: activeAccountId, mailbox: "Drafts" });
-        } catch { /* ignore */ }
       }
     })();
     return () => { cancelled = true; };
