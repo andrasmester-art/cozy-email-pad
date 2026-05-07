@@ -4,6 +4,8 @@ import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import Typography from "@tiptap/extension-typography";
+import Underline from "@tiptap/extension-underline";
+import TextAlign from "@tiptap/extension-text-align";
 // A ListKeymap a TipTap hivatalos megoldása a megbízható lista-kezelésre:
 // Tab/Shift-Tab indent, Backspace üres listaelemen kilép a listából,
 // Enter dupla nyomás záró elemen kilép. Enélkül a felsorolás "ragad" és
@@ -19,6 +21,7 @@ import {
   Heading1, Heading2, Heading3, Link as LinkIcon, Image as ImageIcon,
   Undo2, Redo2, Minus, CodeSquare,
   AlignLeft, AlignCenter, AlignRight, Trash2,
+  Underline as UnderlineIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -113,7 +116,7 @@ function Toolbar({ editor }: { editor: Editor | null }) {
   // (toggle a régit, toggle az újat); ha bármelyik nem-paragrafus blokkban
   // (idézet, signature, code) van a kurzor, előbb `clearNodes()` alapra
   // hozza a környezetet, majd alkalmazza a listát. Ez biztosítja, hogy a
-  // gomb minden környezetben látható eredményt ad — a korábbi „némán false"
+  // gomb minden környezetben látható eredményt ad — a korábbi "némán false"
   // ágak helyett. (TipTap forum: ez a hivatalosan ajánlott pattern.)
   const toggleListReliably = (kind: "bulletList" | "orderedList") => {
     const other = kind === "bulletList" ? "orderedList" : "bulletList";
@@ -210,8 +213,26 @@ function Toolbar({ editor }: { editor: Editor | null }) {
       <Separator orientation="vertical" className="h-5 mx-1" />
       <ToolbarBtn title="Félkövér (⌘B)" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}><Bold className="h-4 w-4" /></ToolbarBtn>
       <ToolbarBtn title="Dőlt (⌘I)" active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()}><Italic className="h-4 w-4" /></ToolbarBtn>
+      <ToolbarBtn title="Aláhúzás (⌘U)" active={editor.isActive("underline")} onClick={() => editor.chain().focus().toggleUnderline().run()}><UnderlineIcon className="h-4 w-4" /></ToolbarBtn>
       <ToolbarBtn title="Áthúzott" active={editor.isActive("strike")} onClick={() => editor.chain().focus().toggleStrike().run()}><Strikethrough className="h-4 w-4" /></ToolbarBtn>
       <ToolbarBtn title="Inline kód" active={editor.isActive("code")} onClick={() => editor.chain().focus().toggleCode().run()}><Code className="h-4 w-4" /></ToolbarBtn>
+      <Separator orientation="vertical" className="h-5 mx-1" />
+      {/* Szövegigazítás: TextAlign extension-nel működik heading és paragraph típusokon */}
+      <ToolbarBtn
+        title="Balra igazítás"
+        active={editor.isActive({ textAlign: "left" })}
+        onClick={() => editor.chain().focus().setTextAlign("left").run()}
+      ><AlignLeft className="h-4 w-4" /></ToolbarBtn>
+      <ToolbarBtn
+        title="Középre igazítás"
+        active={editor.isActive({ textAlign: "center" })}
+        onClick={() => editor.chain().focus().setTextAlign("center").run()}
+      ><AlignCenter className="h-4 w-4" /></ToolbarBtn>
+      <ToolbarBtn
+        title="Jobbra igazítás"
+        active={editor.isActive({ textAlign: "right" })}
+        onClick={() => editor.chain().focus().setTextAlign("right").run()}
+      ><AlignRight className="h-4 w-4" /></ToolbarBtn>
       <Separator orientation="vertical" className="h-5 mx-1" />
       {/* Listák/idézet/kódblokk: a `lift`/`toggle` parancsok némán false-t adnak,
           ha a szelekció olyan blokkban van (pl. blockquote idézet, signature),
@@ -367,7 +388,7 @@ function ImageBubbleMenu({
       .chain()
       .focus()
       .updateAttributes("image", { align: a })
-      .updateAttributes("paragraph", { textAlign: a } as any) // ártalmatlan, ha nincs textAlign attr
+      .updateAttributes("paragraph", { textAlign: a } as any)
       .run();
     // Fallback: kézzel állítjuk a szülő `<p>` text-align stílusát, mert
     // alap StarterKit paragraph-on nincs textAlign extension. Ez biztos
@@ -437,11 +458,9 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Prop
 
   const editor = useEditor({
     extensions: [
-      // Tiptap v3 StarterKit már tartalmazza a Link-et és az Underline-t.
-      // A Link-et kikapcsoljuk a StarterKit-ben, hogy a saját, konfigurált
-      // példányunkat használhassuk (openOnClick: false, biztonságos rel),
-      // különben "Duplicate extension names" figyelmeztetést kapnánk és a
-      // setLink parancs ütközne.
+      // StarterKit v3: a Link-et kikapcsoljuk, hogy a saját konfigurált
+      // példányunkat használhassuk (openOnClick: false, biztonságos rel).
+      // Az Underline NEM része a StarterKit v3-nak — külön extension kell.
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
         link: false,
@@ -451,12 +470,20 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Prop
         autolink: true,
         HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
       }),
+      // Aláhúzás: külön extension, nem része a StarterKit v3-nak
+      Underline,
+      // Szövegigazítás: heading és paragraph típusokon működik.
+      // Az igazítás HTML-ben text-align inline style-ként exportálódik,
+      // amit az email kliensek megbízhatóan értelmeznek.
+      TextAlign.configure({
+        types: ["heading", "paragraph"],
+        defaultAlignment: "left",
+      }),
       ResizableImage.configure({ allowBase64: true }),
       Typography,
       Placeholder.configure({ placeholder: placeholder || "Írj ide…" }),
       // Hivatalos TipTap lista-keymap: Tab indent / Shift-Tab outdent /
       // Backspace üres `<li>`-n kilépés / dupla Enter záró elemen kilépés.
-      // Ez teszi a felsorolást valóban használhatóvá emailszerkesztésnél.
       ListKeymap,
     ],
     content: value,
@@ -470,11 +497,9 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Prop
         class: "px-4 py-3 min-h-[260px] focus:outline-none",
       },
       // Drag-and-drop: ha a beejtett DataTransfer-ben van kép fájl,
-      // base64 data URL-ként beágyazzuk a leveles editorba (ahogy a
-      // toolbar Kép gombja is). Több kép esetén egymás után kerülnek be.
-      // A drop pozíció az ejtés helyén lesz (posAtCoords).
+      // base64 data URL-ként beágyazzuk a leveles editorba.
       handleDrop: (view, event, _slice, moved) => {
-        if (moved) return false; // belső node-mozgatás (pl. kép áthelyezés) — hagyjuk
+        if (moved) return false;
         const dt = (event as DragEvent).dataTransfer;
         const files = dt?.files ? Array.from(dt.files).filter((f) => f.type.startsWith("image/")) : [];
         if (files.length === 0) return false;
@@ -496,11 +521,7 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Prop
         });
         return true;
       },
-      // Paste: vágólapra másolt képet (Cmd+Shift+4 screenshot, böngésző
-      // „Kép másolása", stb.) base64-ként szúrunk be a kurzor helyére.
-      // Ha van „normál" szöveg/HTML a vágólapon, azt nem zavarjuk —
-      // csak akkor kapcsolunk be, ha a clipboardItems között valódi
-      // kép-fájl van.
+      // Paste: vágólapra másolt képet base64-ként szúrunk be.
       handlePaste: (view, event) => {
         const items = event.clipboardData?.items;
         if (!items) return false;
@@ -531,10 +552,8 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Prop
   });
 
   // A toolbar gombok (undo/redo disabled, aktív formázás) állapota az editor
-  // tranzakcióitól függ. A useEditor hook alapból csak akkor triggerel
-  // re-rendert, ha az editor példány maga változik. Ezért feliratkozunk a
-  // transaction/selectionUpdate eseményekre, és egy számláló növelésével
-  // kényszerítjük a komponens újrarajzolását.
+  // tranzakcióitól függ. Feliratkozunk a transaction/selectionUpdate eseményekre,
+  // és egy számláló növelésével kényszerítjük a komponens újrarajzolását.
   const [, setTick] = useState(0);
   useEffect(() => {
     if (!editor) return;
@@ -553,8 +572,7 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Prop
     // Csak akkor reseteljük az editor tartalmát, ha a kívülről jövő érték
     // tényleg eltér attól, amit mi legutóbb kiküldtünk. Így a parent által
     // visszahívott setBody(html) → újrarender → ugyanaz a value NEM fogja
-    // a kurzort és a formázási szelekciót szétlőni — emiatt nem működtek
-    // korábban a H1/H2, listák, link/kép gombok.
+    // a kurzort és a formázási szelekciót szétlőni.
     if (incoming === lastEmittedRef.current) return;
     if (incoming === editor.getHTML()) return;
     lastEmittedRef.current = incoming;

@@ -163,7 +163,15 @@ export function MessageView({ message, onReply, onReplyAll, onForward, onToggleF
             // reset / `prose` stílusokkal — különben a komplexebb levelek
             // (HTML kampányok, számlák, hírlevelek) „puszta szövegként"
             // jelennek meg.
-            <EmailHtmlFrame html={message.html} className="bg-surface" />
+            // Az attachments prop átadása szükséges a CID képcsere miatt:
+            // a multipart/related levelekben az inline képek src="cid:xxx"
+            // formában vannak a HTML-ben, ezeket az iframe renderelése előtt
+            // base64 data URL-re cseréljük.
+            <EmailHtmlFrame
+              html={message.html}
+              attachments={message.attachments}
+              className="bg-surface"
+            />
           ) : (
             <pre className="whitespace-pre-wrap text-[17px] leading-[1.47] [font-family:var(--font-ui)]">{message.text}</pre>
           )}

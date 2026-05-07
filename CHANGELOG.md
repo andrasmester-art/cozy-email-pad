@@ -3,6 +3,14 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.39.0] – 2026-05-07
+
+### Javítás
+- Az inline (`cid:`) képek immár helyesen megjelennek a levél törzsében — az `EmailHtmlFrame` a CSID hivatkozásokat a csatolmányok base64 adatából `data:` URI-ra cseréli a renderelés előtt. A csatolmány-lista nem duplikálja a már megjelenített inline képeket (csak akkor mutatja, ha a tartalom még nincs letöltve).
+
+### Új
+- A levélíró (Rich Text) szerkesztőben aláhúzás (Underline) gomb és három szöveg-igazítás (balra/középre/jobbra) gomb a toolbaron, a megfelelő TipTap kiterjesztésekkel.
+
 ## [1.38.0] – 2026-05-07
 
 ### Új
