@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Account, MailMessage, mailAPI } from "@/lib/mailBridge";
 import { rememberAddresses } from "@/lib/addressBook";
 
