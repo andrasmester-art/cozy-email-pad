@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.39.2] – 2026-05-07
+
+### Javítás
+- **Cache fájlok sérülése megszűnt.** A hibanaplóban rendszeresen jelentkező `[cache.read] MISS (parse error) … Unexpected end of JSON input` / `Unterminated string` üzenetek oka az volt, hogy a `cache.write` egyszerű `fs.writeFile`-t használt, és párhuzamos írások (auto-sync + body fetch + flag update ugyanarra a mailboxra) félbe-csonka JSON-t hagyhattak a lemezen — ilyenkor az adott mappa teljes cache-e elveszett, és a következő indulásnál minden levelet újra kellett szinkronizálni a szerverről. Mostantól minden írás **atomic**: előbb `.tmp-…` fájlba ír, majd `rename`-mel cseréli a célfájlt (POSIX-en atomic), és ugyanarra a fájlra érkező írások **per-fájl sorba kerülnek**, így nem keverednek.
+
 ## [1.39.1] – 2026-05-07
 
 ### Javítás
