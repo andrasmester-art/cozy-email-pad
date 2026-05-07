@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.36.3] – 2026-05-07
+
+### Javítás
+- A szinkronizáció most már minden alkalommal frissíti a csillag (★) és olvasott állapotot a szerverről, nem csak 10 percenként. Így ha másik levelezőben (pl. webmailben) megjelölsz vagy leveszed a jelölést egy levélről, a Mepodmail következő szinkronja átveszi.
+
 ## [1.36.2] – 2026-05-07
 
 ### Javítás
