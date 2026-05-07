@@ -87,6 +87,30 @@ function read(userDataDir, accountId, mailbox) {
   }
 }
 
+// Per-fájl írási sorok: ha ugyanarra a fájlra már fut írás, a következő
+// kérés a végére fűződik. Így nem keveredik két párhuzamos serializált
+// payload, és nem keletkezik csonka JSON.
+const writeQueues = new Map(); // file -> Promise
+
+function atomicWriteJson(file, payload) {
+  // .tmp-PID-RAND fájlba írunk, majd rename — POSIX-en a rename atomic, így
+  // a célfájl vagy a régi, vagy a teljes új tartalmat tartalmazza, soha nem
+  // egy félbevágott payloadot (ami JSON parse errort okozott).
+  const tmp = `${file}.tmp-${process.pid}-${Math.random().toString(36).slice(2, 10)}`;
+  return new Promise((resolve, reject) => {
+    fs.writeFile(tmp, payload, (err) => {
+      if (err) return reject(err);
+      fs.rename(tmp, file, (err2) => {
+        if (err2) {
+          fs.unlink(tmp, () => {});
+          return reject(err2);
+        }
+        resolve();
+      });
+    });
+  });
+}
+
 function write(userDataDir, accountId, mailbox, state) {
   ensureDir(accountDir(userDataDir, accountId));
   const trimmed = {
@@ -98,21 +122,26 @@ function write(userDataDir, accountId, mailbox, state) {
     messages: (state.messages || []).slice(0, MAX_PER_MAILBOX),
   };
   const file = mailboxFile(userDataDir, accountId, mailbox);
+  const payload = JSON.stringify(trimmed);
   const t0 = Date.now();
   console.log(
     `[cache.write] start ${accountId}/${mailbox} msgs=${trimmed.messages.length} lastUid=${trimmed.lastUid} oldestUid=${trimmed.oldestUid} updatedAt=${trimmed.updatedAt}`,
   );
-  fs.writeFile(
-    file,
-    JSON.stringify(trimmed),
-    (err) => {
-      if (err) {
-        console.error(`[cache.write] FAIL ${accountId}/${mailbox} (${err.code || "?"}): ${err.message}`);
-      } else {
-        console.log(`[cache.write] ok ${accountId}/${mailbox} in ${Date.now() - t0}ms`);
-      }
-    },
-  );
+  const prev = writeQueues.get(file) || Promise.resolve();
+  const next = prev
+    .catch(() => {}) // előző írás hibája ne blokkolja a sort
+    .then(() => atomicWriteJson(file, payload))
+    .then(() => {
+      console.log(`[cache.write] ok ${accountId}/${mailbox} in ${Date.now() - t0}ms`);
+    })
+    .catch((err) => {
+      console.error(`[cache.write] FAIL ${accountId}/${mailbox} (${err.code || "?"}): ${err.message}`);
+    })
+    .finally(() => {
+      // Csak akkor töröljük a térképből, ha mi voltunk a legutolsó láncszem
+      if (writeQueues.get(file) === next) writeQueues.delete(file);
+    });
+  writeQueues.set(file, next);
 }
 
 // Új üzeneteket fűz a cache elejére, dedupol UID alapján, frissíti a lastUid-ot.
