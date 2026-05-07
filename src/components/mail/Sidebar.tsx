@@ -30,6 +30,7 @@ type Props = {
   onOpenUpdater: () => void;
   onOpenContacts: () => void;
   onReorderAccounts?: (fromId: string, toId: string) => void;
+  unreadCounts?: Record<string, number>;
 };
 
 const MAILBOXES = [
