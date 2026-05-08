@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.39.3] – 2026-05-08
+
+### Javítás
+- **Válasz / Továbbítás formázása nem esik szét.** Eddig az idézett előzményt egy `<blockquote>`-ba tettük, és nyersen beleömlesztettük az eredeti levél HTML-jét (table-ek, div-ek, inline style-ok, font tag-ek). A Tiptap szerkesztő ezt a saját schema-jával ledarálta: minden egy hosszú, dőlt, behúzott blokká folyt össze, sortörések és bekezdések elvesztek. Mostantól az idézett szöveget az új `src/lib/quoteBody.ts` először tiszta sorokká alakítja (a `<br>` és block-tagek határán törve), majd minden sort külön `<p>` bekezdésként ad át a szerkesztőnek — pont úgy, ahogy a többi mail kliens is csinálja. Továbbításnál fejléc-blokkot is generál (Feladó / Címzett / Tárgy / Dátum).
+
 ## [1.39.2] – 2026-05-07
 
 ### Javítás
