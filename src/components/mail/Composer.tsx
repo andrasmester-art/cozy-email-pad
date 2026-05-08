@@ -432,7 +432,14 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
     }
     setSavingDraft(true);
     try {
-      await mailAPI.imap.appendDraft({
+      // Csak akkor írjuk felül a megnyitott piszkozatot, ha ugyanazon a fiókon
+      // mentünk — fiókváltás esetén egy új levél keletkezik a célfiókban,
+      // és az eredeti változatlan marad.
+      const replaceUid =
+        currentDraftRef && currentDraftRef.accountId === accountId
+          ? currentDraftRef.uid
+          : null;
+      const res = await mailAPI.imap.appendDraft({
         accountId,
         to: to || undefined,
         cc: cc || undefined,
@@ -440,8 +447,15 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
         subject: subject || "(piszkozat)",
         html: body,
         text: htmlToText(body),
+        replaceUid,
+        replaceMailbox: currentDraftRef?.mailbox || null,
       });
-      toast.success("Piszkozat mentve a szerverre");
+      // Ha kaptunk új UID-ot, frissítjük a referenciát, hogy a következő
+      // mentés is felülírja az aktuális verziót (ne hagyjon szemetet).
+      if (res?.newUid) {
+        setCurrentDraftRef({ accountId, mailbox: currentDraftRef?.mailbox || "Drafts", uid: res.newUid });
+      }
+      toast.success(replaceUid ? "Piszkozat frissítve a szerveren" : "Piszkozat mentve a szerverre");
     } catch (e: any) {
       toast.error("Piszkozat mentése sikertelen", {
         description: String(e?.message || e),
