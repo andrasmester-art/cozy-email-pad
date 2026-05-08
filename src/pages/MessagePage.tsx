@@ -204,6 +204,7 @@ const MessagePage = () => {
     } else {
       setComposerReplaceDraft(null);
     }
+    setComposerMarkAnswered(null);
     setComposerOpen(true);
   };
 
