@@ -572,6 +572,8 @@ const Index = () => {
     setComposerMode("new");
     setComposerReplaceDraft(null);
     setComposerMarkAnswered(null);
+    setComposerOpen(true);
+  }, []);
 
   // Kiválasztáskor: 1) automatikus \\Seen, 2) ha nincs még betöltve a body,
   // VAGY régi cache miatt nincs csatolmány-meta egy csatolmányos levélnél,
