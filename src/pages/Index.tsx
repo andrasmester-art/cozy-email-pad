@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Account, MailMessage, mailAPI } from "@/lib/mailBridge";
 import { rememberAddresses } from "@/lib/addressBook";
+import { buildReplyQuote, buildForwardQuote } from "@/lib/quoteBody";
 
 import { clearRetryFor } from "@/lib/accountRetry";
 import { Sidebar } from "@/components/mail/Sidebar";
@@ -438,8 +439,10 @@ const Index = () => {
     }
   }, [accounts, syncing, activeAccountId, activeMailbox, refreshUnreadCounts]);
 
-  const quoteBody = (m: MailMessage) =>
-    `<p></p><blockquote data-mwquote="1"><p><em>${m.from} írta:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`;
+  // Az idézett előzményt a `quoteBody.ts` állítja össze: a forrás HTML-t
+  // sortörés-megőrző `<p>` listává alakítja, hogy a Tiptap szerkesztő ne
+  // lapítsa egy soros, dőlt blokkba.
+
 
   // Optimista flag-frissítés: azonnal módosítjuk a lokális state-et, és a
   // szerverhívás sikere után NEM írjuk felül a teljes listát az r.messages-szel.
@@ -595,7 +598,7 @@ const Index = () => {
     setComposerInitial({
       to: m.from,
       subject: m.subject.startsWith("Re:") ? m.subject : `Re: ${m.subject}`,
-      body: quoteBody(m),
+      body: buildReplyQuote(m),
     });
     setComposerMode("reply");
     setComposerOpen(true);
@@ -626,7 +629,7 @@ const Index = () => {
     setComposerInitial({
       to: primary,
       subject: m.subject.startsWith("Re:") ? m.subject : `Re: ${m.subject}`,
-      body: quoteBody(m),
+      body: buildReplyQuote(m),
       cc: others.length ? others.join(", ") : undefined,
     });
     setComposerMode("reply");
@@ -636,7 +639,7 @@ const Index = () => {
   const handleForward = (m: MailMessage) => {
     setComposerInitial({
       subject: m.subject.startsWith("Fwd:") ? m.subject : `Fwd: ${m.subject}`,
-      body: `<p></p><blockquote data-mwquote="1"><p><em>Továbbított üzenet — ${m.from}:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`,
+      body: buildForwardQuote(m),
     });
     setComposerMode("forward");
     setComposerOpen(true);

@@ -5,6 +5,7 @@ import { MessageView } from "@/components/mail/MessageView";
 import { Composer } from "@/components/mail/Composer";
 import { SendStatusOverlay } from "@/components/mail/SendStatusOverlay";
 import { toast } from "sonner";
+import { buildReplyQuote, buildForwardQuote } from "@/lib/quoteBody";
 
 // Új ablakban megnyitott egyetlen levél nézete. URL: /message?accountId=..&mailbox=..&seqno=..&uid=..
 // Tartalmaz egy beágyazott Composert is, hogy ugyanitt lehessen válaszolni / továbbítani / szerkeszteni.
@@ -18,9 +19,10 @@ function extractEmails(s: string): string[] {
   return out;
 }
 
-function quoteBody(m: MailMessage) {
-  return `<p></p><blockquote data-mwquote="1"><p><em>${m.from} írta:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`;
-}
+// quoteBody helpers moved to src/lib/quoteBody.ts so the Tiptap editor
+// gets clean paragraph HTML (otherwise <blockquote>+raw email HTML
+// collapses into one italic blob).
+
 
 const MessagePage = () => {
   const location = useLocation();
@@ -97,7 +99,7 @@ const MessagePage = () => {
     setComposerInitial({
       to: m.from,
       subject: m.subject.startsWith("Re:") ? m.subject : `Re: ${m.subject}`,
-      body: quoteBody(m),
+      body: buildReplyQuote(m),
     });
     setComposerMode("reply");
     setComposerOpen(true);
@@ -115,7 +117,7 @@ const MessagePage = () => {
     setComposerInitial({
       to: primary,
       subject: m.subject.startsWith("Re:") ? m.subject : `Re: ${m.subject}`,
-      body: quoteBody(m),
+      body: buildReplyQuote(m),
       cc: others.length ? others.join(", ") : undefined,
     });
     setComposerMode("reply");
@@ -125,7 +127,7 @@ const MessagePage = () => {
   const handleForward = (m: MailMessage) => {
     setComposerInitial({
       subject: m.subject.startsWith("Fwd:") ? m.subject : `Fwd: ${m.subject}`,
-      body: `<p></p><blockquote data-mwquote="1"><p><em>Továbbított üzenet — ${m.from}:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`,
+      body: buildForwardQuote(m),
     });
     setComposerMode("forward");
     setComposerOpen(true);
