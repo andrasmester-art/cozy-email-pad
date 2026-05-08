@@ -813,6 +813,7 @@ const Index = () => {
         onCompose={(to) => {
           setComposerInitial({ to });
           setComposerMode("new");
+          setComposerReplaceDraft(null);
           setComposerOpen(true);
         }}
       />
