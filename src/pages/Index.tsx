@@ -566,6 +566,7 @@ const Index = () => {
     setActiveAccountId(accountId);
     setComposerInitial(undefined);
     setComposerMode("new");
+    setComposerReplaceDraft(null);
     setComposerOpen(true);
   }, []);
 
