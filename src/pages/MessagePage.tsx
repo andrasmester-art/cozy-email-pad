@@ -195,6 +195,11 @@ const MessagePage = () => {
       body: m.html || (m.text ? `<p>${m.text}</p>` : ""),
     });
     setComposerMode("new");
+    if (accountId && m.uid != null) {
+      setComposerReplaceDraft({ accountId, mailbox, uid: m.uid });
+    } else {
+      setComposerReplaceDraft(null);
+    }
     setComposerOpen(true);
   };
 
