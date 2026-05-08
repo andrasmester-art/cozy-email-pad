@@ -196,6 +196,9 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   const [savedTick, setSavedTick] = useState(0); // forces relative-time refresh
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  // Aktuálisan szerkesztett szerver-piszkozat: kezdetben a propból, sikeres
+  // mentés után az új UID-re vált, hogy az újabb mentés is felülírja.
+  const [currentDraftRef, setCurrentDraftRef] = useState<{ accountId: string; mailbox: string; uid: string | number } | null>(replaceDraft || null);
   const skipAutoSaveRef = useRef(false); // suppress autosave while we (re)hydrate fields
   const savedFlashRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
