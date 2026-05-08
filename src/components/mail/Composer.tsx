@@ -34,6 +34,12 @@ type Props = {
   defaultAccountId?: string | null;
   initial?: { to?: string; cc?: string; bcc?: string; subject?: string; body?: string };
   mode?: "new" | "reply" | "forward";
+  // Ha a Composer egy meglévő piszkozat szerkesztésére nyílt meg, itt jön
+  // be az eredeti piszkozat azonosítója. A „Mentés piszkozatként" gomb így
+  // nem új levelet hoz létre, hanem felülírja az eredetit (új APPEND +
+  // régi UID törlése). A sikeres mentés után frissül az új UID-re, hogy a
+  // soron következő mentés is ugyanazt cserélje le.
+  replaceDraft?: { accountId: string; mailbox: string; uid: string | number } | null;
 };
 
 function htmlToText(html: string) {
