@@ -439,8 +439,10 @@ const Index = () => {
     }
   }, [accounts, syncing, activeAccountId, activeMailbox, refreshUnreadCounts]);
 
-  const quoteBody = (m: MailMessage) =>
-    `<p></p><blockquote data-mwquote="1"><p><em>${m.from} írta:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`;
+  // Az idézett előzményt a `quoteBody.ts` állítja össze: a forrás HTML-t
+  // sortörés-megőrző `<p>` listává alakítja, hogy a Tiptap szerkesztő ne
+  // lapítsa egy soros, dőlt blokkba.
+
 
   // Optimista flag-frissítés: azonnal módosítjuk a lokális state-et, és a
   // szerverhívás sikere után NEM írjuk felül a teljes listát az r.messages-szel.
