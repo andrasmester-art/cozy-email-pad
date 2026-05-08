@@ -778,6 +778,7 @@ function fetchHeadersByUidRange(imap, range) {
           snippet: "",
           flagged: flags.includes("\\Flagged"),
           seen: flags.includes("\\Seen"),
+          answered: flags.includes("\\Answered"),
           bodyLoaded: false,
           hasAttachments,
         });
