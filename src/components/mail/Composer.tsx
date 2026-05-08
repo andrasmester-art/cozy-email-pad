@@ -243,12 +243,14 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
       // the last-saved timestamp from the loaded draft (if any).
       setPendingDraft(offerDraft && draft ? draft : null);
       setLastSavedAt(draft?.updatedAt ?? null);
+      // Megnyitáskor szinkronba hozzuk a szerver-piszkozat referenciát is.
+      setCurrentDraftRef(replaceDraft || null);
 
       // Re-enable autosave on the next tick so the hydration setStates settle.
       const re = setTimeout(() => { skipAutoSaveRef.current = false; }, 50);
       return () => clearTimeout(re);
     }
-  }, [open, defaultAccountId, accounts, initial?.to, initial?.cc, initial?.bcc, initial?.subject, initial?.body]);
+  }, [open, defaultAccountId, accounts, initial?.to, initial?.cc, initial?.bcc, initial?.subject, initial?.body, replaceDraft?.uid, replaceDraft?.mailbox, replaceDraft?.accountId]);
 
   // Apply the offered draft into the editor when the user clicks "Visszaállítás".
   const restorePendingDraft = () => {
