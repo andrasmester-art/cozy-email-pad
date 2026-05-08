@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { MailMessage } from "@/lib/mailBridge";
 import { Button } from "@/components/ui/button";
-import { Reply, ReplyAll, Forward, Trash2, Archive, Star, Mail, MailOpen, FileDown, Copy, ExternalLink } from "lucide-react";
+import { Reply, ReplyAll, Forward, Trash2, Archive, Star, Mail, MailOpen, FileDown, Copy, ExternalLink, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { EmailHtmlFrame } from "./EmailHtmlFrame";
@@ -31,9 +31,10 @@ type Props = {
   onToggleSeen?: (m: MailMessage) => void;
   onDelete?: (m: MailMessage) => void;
   onOpenInNewWindow?: (m: MailMessage) => void;
+  onEditDraft?: (m: MailMessage) => void;
 };
 
-export function MessageView({ message, onReply, onReplyAll, onForward, onToggleFlag, onToggleSeen, onDelete, onOpenInNewWindow }: Props) {
+export function MessageView({ message, onReply, onReplyAll, onForward, onToggleFlag, onToggleSeen, onDelete, onOpenInNewWindow, onEditDraft }: Props) {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   if (!message) {
@@ -66,6 +67,11 @@ export function MessageView({ message, onReply, onReplyAll, onForward, onToggleF
       <ContextMenuTrigger asChild>
         <div className="flex-1 flex flex-col h-full bg-background">
           <div className="mac-titlebar shrink-0 flex items-center justify-end px-3 gap-1 border-b border-border">
+        {onEditDraft && (
+          <Button size="sm" variant="default" onClick={() => onEditDraft(message)}>
+            <Pencil className="h-4 w-4 mr-1.5" /> Piszkozat szerkesztése
+          </Button>
+        )}
         <Button size="sm" variant="ghost" onClick={() => onReply(message)}>
           <Reply className="h-4 w-4 mr-1.5" /> Válasz
         </Button>
