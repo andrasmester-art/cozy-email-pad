@@ -801,12 +801,13 @@ const Index = () => {
 
       <Composer
         open={composerOpen}
-        onClose={() => { setComposerOpen(false); setComposerReplaceDraft(null); }}
+        onClose={() => { setComposerOpen(false); setComposerReplaceDraft(null); setComposerMarkAnswered(null); }}
         accounts={accounts}
         defaultAccountId={activeAccountId}
         initial={composerInitial}
         mode={composerMode}
         replaceDraft={composerReplaceDraft}
+        markAnswered={composerMarkAnswered}
       />
       <AccountDialog
         open={accountDlgOpen}
