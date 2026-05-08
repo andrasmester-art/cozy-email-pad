@@ -645,11 +645,24 @@ const Index = () => {
     setComposerOpen(true);
   };
 
+  // Piszkozat megnyitása szerkesztésre: az eredeti tartalmat új levélként
+  // töltjük be a Composerbe, az aktuális mappa pedig a Drafts.
+  const handleEditDraft = (m: MailMessage) => {
+    setComposerInitial({
+      to: m.to || "",
+      subject: m.subject || "",
+      body: m.html || (m.text ? `<p>${m.text}</p>` : ""),
+    });
+    setComposerMode("new");
+    setComposerOpen(true);
+  };
+
   const openCompose = () => {
     setComposerInitial(undefined);
     setComposerMode("new");
     setComposerOpen(true);
   };
+
 
   // Dupla kattintás: levél megnyitása új natív ablakban (Electron). Böngészőben
   // fallback: csak kijelöli a levelet (ott úgyis csak előnézet van).
@@ -747,7 +760,15 @@ const Index = () => {
             onDelete={deleteMessage}
             onOpenInNewWindow={openInNewWindow}
           />
+          {selected && activeMailbox.toLowerCase().includes("draft") && (
+            <div className="border-t border-border px-3 py-2 flex justify-end">
+              <Button size="sm" onClick={() => handleEditDraft(selected)}>
+                Piszkozat szerkesztése
+              </Button>
+            </div>
+          )}
         </div>
+
       </div>
 
       <Composer
