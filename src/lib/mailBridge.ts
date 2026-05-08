@@ -242,7 +242,7 @@ export const mailAPI = {
       accountId: string;
       mailbox: string;
       uid: string | number;
-      patch: { flagged?: boolean; seen?: boolean };
+      patch: { flagged?: boolean; seen?: boolean; answered?: boolean };
     }): Promise<{ ok: true; messages: MailMessage[]; updatedAt: number }> {
       if (isElectron) return (window as any).mailAPI.mail.setFlag(params);
       // Böngésző / demó: csak színlelt OK válasz, nincs szerver.
