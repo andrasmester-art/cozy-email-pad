@@ -169,7 +169,7 @@ function SignatureLayoutPreview({
   );
 }
 
-export function Composer({ open, onClose, accounts, defaultAccountId, initial, mode = "new" }: Props) {
+export function Composer({ open, onClose, accounts, defaultAccountId, initial, mode = "new", replaceDraft }: Props) {
   const titleIdle = mode === "reply" ? "Válasz" : mode === "forward" ? "Továbbítás" : "Új levél";
   const resolveInitialAccount = () => {
     const saved = getDefaultAccountId();
