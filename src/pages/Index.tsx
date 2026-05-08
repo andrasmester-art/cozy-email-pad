@@ -605,6 +605,7 @@ const Index = () => {
       body: buildReplyQuote(m),
     });
     setComposerMode("reply");
+    setComposerReplaceDraft(null);
     setComposerOpen(true);
   };
 
