@@ -116,6 +116,10 @@ const Index = () => {
   // A megnyitott szerver-piszkozat hivatkozása — a Composer „Mentés
   // piszkozatként" gombja ezt írja felül új APPEND helyett.
   const [composerReplaceDraft, setComposerReplaceDraft] = useState<{ accountId: string; mailbox: string; uid: string | number } | null>(null);
+  // Az eredeti levél hivatkozása, amelyikre épp válaszolunk — sikeres küldés
+  // után a Composer rárakja a \Answered IMAP-flag-et, így a listanézet
+  // tudja jelölni, hogy már válaszoltunk.
+  const [composerMarkAnswered, setComposerMarkAnswered] = useState<{ accountId: string; mailbox: string; uid: string | number } | null>(null);
   const [accountDlgOpen, setAccountDlgOpen] = useState(false);
   
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
