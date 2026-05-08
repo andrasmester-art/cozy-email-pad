@@ -193,7 +193,7 @@ function updateMessageFlags(state, uid, patch) {
   return { ...state, messages: next, updatedAt: Date.now() };
 }
 
-// Több UID flag-jeit frissíti egy menetben. updates: Map<uid, { flagged?, seen? }>.
+// Több UID flag-jeit frissíti egy menetben. updates: Map<uid, { flagged?, seen?, answered? }>.
 // Visszaadja az új state-et + a ténylegesen módosult UID-okat.
 function applyFlagUpdates(state, updates) {
   let changed = 0;
@@ -203,9 +203,10 @@ function applyFlagUpdates(state, updates) {
     if (!upd) return m;
     const newFlagged = typeof upd.flagged === "boolean" ? upd.flagged : !!m.flagged;
     const newSeen = typeof upd.seen === "boolean" ? upd.seen : (m.seen !== false);
-    if ((!!m.flagged) === newFlagged && (m.seen !== false) === newSeen) return m;
+    const newAnswered = typeof upd.answered === "boolean" ? upd.answered : !!m.answered;
+    if ((!!m.flagged) === newFlagged && (m.seen !== false) === newSeen && (!!m.answered) === newAnswered) return m;
     changed++;
-    return { ...m, flagged: newFlagged, seen: newSeen };
+    return { ...m, flagged: newFlagged, seen: newSeen, answered: newAnswered };
   });
   if (changed === 0) return { state, changed: 0 };
   return { state: { ...state, messages: next, updatedAt: Date.now() }, changed };
