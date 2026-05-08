@@ -104,6 +104,7 @@ const MessagePage = () => {
       body: buildReplyQuote(m),
     });
     setComposerMode("reply");
+    setComposerMarkAnswered(m.uid != null ? { accountId, mailbox, uid: m.uid } : null);
     setComposerOpen(true);
   };
 
@@ -123,6 +124,7 @@ const MessagePage = () => {
       cc: others.length ? others.join(", ") : undefined,
     });
     setComposerMode("reply");
+    setComposerMarkAnswered(m.uid != null ? { accountId, mailbox, uid: m.uid } : null);
     setComposerOpen(true);
   };
 
@@ -132,6 +134,7 @@ const MessagePage = () => {
       body: buildForwardQuote(m),
     });
     setComposerMode("forward");
+    setComposerMarkAnswered(null);
     setComposerOpen(true);
   };
 
