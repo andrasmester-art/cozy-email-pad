@@ -63,6 +63,12 @@ export type MailMessage = {
   /** True, ha a levélen rajta van a \Answered IMAP-flag (azaz már válaszoltunk
    *  rá). A listanézet egy kis Reply-ikont mutat ezeknél. */
   answered?: boolean;
+  /** RFC 5322 Message-ID (kacsacsőr nélkül, lowercase). A Sent mappa
+   *  IN-REPLY-TO/REFERENCES fejléceivel matchelünk rá a visszamenőleges
+   *  „már válaszoltunk" detektáláshoz. */
+  messageId?: string;
+  inReplyTo?: string;
+  references?: string[];
   bodyLoaded?: boolean;
   attachments?: MailAttachment[];
   /** True, ha a levél tartalmaz letölthető csatolmányt (a header-szinkron a
