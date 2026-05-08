@@ -598,7 +598,7 @@ const Index = () => {
     setComposerInitial({
       to: m.from,
       subject: m.subject.startsWith("Re:") ? m.subject : `Re: ${m.subject}`,
-      body: quoteBody(m),
+      body: buildReplyQuote(m),
     });
     setComposerMode("reply");
     setComposerOpen(true);
@@ -629,7 +629,7 @@ const Index = () => {
     setComposerInitial({
       to: primary,
       subject: m.subject.startsWith("Re:") ? m.subject : `Re: ${m.subject}`,
-      body: quoteBody(m),
+      body: buildReplyQuote(m),
       cc: others.length ? others.join(", ") : undefined,
     });
     setComposerMode("reply");
@@ -639,7 +639,7 @@ const Index = () => {
   const handleForward = (m: MailMessage) => {
     setComposerInitial({
       subject: m.subject.startsWith("Fwd:") ? m.subject : `Fwd: ${m.subject}`,
-      body: `<p></p><blockquote data-mwquote="1"><p><em>Továbbított üzenet — ${m.from}:</em></p>${m.html || `<p>${m.text}</p>`}</blockquote>`,
+      body: buildForwardQuote(m),
     });
     setComposerMode("forward");
     setComposerOpen(true);
