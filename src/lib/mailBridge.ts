@@ -181,7 +181,9 @@ export const mailAPI = {
       accountId: string;
       to?: string; cc?: string; bcc?: string;
       subject: string; html: string; text: string;
-    }): Promise<{ ok: true; messages?: MailMessage[] }> {
+      replaceUid?: string | number | null;
+      replaceMailbox?: string | null;
+    }): Promise<{ ok: true; messages?: MailMessage[]; newUid?: number | null; replacedUid?: number | null }> {
       if (isElectron && (window as any).mailAPI.imap.appendDraft) {
         return (window as any).mailAPI.imap.appendDraft(params);
       }
