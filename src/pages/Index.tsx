@@ -759,15 +759,10 @@ const Index = () => {
             onToggleSeen={toggleSeen}
             onDelete={deleteMessage}
             onOpenInNewWindow={openInNewWindow}
+            onEditDraft={activeMailbox.toLowerCase().includes("draft") ? handleEditDraft : undefined}
           />
-          {selected && activeMailbox.toLowerCase().includes("draft") && (
-            <div className="border-t border-border px-3 py-2 flex justify-end">
-              <Button size="sm" onClick={() => handleEditDraft(selected)}>
-                Piszkozat szerkesztése
-              </Button>
-            </div>
-          )}
         </div>
+
 
       </div>
 
