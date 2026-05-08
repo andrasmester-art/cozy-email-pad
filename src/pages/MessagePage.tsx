@@ -97,6 +97,20 @@ const MessagePage = () => {
     if (message?.subject) document.title = message.subject;
   }, [message?.subject]);
 
+  // Optimisztikus jelzés: ha a Composer most állította be a \Answered flag-et,
+  // a megnyitott levél ikonját azonnal frissítjük.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { accountId?: string; mailbox?: string; uid?: string | number } | undefined;
+      if (!detail || !detail.uid) return;
+      if (detail.accountId !== accountId || detail.mailbox !== mailbox) return;
+      const targetUid = String(detail.uid);
+      setMessage((prev) => (prev && String(prev.uid) === targetUid ? { ...prev, answered: true } : prev));
+    };
+    window.addEventListener("mail:answered", handler as EventListener);
+    return () => window.removeEventListener("mail:answered", handler as EventListener);
+  }, [accountId, mailbox]);
+
   const handleReply = (m: MailMessage) => {
     setComposerInitial({
       to: m.from,

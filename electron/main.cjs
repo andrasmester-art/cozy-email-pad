@@ -743,11 +743,13 @@ function decodeMimeWords(input) {
 // így a lista-nézetben rögtön megjelenik a 📎 ikon (body letöltése nélkül).
 // A teljes szöveg/HTML lazy-n töltődik le a fetchBodyByUid hívásával,
 // amikor a felhasználó megnyit egy levelet.
+// `MESSAGE-ID`, `IN-REPLY-TO`, `REFERENCES` is bekerül — ezekből épül a
+// „már válaszoltunk" detektálás (cross-sync a Sent mappa fejléceivel).
 function fetchHeadersByUidRange(imap, range) {
   return new Promise((resolve, reject) => {
     const out = [];
     const f = imap.fetch(range, {
-      bodies: "HEADER.FIELDS (FROM TO SUBJECT DATE)",
+      bodies: "HEADER.FIELDS (FROM TO SUBJECT DATE MESSAGE-ID IN-REPLY-TO REFERENCES)",
       struct: true,
     });
     f.on("message", (msg) => {
@@ -779,6 +781,9 @@ function fetchHeadersByUidRange(imap, range) {
           flagged: flags.includes("\\Flagged"),
           seen: flags.includes("\\Seen"),
           answered: flags.includes("\\Answered"),
+          messageId: normalizeMessageId(h["message-id"] || ""),
+          inReplyTo: normalizeMessageId(h["in-reply-to"] || ""),
+          references: extractMessageIds(h["references"] || ""),
           bodyLoaded: false,
           hasAttachments,
         });
@@ -787,6 +792,26 @@ function fetchHeadersByUidRange(imap, range) {
     f.once("error", reject);
     f.once("end", () => resolve(out));
   });
+}
+
+// `<abc@host>` → `abc@host`. Üres / hibás bemenetnél `""`-et ad vissza.
+function normalizeMessageId(raw) {
+  if (!raw) return "";
+  const m = String(raw).match(/<([^>]+)>/);
+  return (m ? m[1] : String(raw)).trim().toLowerCase();
+}
+
+// `References:` jellegű header → tisztított message-id lista (lowercase).
+function extractMessageIds(raw) {
+  if (!raw) return [];
+  const out = [];
+  const re = /<([^>]+)>/g;
+  let m;
+  while ((m = re.exec(String(raw)))) {
+    const id = m[1].trim().toLowerCase();
+    if (id) out.push(id);
+  }
+  return out;
 }
 
 // Egyetlen levél teljes body-ját tölti le és parse-olja — lazy hívás a UI-ból
@@ -857,7 +882,113 @@ function fetchBodyByUid(imap, uid) {
   });
 }
 
+// Visszamenőleges \Answered detektálás: végigmegy a fiók Sent mappáján,
+// kigyűjti az IN-REPLY-TO + REFERENCES Message-ID-kat, majd a többi cache-elt
+// mappát végignézve mindenkit megjelöl `\Answered` flag-gel a szerveren is,
+// akire ezek alapján már válaszoltunk. Külső kliensből érkező válaszok is
+// detektálódnak (Apple Mail, Gmail web), és a régen küldött válaszok is.
+async function crossSyncAnswered(account) {
+  const tStart = Date.now();
+  // 1) Sent fejlécek lekérése — csak IN-REPLY-TO + REFERENCES kell.
+  const repliedToIds = new Set();
+  try {
+    await withImap(account, 60000, async (imap) => {
+      let sentName = getCachedMailbox(account.id, "Sent");
+      if (!sentName) {
+        sentName = await resolveMailbox(imap, "Sent");
+        if (sentName) setCachedMailbox(account.id, "Sent", sentName);
+      }
+      if (!sentName) {
+        console.warn(`[crossSyncAnswered] ${account.id}: Sent mappa nem található`);
+        return;
+      }
+      const box = await openBox(imap, sentName);
+      if (!box || !box.messages || !box.messages.total) return;
+      // Az utolsó max. 2000 üzenet — elég a tipikus „kit kerestem meg" lekérdezéshez.
+      const total = box.messages.total;
+      const startSeq = Math.max(1, total - 2000 + 1);
+      const range = `${startSeq}:*`;
+      await new Promise((resolve, reject) => {
+        const f = imap.seq.fetch(range, {
+          bodies: "HEADER.FIELDS (IN-REPLY-TO REFERENCES)",
+        });
+        f.on("message", (msg) => {
+          let raw = "";
+          msg.on("body", (s) => s.on("data", (c) => (raw += c.toString("utf8"))));
+          msg.once("end", () => {
+            const h = parseHeaderBlock(raw);
+            const irt = normalizeMessageId(h["in-reply-to"] || "");
+            if (irt) repliedToIds.add(irt);
+            for (const id of extractMessageIds(h["references"] || "")) repliedToIds.add(id);
+          });
+        });
+        f.once("error", reject);
+        f.once("end", () => resolve());
+      });
+      console.log(`[crossSyncAnswered] ${account.id}: Sent header scan = ${repliedToIds.size} replied-to id`);
+    });
+  } catch (err) {
+    console.warn(`[crossSyncAnswered] ${account.id}: Sent scan failed: ${err && err.message}`);
+    return;
+  }
+  if (repliedToIds.size === 0) {
+    console.log(`[crossSyncAnswered] ${account.id}: nothing to mark (+${Date.now() - tStart}ms)`);
+    return;
+  }
+
+  // 2) Cache-elt mappák — csak a logikai standardok közül azokat, amiknek
+  //    van fájlja a lemezen (a `safeName` egyezik magával a logikai névvel
+  //    INBOX/Drafts/Sent/Archive/Trash esetén).
+  const LOGICAL = ["INBOX", "Sent", "Drafts", "Archive", "Trash"];
+  const onDisk = new Set(cache.listMailboxFiles(userDataDir(), account.id));
+  for (const logical of LOGICAL) {
+    const fileBase = String(logical).replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80) || "_";
+    if (!onDisk.has(fileBase)) continue;
+    const state = cache.read(userDataDir(), account.id, logical);
+    const toMark = state.messages.filter(
+      (m) => !m.answered && m.messageId && repliedToIds.has(m.messageId) && typeof m.uid === "number",
+    );
+    if (toMark.length === 0) continue;
+
+    // 2a) Cache azonnali frissítése — a UI a következő read-nél már látja.
+    const updates = new Map();
+    for (const m of toMark) updates.set(m.uid, { answered: true });
+    const { state: nextState, changed } = cache.applyFlagUpdates(state, updates);
+    if (changed > 0) {
+      cache.write(userDataDir(), account.id, logical, nextState);
+      console.log(`[crossSyncAnswered] ${account.id}/${logical}: cache mark ${changed} answered`);
+    }
+
+    // 2b) Szerverre is kitesszük a \Answered flag-et — így másik kliensben is
+    //     látszik, és egy későbbi resyncFlags nem írja vissza false-ra.
+    try {
+      await withImap(account, 60000, async (imap) => {
+        let realName = getCachedMailbox(account.id, logical);
+        if (!realName) {
+          realName = await resolveMailbox(imap, logical);
+          if (realName) setCachedMailbox(account.id, logical, realName);
+        }
+        if (!realName) return;
+        await openBox(imap, realName, false);
+        const uids = toMark.map((m) => Number(m.uid)).filter((n) => Number.isFinite(n) && n > 0);
+        // Chunkok 200-asával, hogy ne legyen túl hosszú IMAP command.
+        for (let i = 0; i < uids.length; i += 200) {
+          const chunk = uids.slice(i, i + 200);
+          await new Promise((resolve, reject) => {
+            imap.addFlags(chunk, ["\\Answered"], (err) => (err ? reject(err) : resolve()));
+          });
+        }
+        console.log(`[crossSyncAnswered] ${account.id}/${logical}: server addFlags \\Answered ×${uids.length}`);
+      });
+    } catch (err) {
+      console.warn(`[crossSyncAnswered] ${account.id}/${logical} server push FAILED: ${err && err.message}`);
+    }
+  }
+  console.log(`[crossSyncAnswered] ${account.id}: DONE (+${Date.now() - tStart}ms)`);
+}
+
 // ---- IPC: IMAP ----
+
 ipcMain.handle("imap:test", async (_e, { accountId } = {}) => {
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("A fiók nem található.");
@@ -1431,8 +1562,10 @@ ipcMain.handle("mail:fetchBody", async (_e, { accountId, mailbox, uid }) => {
 ipcMain.handle("cache:syncAccount", async (_e, { accountId }) => {
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("A fiók nem található.");
+  // A `Sent` mappát is szinkronizáljuk — kell a visszamenőleges \Answered
+  // detektáláshoz (a Sent fejlécekből gyűjtjük az IN-REPLY-TO id-kat).
   const results = await Promise.allSettled(
-    ["INBOX", "Drafts"].map(async (mb) => {
+    ["INBOX", "Drafts", "Sent"].map(async (mb) => {
       try {
         const r = await syncMailbox(account, mb);
         return { mailbox: mb, ok: true, added: r.added, missing: !!r.missing };
@@ -1441,6 +1574,12 @@ ipcMain.handle("cache:syncAccount", async (_e, { accountId }) => {
       }
     }),
   );
+  // Visszamenőleges válasz-detektálás: csendes hiba esetén sem ront a sync-en.
+  try {
+    await crossSyncAnswered(account);
+  } catch (err) {
+    console.warn(`[cache:syncAccount] crossSyncAnswered FAILED ${accountId}: ${err && err.message}`);
+  }
   return {
     ok: true,
     results: results.map((r) => (r.status === "fulfilled" ? r.value : { mailbox: "unknown", ok: false, error: r.reason })),

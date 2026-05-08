@@ -430,6 +430,15 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
               });
           }
           if (answeredTarget) {
+            // Optimisztikus UI-frissítés: azonnal jelezzük a listanézetnek,
+            // hogy ezt a levelet most válaszoltuk meg — még a szerver-flag
+            // beállítása előtt. Az Index/MessagePage figyeli ezt és
+            // a saját state-ét rögtön patch-eli.
+            try {
+              window.dispatchEvent(new CustomEvent("mail:answered", {
+                detail: { ...answeredTarget },
+              }));
+            } catch { /* SSR / régi browser */ }
             mailAPI.mail
               .setFlag({
                 accountId: answeredTarget.accountId,

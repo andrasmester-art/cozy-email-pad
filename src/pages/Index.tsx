@@ -256,6 +256,22 @@ const Index = () => {
 
   useEffect(() => { loadMessages(); }, [loadMessages]);
 
+  // Optimisztikus listanézet-frissítés a Composer reply-event-jére: a megválaszolt
+  // levelet azonnal megjelöljük `answered: true`-val, hogy a Reply-ikon
+  // azonnal megjelenjen — még a szerver-flag és a következő sync előtt.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { accountId?: string; mailbox?: string; uid?: string | number } | undefined;
+      if (!detail || !detail.uid) return;
+      if (detail.accountId !== activeAccountIdRef.current) return;
+      if (detail.mailbox !== activeMailboxRef.current) return;
+      const targetUid = String(detail.uid);
+      setMessages((prev) => prev.map((m) => (String(m.uid) === targetUid ? { ...m, answered: true } : m)));
+    };
+    window.addEventListener("mail:answered", handler as EventListener);
+    return () => window.removeEventListener("mail:answered", handler as EventListener);
+  }, []);
+
   // Felhasználó által kezdeményezett frissítés (Frissítés gomb): tényleges
   // szerver-szinkron. Ezt szándékosan külön választjuk a loadMessages-től,
   // hogy a fiók/mappa váltás ne indítson dupla IMAP sessiont.

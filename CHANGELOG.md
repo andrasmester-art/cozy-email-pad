@@ -3,6 +3,15 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.41.0] – 2026-05-08
+
+### Új
+- **Visszamenőleges válasz-detektálás.** A fiók szinkron most a `Sent` mappa fejléceit (`In-Reply-To`, `References`) is végignézi, és minden olyan régebbi levélre, amire valaha is válaszoltunk (akár ebből az appból, akár Gmail web/Apple Mail/telefonról), automatikusan rákerül a `\Answered` IMAP-flag a szerveren is. Így a Reply-ikon a listanézetben azonnal azoknál a régi leveleknél is megjelenik, amelyekre korábban nem volt beállítva ez a flag.
+
+### Változás
+- **Azonnali válasz-jelzés a listában.** A „Válasz" / „Válasz mindenkinek" után az érintett levél Reply-ikonja optimisztikusan, már a szerver-flag visszaigazolása előtt megjelenik (nem kell a következő szinkronra várni).
+- **Cache fejléc-séma bővítés.** Az új levelek lekérésekor a `Message-ID` / `In-Reply-To` / `References` is letárolódik, hogy a fenti detektálás működjön. A régi cache-elt levelekhez ez a következő ablaknyitásnál (vagy egy „Frissítés" után, ami új fejléceket húz le) áll össze.
+
 ## [1.40.0] – 2026-05-08
 
 ### Új

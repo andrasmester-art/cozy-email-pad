@@ -248,6 +248,21 @@ function updateMessageBody(state, uid, body) {
   return { ...state, messages: next, updatedAt: Date.now() };
 }
 
+// Egy fiókhoz tartozó cache-elt mappák nevét adja vissza (a fájlnév
+// `safeName(...)` által escape-elt változata — pont azt használjuk a
+// `read`/`write` hívásokhoz). Visszamenőleges \Answered-ellenőrzéshez kell,
+// hogy minden mappát végig tudjunk nézni.
+function listMailboxFiles(userDataDir, accountId) {
+  const dir = accountDir(userDataDir, accountId);
+  try {
+    return fs.readdirSync(dir)
+      .filter((f) => f.endsWith(".json"))
+      .map((f) => f.slice(0, -5)); // strip .json
+  } catch {
+    return [];
+  }
+}
+
 module.exports = {
   MAX_PER_MAILBOX,
   INITIAL_PAGE_SIZE,
@@ -261,4 +276,5 @@ module.exports = {
   applyFlagUpdates,
   reset,
   purgeAccount,
+  listMailboxFiles,
 };
