@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.39.4] – 2026-05-08
+
+### Javítás
+- **Mentett piszkozat újra megnyitható és szerkeszthető** a fő ablakban is. Eddig a „Piszkozat szerkesztése" gomb csak a külön ablakban (dupla katt egy levélre) jelent meg, a fő nézetben a Drafts mappában kijelölt piszkozat csak megnyithatatlan előnézet volt. Mostantól, ha a Drafts/Piszkozatok mappában állsz, az üzenet alatt megjelenik egy gomb, amely az eredeti címzettel, tárggyal és tartalommal nyitja meg a Composert.
+
 ## [1.39.3] – 2026-05-08
 
 ### Javítás
