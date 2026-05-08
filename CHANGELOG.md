@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.39.6] – 2026-05-08
+
+### Javítás
+- **Piszkozat felülírása új példány helyett.** Ha egy szerver-piszkozatot megnyitsz a „Piszkozat szerkesztése" gombbal, módosítod, és rányomsz a „Mentés piszkozatként" gombra, mostantól az eredeti piszkozatot írja felül a Drafts mappában (új APPEND + a régi UID törlése), nem hoz létre második másolatot. Fiókváltás esetén továbbra is új piszkozat keletkezik a célfiókban, az eredeti változatlan marad. Az ismételt mentések is mindig az aktuális verziót cserélik le.
+
 ## [1.39.5] – 2026-05-08
 
 ### Javítás

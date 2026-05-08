@@ -38,6 +38,7 @@ const MessagePage = () => {
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerInitial, setComposerInitial] = useState<{ to?: string; cc?: string; bcc?: string; subject?: string; body?: string } | undefined>();
   const [composerMode, setComposerMode] = useState<"new" | "reply" | "forward">("reply");
+  const [composerReplaceDraft, setComposerReplaceDraft] = useState<{ accountId: string; mailbox: string; uid: string | number } | null>(null);
 
   // Fiókok + levél betöltése.
   // Először a cache-ből próbáljuk (gyors), és ha ott nincs (pl. még nem
@@ -194,6 +195,11 @@ const MessagePage = () => {
       body: m.html || (m.text ? `<p>${m.text}</p>` : ""),
     });
     setComposerMode("new");
+    if (accountId && m.uid != null) {
+      setComposerReplaceDraft({ accountId, mailbox, uid: m.uid });
+    } else {
+      setComposerReplaceDraft(null);
+    }
     setComposerOpen(true);
   };
 
@@ -225,11 +231,12 @@ const MessagePage = () => {
 
       <Composer
         open={composerOpen}
-        onClose={() => setComposerOpen(false)}
+        onClose={() => { setComposerOpen(false); setComposerReplaceDraft(null); }}
         accounts={accounts}
         defaultAccountId={accountId}
         initial={composerInitial}
         mode={composerMode}
+        replaceDraft={composerReplaceDraft}
       />
 
       {/* Küldési állapot panel — minden ablakban külön példány. */}

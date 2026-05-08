@@ -1649,10 +1649,15 @@ function appendToMailbox(imap, mailbox, raw, flags) {
   });
 }
 
-ipcMain.handle("imap:appendDraft", async (_e, { accountId, to, cc, bcc, subject, html, text }) => {
+ipcMain.handle("imap:appendDraft", async (_e, { accountId, to, cc, bcc, subject, html, text, replaceUid, replaceMailbox }) => {
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("A fiók nem található.");
   const raw = await buildRawMime(account, { to, cc, bcc, subject, html, text });
+  // A felülírás logikája: az új piszkozat APPEND-jét MEG ELŐZŐLEG mérjük le
+  // a Drafts cache lastUid-ját, hogy szinkron után be tudjuk azonosítani az
+  // új UID-ot. Ezután töröljük a régi (megnyitott) piszkozat UID-ját.
+  const beforeState = cache.read(userDataDir(), accountId, "Drafts");
+  const beforeMaxUid = beforeState.lastUid || 0;
   await withImap(account, 60000, async (imap) => {
     let realName = getCachedMailbox(account.id, "Drafts");
     if (!realName) {
@@ -1662,10 +1667,26 @@ ipcMain.handle("imap:appendDraft", async (_e, { accountId, to, cc, bcc, subject,
     if (!realName) throw new Error("Drafts mappa nem található a szerveren.");
     await appendToMailbox(imap, realName, raw, ["\\Draft", "\\Seen"]);
   });
+  // A régi piszkozat törlése (csak ha tényleg a Drafts-ből jön).
+  let replacedUid = null;
+  if (replaceUid && (!replaceMailbox || String(replaceMailbox).toLowerCase().includes("draft"))) {
+    try {
+      await deleteMessages(account, "Drafts", [Number(replaceUid)]);
+      replacedUid = Number(replaceUid);
+    } catch (e) {
+      console.warn("[appendDraft] régi piszkozat törlése sikertelen:", e && e.message);
+    }
+  }
   // Inkrementális szinkron, hogy az új piszkozat azonnal megjelenjen.
   try { await syncMailbox(account, "Drafts"); } catch { /* nem kritikus */ }
   const state = cache.read(userDataDir(), accountId, "Drafts");
-  return { ok: true, messages: state.messages, updatedAt: state.updatedAt };
+  // Az új piszkozat UID-ja: a legnagyobb olyan UID, ami az APPEND előtt még
+  // nem létezett. (A szerver az új levélnek a soronkövetkező UID-ot adja.)
+  const newUid = state.messages
+    .map((m) => Number(m.uid))
+    .filter((u) => Number.isFinite(u) && u > beforeMaxUid)
+    .sort((a, b) => b - a)[0] || null;
+  return { ok: true, messages: state.messages, updatedAt: state.updatedAt, newUid, replacedUid };
 });
 
 // ---- Window ----

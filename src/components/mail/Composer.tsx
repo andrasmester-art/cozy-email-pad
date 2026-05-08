@@ -34,6 +34,12 @@ type Props = {
   defaultAccountId?: string | null;
   initial?: { to?: string; cc?: string; bcc?: string; subject?: string; body?: string };
   mode?: "new" | "reply" | "forward";
+  // Ha a Composer egy meglévő piszkozat szerkesztésére nyílt meg, itt jön
+  // be az eredeti piszkozat azonosítója. A „Mentés piszkozatként" gomb így
+  // nem új levelet hoz létre, hanem felülírja az eredetit (új APPEND +
+  // régi UID törlése). A sikeres mentés után frissül az új UID-re, hogy a
+  // soron következő mentés is ugyanazt cserélje le.
+  replaceDraft?: { accountId: string; mailbox: string; uid: string | number } | null;
 };
 
 function htmlToText(html: string) {
@@ -163,7 +169,7 @@ function SignatureLayoutPreview({
   );
 }
 
-export function Composer({ open, onClose, accounts, defaultAccountId, initial, mode = "new" }: Props) {
+export function Composer({ open, onClose, accounts, defaultAccountId, initial, mode = "new", replaceDraft }: Props) {
   const titleIdle = mode === "reply" ? "Válasz" : mode === "forward" ? "Továbbítás" : "Új levél";
   const resolveInitialAccount = () => {
     const saved = getDefaultAccountId();
@@ -190,6 +196,9 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   const [savedTick, setSavedTick] = useState(0); // forces relative-time refresh
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  // Aktuálisan szerkesztett szerver-piszkozat: kezdetben a propból, sikeres
+  // mentés után az új UID-re vált, hogy az újabb mentés is felülírja.
+  const [currentDraftRef, setCurrentDraftRef] = useState<{ accountId: string; mailbox: string; uid: string | number } | null>(replaceDraft || null);
   const skipAutoSaveRef = useRef(false); // suppress autosave while we (re)hydrate fields
   const savedFlashRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -234,12 +243,14 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
       // the last-saved timestamp from the loaded draft (if any).
       setPendingDraft(offerDraft && draft ? draft : null);
       setLastSavedAt(draft?.updatedAt ?? null);
+      // Megnyitáskor szinkronba hozzuk a szerver-piszkozat referenciát is.
+      setCurrentDraftRef(replaceDraft || null);
 
       // Re-enable autosave on the next tick so the hydration setStates settle.
       const re = setTimeout(() => { skipAutoSaveRef.current = false; }, 50);
       return () => clearTimeout(re);
     }
-  }, [open, defaultAccountId, accounts, initial?.to, initial?.cc, initial?.bcc, initial?.subject, initial?.body]);
+  }, [open, defaultAccountId, accounts, initial?.to, initial?.cc, initial?.bcc, initial?.subject, initial?.body, replaceDraft?.uid, replaceDraft?.mailbox, replaceDraft?.accountId]);
 
   // Apply the offered draft into the editor when the user clicks "Visszaállítás".
   const restorePendingDraft = () => {
@@ -421,7 +432,14 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
     }
     setSavingDraft(true);
     try {
-      await mailAPI.imap.appendDraft({
+      // Csak akkor írjuk felül a megnyitott piszkozatot, ha ugyanazon a fiókon
+      // mentünk — fiókváltás esetén egy új levél keletkezik a célfiókban,
+      // és az eredeti változatlan marad.
+      const replaceUid =
+        currentDraftRef && currentDraftRef.accountId === accountId
+          ? currentDraftRef.uid
+          : null;
+      const res = await mailAPI.imap.appendDraft({
         accountId,
         to: to || undefined,
         cc: cc || undefined,
@@ -429,8 +447,15 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
         subject: subject || "(piszkozat)",
         html: body,
         text: htmlToText(body),
+        replaceUid,
+        replaceMailbox: currentDraftRef?.mailbox || null,
       });
-      toast.success("Piszkozat mentve a szerverre");
+      // Ha kaptunk új UID-ot, frissítjük a referenciát, hogy a következő
+      // mentés is felülírja az aktuális verziót (ne hagyjon szemetet).
+      if (res?.newUid) {
+        setCurrentDraftRef({ accountId, mailbox: currentDraftRef?.mailbox || "Drafts", uid: res.newUid });
+      }
+      toast.success(replaceUid ? "Piszkozat frissítve a szerveren" : "Piszkozat mentve a szerverre");
     } catch (e: any) {
       toast.error("Piszkozat mentése sikertelen", {
         description: String(e?.message || e),

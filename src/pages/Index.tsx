@@ -113,6 +113,9 @@ const Index = () => {
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerInitial, setComposerInitial] = useState<{ to?: string; cc?: string; bcc?: string; subject?: string; body?: string } | undefined>();
   const [composerMode, setComposerMode] = useState<"new" | "reply" | "forward">("new");
+  // A megnyitott szerver-piszkozat hivatkozása — a Composer „Mentés
+  // piszkozatként" gombja ezt írja felül új APPEND helyett.
+  const [composerReplaceDraft, setComposerReplaceDraft] = useState<{ accountId: string; mailbox: string; uid: string | number } | null>(null);
   const [accountDlgOpen, setAccountDlgOpen] = useState(false);
   
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
@@ -563,6 +566,7 @@ const Index = () => {
     setActiveAccountId(accountId);
     setComposerInitial(undefined);
     setComposerMode("new");
+    setComposerReplaceDraft(null);
     setComposerOpen(true);
   }, []);
 
@@ -601,6 +605,7 @@ const Index = () => {
       body: buildReplyQuote(m),
     });
     setComposerMode("reply");
+    setComposerReplaceDraft(null);
     setComposerOpen(true);
   };
 
@@ -633,6 +638,7 @@ const Index = () => {
       cc: others.length ? others.join(", ") : undefined,
     });
     setComposerMode("reply");
+    setComposerReplaceDraft(null);
     setComposerOpen(true);
   };
 
@@ -642,11 +648,14 @@ const Index = () => {
       body: buildForwardQuote(m),
     });
     setComposerMode("forward");
+    setComposerReplaceDraft(null);
     setComposerOpen(true);
   };
 
   // Piszkozat megnyitása szerkesztésre: az eredeti tartalmat új levélként
-  // töltjük be a Composerbe, az aktuális mappa pedig a Drafts.
+  // töltjük be a Composerbe. Az eredeti szerver-piszkozat UID-ját átadjuk
+  // a Composer-nek, hogy a „Mentés piszkozatként" felülírja, ne új
+  // példányt hozzon létre.
   const handleEditDraft = (m: MailMessage) => {
     setComposerInitial({
       to: m.to || "",
@@ -654,12 +663,18 @@ const Index = () => {
       body: m.html || (m.text ? `<p>${m.text}</p>` : ""),
     });
     setComposerMode("new");
+    if (activeAccountId && m.uid != null) {
+      setComposerReplaceDraft({ accountId: activeAccountId, mailbox: activeMailbox, uid: m.uid });
+    } else {
+      setComposerReplaceDraft(null);
+    }
     setComposerOpen(true);
   };
 
   const openCompose = () => {
     setComposerInitial(undefined);
     setComposerMode("new");
+    setComposerReplaceDraft(null);
     setComposerOpen(true);
   };
 
@@ -768,11 +783,12 @@ const Index = () => {
 
       <Composer
         open={composerOpen}
-        onClose={() => setComposerOpen(false)}
+        onClose={() => { setComposerOpen(false); setComposerReplaceDraft(null); }}
         accounts={accounts}
         defaultAccountId={activeAccountId}
         initial={composerInitial}
         mode={composerMode}
+        replaceDraft={composerReplaceDraft}
       />
       <AccountDialog
         open={accountDlgOpen}
@@ -797,6 +813,7 @@ const Index = () => {
         onCompose={(to) => {
           setComposerInitial({ to });
           setComposerMode("new");
+          setComposerReplaceDraft(null);
           setComposerOpen(true);
         }}
       />
