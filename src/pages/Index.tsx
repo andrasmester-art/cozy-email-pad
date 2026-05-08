@@ -610,6 +610,11 @@ const Index = () => {
     });
     setComposerMode("reply");
     setComposerReplaceDraft(null);
+    setComposerMarkAnswered(
+      activeAccountId && m.uid != null
+        ? { accountId: activeAccountId, mailbox: activeMailbox, uid: m.uid }
+        : null,
+    );
     setComposerOpen(true);
   };
 
@@ -643,6 +648,11 @@ const Index = () => {
     });
     setComposerMode("reply");
     setComposerReplaceDraft(null);
+    setComposerMarkAnswered(
+      activeAccountId && m.uid != null
+        ? { accountId: activeAccountId, mailbox: activeMailbox, uid: m.uid }
+        : null,
+    );
     setComposerOpen(true);
   };
 
@@ -653,6 +663,7 @@ const Index = () => {
     });
     setComposerMode("forward");
     setComposerReplaceDraft(null);
+    setComposerMarkAnswered(null);
     setComposerOpen(true);
   };
 
