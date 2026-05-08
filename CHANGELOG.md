@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.39.5] – 2026-05-08
+
+### Javítás
+- **Piszkozat szerkesztése gomb most már látszik.** Az 1.39.4-ben az alsó sávra tett gomb a `MessageView` `flex-1` magassága miatt levágódott a viewport aljáról. Mostantól a gomb a felső toolbar bal szélén jelenik meg (a Válasz/Mind/Tov. mellett, „Piszkozat szerkesztése" felirattal, primary színnel) — mind a fő ablakban, mind a külön levél-ablakban.
+
 ## [1.39.4] – 2026-05-08
 
 ### Javítás
