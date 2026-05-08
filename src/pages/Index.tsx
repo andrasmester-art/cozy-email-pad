@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Account, MailMessage, mailAPI } from "@/lib/mailBridge";
 import { rememberAddresses } from "@/lib/addressBook";
+import { buildReplyQuote, buildForwardQuote } from "@/lib/quoteBody";
 
 import { clearRetryFor } from "@/lib/accountRetry";
 import { Sidebar } from "@/components/mail/Sidebar";
