@@ -1267,6 +1267,10 @@ async function setMessageFlags(account, logicalMailbox, uid, patch) {
       if (patch.seen) await addFlags(["\\Seen"]);
       else await delFlags(["\\Seen"]);
     }
+    if (typeof patch.answered === "boolean") {
+      if (patch.answered) await addFlags(["\\Answered"]);
+      else await delFlags(["\\Answered"]);
+    }
 
     // Cache frissítése a renderer kérése alapján — szervervisszaolvasás nélkül,
     // hogy gyors legyen; a következő syncMailbox úgyis felülírja a friss flags-szel.
