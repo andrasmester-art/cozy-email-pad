@@ -833,6 +833,7 @@ const Index = () => {
           setComposerInitial({ to });
           setComposerMode("new");
           setComposerReplaceDraft(null);
+          setComposerMarkAnswered(null);
           setComposerOpen(true);
         }}
       />
