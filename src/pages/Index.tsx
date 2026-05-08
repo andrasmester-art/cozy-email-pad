@@ -638,6 +638,7 @@ const Index = () => {
       cc: others.length ? others.join(", ") : undefined,
     });
     setComposerMode("reply");
+    setComposerReplaceDraft(null);
     setComposerOpen(true);
   };
 
