@@ -39,6 +39,7 @@ const MessagePage = () => {
   const [composerInitial, setComposerInitial] = useState<{ to?: string; cc?: string; bcc?: string; subject?: string; body?: string } | undefined>();
   const [composerMode, setComposerMode] = useState<"new" | "reply" | "forward">("reply");
   const [composerReplaceDraft, setComposerReplaceDraft] = useState<{ accountId: string; mailbox: string; uid: string | number } | null>(null);
+  const [composerMarkAnswered, setComposerMarkAnswered] = useState<{ accountId: string; mailbox: string; uid: string | number } | null>(null);
 
   // Fiókok + levél betöltése.
   // Először a cache-ből próbáljuk (gyors), és ha ott nincs (pl. még nem
