@@ -649,7 +649,9 @@ const Index = () => {
   };
 
   // Piszkozat megnyitása szerkesztésre: az eredeti tartalmat új levélként
-  // töltjük be a Composerbe, az aktuális mappa pedig a Drafts.
+  // töltjük be a Composerbe. Az eredeti szerver-piszkozat UID-ját átadjuk
+  // a Composer-nek, hogy a „Mentés piszkozatként" felülírja, ne új
+  // példányt hozzon létre.
   const handleEditDraft = (m: MailMessage) => {
     setComposerInitial({
       to: m.to || "",
@@ -657,12 +659,18 @@ const Index = () => {
       body: m.html || (m.text ? `<p>${m.text}</p>` : ""),
     });
     setComposerMode("new");
+    if (activeAccountId && m.uid != null) {
+      setComposerReplaceDraft({ accountId: activeAccountId, mailbox: activeMailbox, uid: m.uid });
+    } else {
+      setComposerReplaceDraft(null);
+    }
     setComposerOpen(true);
   };
 
   const openCompose = () => {
     setComposerInitial(undefined);
     setComposerMode("new");
+    setComposerReplaceDraft(null);
     setComposerOpen(true);
   };
 
