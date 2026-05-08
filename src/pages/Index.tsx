@@ -648,6 +648,7 @@ const Index = () => {
       body: buildForwardQuote(m),
     });
     setComposerMode("forward");
+    setComposerReplaceDraft(null);
     setComposerOpen(true);
   };
 
