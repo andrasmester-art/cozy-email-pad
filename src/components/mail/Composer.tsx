@@ -40,6 +40,10 @@ type Props = {
   // régi UID törlése). A sikeres mentés után frissül az új UID-re, hogy a
   // soron következő mentés is ugyanazt cserélje le.
   replaceDraft?: { accountId: string; mailbox: string; uid: string | number } | null;
+  /** Ha válasz/válasz mindenkinek módban nyitottuk meg, itt jön be az eredeti
+   *  levél hivatkozása. A sikeres küldés után a Composer ráteszi a \Answered
+   *  flag-et, hogy a listanézet jelezni tudja: már válaszoltunk rá. */
+  markAnswered?: { accountId: string; mailbox: string; uid: string | number } | null;
 };
 
 function htmlToText(html: string) {
