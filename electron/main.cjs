@@ -838,6 +838,7 @@ function fetchBodyByUid(imap, uid) {
           snippet: (parsed.text || "").slice(0, 140),
           flagged: flags.includes("\\Flagged"),
           seen: flags.includes("\\Seen"),
+          answered: flags.includes("\\Answered"),
           bodyLoaded: true,
           attachments: (parsed.attachments || []).map((a) => ({
             filename: a.filename || "melléklet",
