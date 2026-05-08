@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.40.0] – 2026-05-08
+
+### Új
+- **Megválaszolt levelek jelölése a listában.** Azoknál a leveleknél, amelyekre már válaszoltunk (IMAP `\Answered` flag), a tárgy mellett kis Reply-ikon jelenik meg. Ha az appból küldesz választ vagy „válasz mindenkinek"-et, a sikeres küldés után automatikusan rákerül az eredeti levélre a `\Answered` flag — így másik kliensben (Gmail web, Apple Mail) is látszik. Továbbítás nem állítja be ezt a flag-et.
+
 ## [1.39.7] – 2026-05-08
 
 ### Javítás
