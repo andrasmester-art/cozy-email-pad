@@ -1562,8 +1562,10 @@ ipcMain.handle("mail:fetchBody", async (_e, { accountId, mailbox, uid }) => {
 ipcMain.handle("cache:syncAccount", async (_e, { accountId }) => {
   const account = loadAccounts().find((a) => a.id === accountId);
   if (!account) throw new Error("A fiók nem található.");
+  // A `Sent` mappát is szinkronizáljuk — kell a visszamenőleges \Answered
+  // detektáláshoz (a Sent fejlécekből gyűjtjük az IN-REPLY-TO id-kat).
   const results = await Promise.allSettled(
-    ["INBOX", "Drafts"].map(async (mb) => {
+    ["INBOX", "Drafts", "Sent"].map(async (mb) => {
       try {
         const r = await syncMailbox(account, mb);
         return { mailbox: mb, ok: true, added: r.added, missing: !!r.missing };
@@ -1572,6 +1574,12 @@ ipcMain.handle("cache:syncAccount", async (_e, { accountId }) => {
       }
     }),
   );
+  // Visszamenőleges válasz-detektálás: csendes hiba esetén sem ront a sync-en.
+  try {
+    await crossSyncAnswered(account);
+  } catch (err) {
+    console.warn(`[cache:syncAccount] crossSyncAnswered FAILED ${accountId}: ${err && err.message}`);
+  }
   return {
     ok: true,
     results: results.map((r) => (r.status === "fulfilled" ? r.value : { mailbox: "unknown", ok: false, error: r.reason })),
