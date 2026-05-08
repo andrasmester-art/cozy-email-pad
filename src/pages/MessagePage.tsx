@@ -231,11 +231,12 @@ const MessagePage = () => {
 
       <Composer
         open={composerOpen}
-        onClose={() => setComposerOpen(false)}
+        onClose={() => { setComposerOpen(false); setComposerReplaceDraft(null); }}
         accounts={accounts}
         defaultAccountId={accountId}
         initial={composerInitial}
         mode={composerMode}
+        replaceDraft={composerReplaceDraft}
       />
 
       {/* Küldési állapot panel — minden ablakban külön példány. */}
