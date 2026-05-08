@@ -403,6 +403,7 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
     const draftToRemove = currentDraftRef && currentDraftRef.accountId === accountId
       ? { ...currentDraftRef }
       : null;
+    const answeredTarget = markAnswered ? { ...markAnswered } : null;
     enqueueSend(
       {
         accountId,
@@ -426,6 +427,18 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
               })
               .catch((e) => {
                 console.warn("[handleSend] piszkozat törlése sikertelen:", e);
+              });
+          }
+          if (answeredTarget) {
+            mailAPI.mail
+              .setFlag({
+                accountId: answeredTarget.accountId,
+                mailbox: answeredTarget.mailbox,
+                uid: answeredTarget.uid,
+                patch: { answered: true },
+              })
+              .catch((e) => {
+                console.warn("[handleSend] \\Answered flag beállítása sikertelen:", e);
               });
           }
         },
