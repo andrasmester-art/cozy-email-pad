@@ -987,6 +987,7 @@ async function crossSyncAnswered(account) {
   console.log(`[crossSyncAnswered] ${account.id}: DONE (+${Date.now() - tStart}ms)`);
 }
 
+// ---- IPC: IMAP ----
 
 ipcMain.handle("imap:test", async (_e, { accountId } = {}) => {
   const account = loadAccounts().find((a) => a.id === accountId);
