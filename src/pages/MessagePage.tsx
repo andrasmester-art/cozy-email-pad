@@ -209,28 +209,17 @@ const MessagePage = () => {
             A levél nem tölthető le. Ellenőrizd a kapcsolatot, és próbáld újra.
           </div>
         ) : (
-          <>
-            <MessageView
-              message={message}
-              onReply={handleReply}
-              onReplyAll={handleReplyAll}
-              onForward={handleForward}
-              onToggleFlag={toggleFlag}
-              onToggleSeen={toggleSeen}
-              onDelete={deleteMessage}
-            />
-            {mailbox.toLowerCase().includes("draft") && (
-              <div className="border-t border-border px-3 py-2 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => handleEditAsNew(message)}
-                  className="text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90"
-                >
-                  Piszkozat szerkesztése
-                </button>
-              </div>
-            )}
-          </>
+          <MessageView
+            message={message}
+            onReply={handleReply}
+            onReplyAll={handleReplyAll}
+            onForward={handleForward}
+            onToggleFlag={toggleFlag}
+            onToggleSeen={toggleSeen}
+            onDelete={deleteMessage}
+            onEditDraft={mailbox.toLowerCase().includes("draft") ? handleEditAsNew : undefined}
+          />
+
         )}
       </div>
 
