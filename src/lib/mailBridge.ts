@@ -60,6 +60,9 @@ export type MailMessage = {
   snippet: string;
   flagged?: boolean;
   seen?: boolean;
+  /** True, ha a levélen rajta van a \Answered IMAP-flag (azaz már válaszoltunk
+   *  rá). A listanézet egy kis Reply-ikont mutat ezeknél. */
+  answered?: boolean;
   bodyLoaded?: boolean;
   attachments?: MailAttachment[];
   /** True, ha a levél tartalmaz letölthető csatolmányt (a header-szinkron a
