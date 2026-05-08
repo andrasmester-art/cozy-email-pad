@@ -616,6 +616,7 @@ function fetchFlagsByUidRange(imap, range) {
             uid: attrs.uid,
             flagged: flags.includes("\\Flagged"),
             seen: flags.includes("\\Seen"),
+            answered: flags.includes("\\Answered"),
           });
         }
       });
