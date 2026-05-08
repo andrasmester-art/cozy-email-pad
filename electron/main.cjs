@@ -580,6 +580,7 @@ function fetchByUidRange(imap, range) {
                 snippet: (parsed.text || "").slice(0, 140),
                 flagged: flags.includes("\\Flagged"),
                 seen: flags.includes("\\Seen"),
+                answered: flags.includes("\\Answered"),
                 hasAttachments,
               });
             })
