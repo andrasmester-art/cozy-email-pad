@@ -235,12 +235,13 @@ const MessagePage = () => {
 
       <Composer
         open={composerOpen}
-        onClose={() => { setComposerOpen(false); setComposerReplaceDraft(null); }}
+        onClose={() => { setComposerOpen(false); setComposerReplaceDraft(null); setComposerMarkAnswered(null); }}
         accounts={accounts}
         defaultAccountId={accountId}
         initial={composerInitial}
         mode={composerMode}
         replaceDraft={composerReplaceDraft}
+        markAnswered={composerMarkAnswered}
       />
 
       {/* Küldési állapot panel — minden ablakban külön példány. */}
