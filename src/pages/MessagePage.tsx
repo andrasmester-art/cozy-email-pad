@@ -39,6 +39,7 @@ const MessagePage = () => {
   const [composerInitial, setComposerInitial] = useState<{ to?: string; cc?: string; bcc?: string; subject?: string; body?: string } | undefined>();
   const [composerMode, setComposerMode] = useState<"new" | "reply" | "forward">("reply");
   const [composerReplaceDraft, setComposerReplaceDraft] = useState<{ accountId: string; mailbox: string; uid: string | number } | null>(null);
+  const [composerMarkAnswered, setComposerMarkAnswered] = useState<{ accountId: string; mailbox: string; uid: string | number } | null>(null);
 
   // Fiókok + levél betöltése.
   // Először a cache-ből próbáljuk (gyors), és ha ott nincs (pl. még nem
@@ -103,6 +104,7 @@ const MessagePage = () => {
       body: buildReplyQuote(m),
     });
     setComposerMode("reply");
+    setComposerMarkAnswered(m.uid != null ? { accountId, mailbox, uid: m.uid } : null);
     setComposerOpen(true);
   };
 
@@ -122,6 +124,7 @@ const MessagePage = () => {
       cc: others.length ? others.join(", ") : undefined,
     });
     setComposerMode("reply");
+    setComposerMarkAnswered(m.uid != null ? { accountId, mailbox, uid: m.uid } : null);
     setComposerOpen(true);
   };
 
@@ -131,6 +134,7 @@ const MessagePage = () => {
       body: buildForwardQuote(m),
     });
     setComposerMode("forward");
+    setComposerMarkAnswered(null);
     setComposerOpen(true);
   };
 
@@ -200,6 +204,7 @@ const MessagePage = () => {
     } else {
       setComposerReplaceDraft(null);
     }
+    setComposerMarkAnswered(null);
     setComposerOpen(true);
   };
 
@@ -231,12 +236,13 @@ const MessagePage = () => {
 
       <Composer
         open={composerOpen}
-        onClose={() => { setComposerOpen(false); setComposerReplaceDraft(null); }}
+        onClose={() => { setComposerOpen(false); setComposerReplaceDraft(null); setComposerMarkAnswered(null); }}
         accounts={accounts}
         defaultAccountId={accountId}
         initial={composerInitial}
         mode={composerMode}
         replaceDraft={composerReplaceDraft}
+        markAnswered={composerMarkAnswered}
       />
 
       {/* Küldési állapot panel — minden ablakban külön példány. */}

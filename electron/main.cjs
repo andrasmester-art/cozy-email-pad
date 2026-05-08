@@ -580,6 +580,7 @@ function fetchByUidRange(imap, range) {
                 snippet: (parsed.text || "").slice(0, 140),
                 flagged: flags.includes("\\Flagged"),
                 seen: flags.includes("\\Seen"),
+                answered: flags.includes("\\Answered"),
                 hasAttachments,
               });
             })
@@ -615,6 +616,7 @@ function fetchFlagsByUidRange(imap, range) {
             uid: attrs.uid,
             flagged: flags.includes("\\Flagged"),
             seen: flags.includes("\\Seen"),
+            answered: flags.includes("\\Answered"),
           });
         }
       });
@@ -776,6 +778,7 @@ function fetchHeadersByUidRange(imap, range) {
           snippet: "",
           flagged: flags.includes("\\Flagged"),
           seen: flags.includes("\\Seen"),
+          answered: flags.includes("\\Answered"),
           bodyLoaded: false,
           hasAttachments,
         });
@@ -835,6 +838,7 @@ function fetchBodyByUid(imap, uid) {
           snippet: (parsed.text || "").slice(0, 140),
           flagged: flags.includes("\\Flagged"),
           seen: flags.includes("\\Seen"),
+          answered: flags.includes("\\Answered"),
           bodyLoaded: true,
           attachments: (parsed.attachments || []).map((a) => ({
             filename: a.filename || "melléklet",
@@ -1038,7 +1042,7 @@ async function syncMailbox(account, logicalMailbox) {
           const maxU = Math.max(...cachedUids);
           const flagsList = await fetchFlagsByUidRange(imap, `${minU}:${maxU}`);
           const updates = new Map();
-          for (const f of flagsList) updates.set(f.uid, { flagged: f.flagged, seen: f.seen });
+          for (const f of flagsList) updates.set(f.uid, { flagged: f.flagged, seen: f.seen, answered: f.answered });
           const { state: nextState, changed } = cache.applyFlagUpdates(currentState, updates);
           if (changed > 0) console.log(`[syncMailbox] resyncFlags ${account.id}/${logicalMailbox} updated ${changed} flags`);
           return changed > 0 ? nextState : currentState;
@@ -1262,6 +1266,10 @@ async function setMessageFlags(account, logicalMailbox, uid, patch) {
     if (typeof patch.seen === "boolean") {
       if (patch.seen) await addFlags(["\\Seen"]);
       else await delFlags(["\\Seen"]);
+    }
+    if (typeof patch.answered === "boolean") {
+      if (patch.answered) await addFlags(["\\Answered"]);
+      else await delFlags(["\\Answered"]);
     }
 
     // Cache frissítése a renderer kérése alapján — szervervisszaolvasás nélkül,

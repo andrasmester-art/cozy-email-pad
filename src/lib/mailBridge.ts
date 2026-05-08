@@ -60,6 +60,9 @@ export type MailMessage = {
   snippet: string;
   flagged?: boolean;
   seen?: boolean;
+  /** True, ha a levélen rajta van a \Answered IMAP-flag (azaz már válaszoltunk
+   *  rá). A listanézet egy kis Reply-ikont mutat ezeknél. */
+  answered?: boolean;
   bodyLoaded?: boolean;
   attachments?: MailAttachment[];
   /** True, ha a levél tartalmaz letölthető csatolmányt (a header-szinkron a
@@ -239,7 +242,7 @@ export const mailAPI = {
       accountId: string;
       mailbox: string;
       uid: string | number;
-      patch: { flagged?: boolean; seen?: boolean };
+      patch: { flagged?: boolean; seen?: boolean; answered?: boolean };
     }): Promise<{ ok: true; messages: MailMessage[]; updatedAt: number }> {
       if (isElectron) return (window as any).mailAPI.mail.setFlag(params);
       // Böngésző / demó: csak színlelt OK válasz, nincs szerver.

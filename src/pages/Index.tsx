@@ -116,6 +116,10 @@ const Index = () => {
   // A megnyitott szerver-piszkozat hivatkozása — a Composer „Mentés
   // piszkozatként" gombja ezt írja felül új APPEND helyett.
   const [composerReplaceDraft, setComposerReplaceDraft] = useState<{ accountId: string; mailbox: string; uid: string | number } | null>(null);
+  // Az eredeti levél hivatkozása, amelyikre épp válaszolunk — sikeres küldés
+  // után a Composer rárakja a \Answered IMAP-flag-et, így a listanézet
+  // tudja jelölni, hogy már válaszoltunk.
+  const [composerMarkAnswered, setComposerMarkAnswered] = useState<{ accountId: string; mailbox: string; uid: string | number } | null>(null);
   const [accountDlgOpen, setAccountDlgOpen] = useState(false);
   
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
@@ -567,6 +571,7 @@ const Index = () => {
     setComposerInitial(undefined);
     setComposerMode("new");
     setComposerReplaceDraft(null);
+    setComposerMarkAnswered(null);
     setComposerOpen(true);
   }, []);
 
@@ -606,6 +611,11 @@ const Index = () => {
     });
     setComposerMode("reply");
     setComposerReplaceDraft(null);
+    setComposerMarkAnswered(
+      activeAccountId && m.uid != null
+        ? { accountId: activeAccountId, mailbox: activeMailbox, uid: m.uid }
+        : null,
+    );
     setComposerOpen(true);
   };
 
@@ -639,6 +649,11 @@ const Index = () => {
     });
     setComposerMode("reply");
     setComposerReplaceDraft(null);
+    setComposerMarkAnswered(
+      activeAccountId && m.uid != null
+        ? { accountId: activeAccountId, mailbox: activeMailbox, uid: m.uid }
+        : null,
+    );
     setComposerOpen(true);
   };
 
@@ -649,6 +664,7 @@ const Index = () => {
     });
     setComposerMode("forward");
     setComposerReplaceDraft(null);
+    setComposerMarkAnswered(null);
     setComposerOpen(true);
   };
 
@@ -668,6 +684,7 @@ const Index = () => {
     } else {
       setComposerReplaceDraft(null);
     }
+    setComposerMarkAnswered(null);
     setComposerOpen(true);
   };
 
@@ -675,6 +692,7 @@ const Index = () => {
     setComposerInitial(undefined);
     setComposerMode("new");
     setComposerReplaceDraft(null);
+    setComposerMarkAnswered(null);
     setComposerOpen(true);
   };
 
@@ -783,12 +801,13 @@ const Index = () => {
 
       <Composer
         open={composerOpen}
-        onClose={() => { setComposerOpen(false); setComposerReplaceDraft(null); }}
+        onClose={() => { setComposerOpen(false); setComposerReplaceDraft(null); setComposerMarkAnswered(null); }}
         accounts={accounts}
         defaultAccountId={activeAccountId}
         initial={composerInitial}
         mode={composerMode}
         replaceDraft={composerReplaceDraft}
+        markAnswered={composerMarkAnswered}
       />
       <AccountDialog
         open={accountDlgOpen}
@@ -814,6 +833,7 @@ const Index = () => {
           setComposerInitial({ to });
           setComposerMode("new");
           setComposerReplaceDraft(null);
+          setComposerMarkAnswered(null);
           setComposerOpen(true);
         }}
       />
