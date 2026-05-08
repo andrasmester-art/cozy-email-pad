@@ -684,6 +684,7 @@ const Index = () => {
     } else {
       setComposerReplaceDraft(null);
     }
+    setComposerMarkAnswered(null);
     setComposerOpen(true);
   };
 
@@ -691,6 +692,7 @@ const Index = () => {
     setComposerInitial(undefined);
     setComposerMode("new");
     setComposerReplaceDraft(null);
+    setComposerMarkAnswered(null);
     setComposerOpen(true);
   };
 
