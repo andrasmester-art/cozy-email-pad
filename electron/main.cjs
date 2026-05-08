@@ -1042,7 +1042,7 @@ async function syncMailbox(account, logicalMailbox) {
           const maxU = Math.max(...cachedUids);
           const flagsList = await fetchFlagsByUidRange(imap, `${minU}:${maxU}`);
           const updates = new Map();
-          for (const f of flagsList) updates.set(f.uid, { flagged: f.flagged, seen: f.seen });
+          for (const f of flagsList) updates.set(f.uid, { flagged: f.flagged, seen: f.seen, answered: f.answered });
           const { state: nextState, changed } = cache.applyFlagUpdates(currentState, updates);
           if (changed > 0) console.log(`[syncMailbox] resyncFlags ${account.id}/${logicalMailbox} updated ${changed} flags`);
           return changed > 0 ? nextState : currentState;
