@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.39.7] – 2026-05-08
+
+### Javítás
+- **Elküldött piszkozat törlése a Drafts mappából.** Ha egy piszkozatot a „Piszkozat szerkesztése" gombbal nyitsz meg, majd a „Küldés" gombra nyomsz, a sikeres küldés után az eredeti piszkozat automatikusan törlődik a Drafts mappából — eddig ott maradt, miközben a levél már el lett küldve.
+
 ## [1.39.6] – 2026-05-08
 
 ### Javítás

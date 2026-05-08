@@ -393,6 +393,12 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
     // SendStatusOverlay panelben követhető, és ott lehet újraküldeni / részleteket
     // megnézni — még akkor is, ha a Composer időközben be lett zárva.
     const { enqueueSend } = await import("@/lib/sendQueue");
+    // Mentett szerver-piszkozat hivatkozást elkapjuk a closure-ba, hogy a
+    // sikeres küldés után törölhessük a Drafts mappából — különben ott
+    // marad „elküldött piszkozat"-ként.
+    const draftToRemove = currentDraftRef && currentDraftRef.accountId === accountId
+      ? { ...currentDraftRef }
+      : null;
     enqueueSend(
       {
         accountId,
@@ -407,6 +413,17 @@ export function Composer({ open, onClose, accounts, defaultAccountId, initial, m
         delaySec: delay,
         onSuccess: () => {
           try { clearDraft(); } catch { /* ignore */ }
+          if (draftToRemove) {
+            mailAPI.mail
+              .delete({
+                accountId: draftToRemove.accountId,
+                mailbox: draftToRemove.mailbox || "Drafts",
+                uid: draftToRemove.uid,
+              })
+              .catch((e) => {
+                console.warn("[handleSend] piszkozat törlése sikertelen:", e);
+              });
+          }
         },
       },
     );
