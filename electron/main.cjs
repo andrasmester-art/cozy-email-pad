@@ -743,11 +743,13 @@ function decodeMimeWords(input) {
 // így a lista-nézetben rögtön megjelenik a 📎 ikon (body letöltése nélkül).
 // A teljes szöveg/HTML lazy-n töltődik le a fetchBodyByUid hívásával,
 // amikor a felhasználó megnyit egy levelet.
+// `MESSAGE-ID`, `IN-REPLY-TO`, `REFERENCES` is bekerül — ezekből épül a
+// „már válaszoltunk" detektálás (cross-sync a Sent mappa fejléceivel).
 function fetchHeadersByUidRange(imap, range) {
   return new Promise((resolve, reject) => {
     const out = [];
     const f = imap.fetch(range, {
-      bodies: "HEADER.FIELDS (FROM TO SUBJECT DATE)",
+      bodies: "HEADER.FIELDS (FROM TO SUBJECT DATE MESSAGE-ID IN-REPLY-TO REFERENCES)",
       struct: true,
     });
     f.on("message", (msg) => {
@@ -779,6 +781,9 @@ function fetchHeadersByUidRange(imap, range) {
           flagged: flags.includes("\\Flagged"),
           seen: flags.includes("\\Seen"),
           answered: flags.includes("\\Answered"),
+          messageId: normalizeMessageId(h["message-id"] || ""),
+          inReplyTo: normalizeMessageId(h["in-reply-to"] || ""),
+          references: extractMessageIds(h["references"] || ""),
           bodyLoaded: false,
           hasAttachments,
         });
@@ -787,6 +792,26 @@ function fetchHeadersByUidRange(imap, range) {
     f.once("error", reject);
     f.once("end", () => resolve(out));
   });
+}
+
+// `<abc@host>` → `abc@host`. Üres / hibás bemenetnél `""`-et ad vissza.
+function normalizeMessageId(raw) {
+  if (!raw) return "";
+  const m = String(raw).match(/<([^>]+)>/);
+  return (m ? m[1] : String(raw)).trim().toLowerCase();
+}
+
+// `References:` jellegű header → tisztított message-id lista (lowercase).
+function extractMessageIds(raw) {
+  if (!raw) return [];
+  const out = [];
+  const re = /<([^>]+)>/g;
+  let m;
+  while ((m = re.exec(String(raw)))) {
+    const id = m[1].trim().toLowerCase();
+    if (id) out.push(id);
+  }
+  return out;
 }
 
 // Egyetlen levél teljes body-ját tölti le és parse-olja — lazy hívás a UI-ból
