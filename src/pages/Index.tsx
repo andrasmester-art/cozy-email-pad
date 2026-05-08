@@ -113,6 +113,9 @@ const Index = () => {
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerInitial, setComposerInitial] = useState<{ to?: string; cc?: string; bcc?: string; subject?: string; body?: string } | undefined>();
   const [composerMode, setComposerMode] = useState<"new" | "reply" | "forward">("new");
+  // A megnyitott szerver-piszkozat hivatkozása — a Composer „Mentés
+  // piszkozatként" gombja ezt írja felül új APPEND helyett.
+  const [composerReplaceDraft, setComposerReplaceDraft] = useState<{ accountId: string; mailbox: string; uid: string | number } | null>(null);
   const [accountDlgOpen, setAccountDlgOpen] = useState(false);
   
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
