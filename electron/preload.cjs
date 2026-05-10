@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld("mailAPI", {
     list: () => ipcRenderer.invoke("accounts:list"),
     save: (account) => ipcRenderer.invoke("accounts:save", account),
     delete: (id) => ipcRenderer.invoke("accounts:delete", id),
+    export: () => ipcRenderer.invoke("accounts:export"),
+    import: (payload) => ipcRenderer.invoke("accounts:import", payload),
   },
   templates: {
     list: () => ipcRenderer.invoke("templates:list"),
