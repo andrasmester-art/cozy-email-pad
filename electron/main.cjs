@@ -272,6 +272,55 @@ ipcMain.handle("accounts:delete", (_e, id) => {
   return { ok: true };
 });
 
+// ---- IPC: accounts export / import ----
+// Több gép közötti átvitelhez: a jelszavakat dekódoljuk a safeStorage-ből,
+// így az exportált JSON sima szövegként tartalmazza azokat (a felhasználó
+// felelőssége a fájl biztonságos tárolása). Importáláskor újra titkosítjuk
+// az adott gép safeStorage kulcsával.
+ipcMain.handle("accounts:export", () => {
+  const accounts = loadAccounts().map((a) => ({
+    ...a,
+    password: a.password ? decryptPassword(a.password) : "",
+    smtpPassword: a.smtpPassword ? decryptPassword(a.smtpPassword) : undefined,
+  }));
+  return {
+    type: "cozy-email-pad-accounts",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    accounts,
+  };
+});
+
+ipcMain.handle("accounts:import", (_e, payload) => {
+  const incoming = Array.isArray(payload?.accounts) ? payload.accounts : [];
+  if (!incoming.length) return { ok: true, added: 0, updated: 0 };
+  const existing = loadAccounts();
+  const byEmail = new Map(existing.map((a) => [String(a.user || "").toLowerCase(), a]));
+  let added = 0, updated = 0;
+  for (const raw of incoming) {
+    if (!raw || !raw.user || !raw.imapHost || !raw.smtpHost) continue;
+    const key = String(raw.user).toLowerCase();
+    const prior = byEmail.get(key);
+    const stored = {
+      ...raw,
+      id: prior?.id || raw.id || `acc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      password: raw.password ? encryptPassword(String(raw.password)) : prior?.password,
+      smtpPassword: raw.smtpPassword ? encryptPassword(String(raw.smtpPassword)) : prior?.smtpPassword,
+    };
+    if (prior) {
+      const idx = existing.findIndex((a) => a.id === prior.id);
+      existing[idx] = { ...prior, ...stored };
+      updated++;
+    } else {
+      existing.push(stored);
+      byEmail.set(key, stored);
+      added++;
+    }
+  }
+  saveAccounts(existing);
+  return { ok: true, added, updated };
+});
+
 // ---- IPC: templates ----
 ipcMain.handle("templates:list", () => readStore("templates", []));
 ipcMain.handle("templates:save", (_e, tpl) => {
