@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.42.0] – 2026-05-10
+
+### Új
+- **Fiókbeállítások exportálása / importálása.** A Beállítások ablakban most egyszerre exportálhatod az összes IMAP/SMTP fiókod egy `.json` fájlba (jelszavakkal együtt), majd egy másik gépen ugyanezzel az alkalmazással be tudod importálni. Az import az e-mail cím alapján egyezteti a fiókokat: új fiókok hozzáadódnak, az azonos című meglévők frissülnek. A fájl titkosítatlan — a felhasználó felelőssége biztonságos helyen tartani.
+
 ## [1.41.0] – 2026-05-08
 
 ### Új
