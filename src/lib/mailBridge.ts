@@ -77,6 +77,13 @@ export type MailMessage = {
   hasAttachments?: boolean;
 };
 
+export type AccountsExportPayload = {
+  type: "cozy-email-pad-accounts";
+  version: number;
+  exportedAt: string;
+  accounts: Account[];
+};
+
 const isElectron = typeof window !== "undefined" && (window as any).mailAPI?.isElectron;
 
 const LS = {
