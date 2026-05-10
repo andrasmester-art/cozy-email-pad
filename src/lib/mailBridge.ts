@@ -139,6 +139,40 @@ export const mailAPI = {
       LS.set("accounts", LS.get<Account[]>("accounts", []).filter((a) => a.id !== id));
       return { ok: true };
     },
+    async export(): Promise<AccountsExportPayload> {
+      if (isElectron) return (window as any).mailAPI.accounts.export();
+      const accounts = LS.get<Account[]>("accounts", []);
+      return {
+        type: "cozy-email-pad-accounts",
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        accounts,
+      };
+    },
+    async import(payload: AccountsExportPayload): Promise<{ ok: true; added: number; updated: number }> {
+      if (isElectron) return (window as any).mailAPI.accounts.import(payload);
+      const incoming = Array.isArray(payload?.accounts) ? payload.accounts : [];
+      const existing = LS.get<Account[]>("accounts", []);
+      const byEmail = new Map(existing.map((a) => [String(a.user || "").toLowerCase(), a]));
+      let added = 0, updated = 0;
+      for (const raw of incoming) {
+        if (!raw || !raw.user || !raw.imapHost || !raw.smtpHost) continue;
+        const key = String(raw.user).toLowerCase();
+        const prior = byEmail.get(key);
+        if (prior) {
+          const idx = existing.findIndex((a) => a.id === prior.id);
+          existing[idx] = { ...prior, ...raw, id: prior.id };
+          updated++;
+        } else {
+          const next = { ...raw, id: raw.id || `acc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` };
+          existing.push(next);
+          byEmail.set(key, next);
+          added++;
+        }
+      }
+      LS.set("accounts", existing);
+      return { ok: true, added, updated };
+    },
   },
 
   templates: {
