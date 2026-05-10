@@ -14,12 +14,14 @@ type Props = {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onOpenUpdater: () => void;
+  onAccountsChanged?: () => void;
 };
 
 // Általános alkalmazás-beállítások: téma, app frissítése, hibanapló mentése.
 // A korábbi Sidebar-aljra szétszórt akciók egy helyre kerültek.
-export function SettingsDialog({ open, onOpenChange, onOpenUpdater }: Props) {
+export function SettingsDialog({ open, onOpenChange, onOpenUpdater, onAccountsChanged }: Props) {
   const { theme, setTheme, isDark } = useTheme();
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const themeOpt = (value: Theme, text: string, Icon: typeof Sun) => (
     <Button
