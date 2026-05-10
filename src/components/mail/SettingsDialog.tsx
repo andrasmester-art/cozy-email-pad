@@ -131,6 +131,43 @@ export function SettingsDialog({ open, onOpenChange, onOpenUpdater, onAccountsCh
             </div>
           </section>
 
+          {/* Fiókok export / import */}
+          <section className="space-y-2">
+            <div className="text-sm font-medium">Fiókok átvitele másik gépre</div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 justify-start gap-2"
+                onClick={handleExportAccounts}
+              >
+                <FileDown className="h-4 w-4" /> Exportálás (.json)
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 justify-start gap-2"
+                onClick={() => fileRef.current?.click()}
+              >
+                <Upload className="h-4 w-4" /> Importálás…
+              </Button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleImportFile(f);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Az összes IMAP/SMTP fiók exportja egy JSON fájlba, jelszavakkal együtt. Importáláskor az azonos e-mail című fiók frissül, az új fiókok hozzáadódnak. Tárold a fájlt biztonságos helyen — nem titkosított!
+            </div>
+          </section>
+
           {/* Hibanapló */}
           <section className="space-y-2">
             <div className="text-sm font-medium">Hibakeresés</div>
