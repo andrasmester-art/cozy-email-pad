@@ -48,6 +48,49 @@ export function SettingsDialog({ open, onOpenChange, onOpenUpdater, onAccountsCh
     }
   };
 
+  const handleExportAccounts = async () => {
+    try {
+      const payload = await mailAPI.accounts.export();
+      const count = payload.accounts?.length || 0;
+      if (!count) {
+        toast.info("Nincs exportálható fiók");
+        return;
+      }
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const stamp = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `cozy-email-pad-fiokok-${stamp}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success(`${count} fiók exportálva`, {
+        description: "A jelszavak titkosítatlanul kerülnek a fájlba — tárold biztonságos helyen.",
+      });
+    } catch (err: any) {
+      toast.error("Export sikertelen", { description: String(err?.message || err) });
+    }
+  };
+
+  const handleImportFile = async (file: File) => {
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as AccountsExportPayload;
+      if (!parsed || parsed.type !== "cozy-email-pad-accounts" || !Array.isArray(parsed.accounts)) {
+        throw new Error("Érvénytelen fájl formátum.");
+      }
+      const r = await mailAPI.accounts.import(parsed);
+      toast.success("Fiókok importálva", {
+        description: `${r.added} új, ${r.updated} frissítve.`,
+      });
+      onAccountsChanged?.();
+    } catch (err: any) {
+      toast.error("Import sikertelen", { description: String(err?.message || err) });
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
