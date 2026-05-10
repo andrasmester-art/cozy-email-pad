@@ -841,6 +841,11 @@ const Index = () => {
         open={appSettingsOpen}
         onOpenChange={setAppSettingsOpen}
         onOpenUpdater={() => setUpdaterOpen(true)}
+        onAccountsChanged={async () => {
+          const list = sortByOrder(await mailAPI.accounts.list());
+          setAccounts(list);
+          if (!activeAccountId && list[0]) setActiveAccountId(list[0].id);
+        }}
       />
       <ContactsDialog
         open={contactsOpen}
