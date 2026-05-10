@@ -1,10 +1,12 @@
-import { Bug, Download, Sun, Moon, Monitor } from "lucide-react";
+import { useRef } from "react";
+import { Bug, Download, Sun, Moon, Monitor, Upload, FileDown } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useTheme, type Theme } from "@/lib/theme";
 import { exportDebugLog } from "@/lib/debugLog";
+import { mailAPI, type AccountsExportPayload } from "@/lib/mailBridge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
