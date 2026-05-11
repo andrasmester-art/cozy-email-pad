@@ -56,8 +56,10 @@ function buildQuoted(m: MailMessage, headerHtml: string): string {
   return `<p></p>${headerHtml}${body}<p></p>`;
 }
 
+const DIVIDER = `<hr style="border:none;border-top:1px solid #ccc;margin:16px 0" />`;
+
 export function buildReplyQuote(m: MailMessage): string {
-  const header = `<p><em>${escapeHtml(m.from)} írta:</em></p>`;
+  const header = `${DIVIDER}<p><em>${escapeHtml(m.from)} írta:</em></p>`;
   return buildQuoted(m, header);
 }
 
@@ -68,6 +70,6 @@ export function buildForwardQuote(m: MailMessage): string {
     m.subject ? `<strong>Tárgy:</strong> ${escapeHtml(m.subject)}` : "",
     m.date ? `<strong>Dátum:</strong> ${escapeHtml(String(m.date))}` : "",
   ].filter(Boolean).join("<br>");
-  const header = `<p>---------- Továbbított üzenet ----------</p><p>${meta}</p>`;
+  const header = `${DIVIDER}<p>---------- Továbbított üzenet ----------</p><p>${meta}</p>`;
   return buildQuoted(m, header);
 }

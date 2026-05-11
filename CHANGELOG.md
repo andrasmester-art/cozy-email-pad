@@ -3,6 +3,11 @@
 A formátum: minden verzió saját szakaszt kap `## [verzió] – dátum` címmel.
 A bejegyzések kategóriái: **Új**, **Javítás**, **Változás**.
 
+## [1.42.1] – 2026-05-11
+
+### Változás
+- **Elválasztó vonal a válasz/továbbítás előzménye előtt.** A válasz és továbbítás levelek esetén egy vízszintes vonal (`<hr>`) jelenik meg az új tartalom és az idézett előzmény között, így vizuálisan jól elkülönül a friss válasz a korábbi levéltől.
+
 ## [1.42.0] – 2026-05-10
 
 ### Új
