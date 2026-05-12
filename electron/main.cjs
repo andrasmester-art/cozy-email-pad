@@ -959,13 +959,15 @@ async function crossSyncAnswered(account) {
       const range = `${startSeq}:*`;
       await new Promise((resolve, reject) => {
         const f = imap.seq.fetch(range, {
-          bodies: "HEADER.FIELDS (IN-REPLY-TO REFERENCES)",
+          bodies: "HEADER.FIELDS (IN-REPLY-TO REFERENCES X-COZY-EMAIL-PAD)",
         });
         f.on("message", (msg) => {
           let raw = "";
           msg.on("body", (s) => s.on("data", (c) => (raw += c.toString("utf8"))));
           msg.once("end", () => {
             const h = parseHeaderBlock(raw);
+            const sentByApp = String(h["x-cozy-email-pad"] || "").trim().toLowerCase() === "1";
+            if (!sentByApp) return;
             const irt = normalizeMessageId(h["in-reply-to"] || "");
             if (irt) repliedToIds.add(irt);
             for (const id of extractMessageIds(h["references"] || "")) repliedToIds.add(id);
@@ -1708,6 +1710,7 @@ ipcMain.handle("smtp:send", async (_e, { accountId, to, cc, bcc, subject, html, 
       }
       return await transporter.sendMail({
         from: fromAddress,
+        headers: { "X-Cozy-Email-Pad": "1" },
         to, cc, bcc, subject, html, text,
       });
     });
@@ -1715,6 +1718,13 @@ ipcMain.handle("smtp:send", async (_e, { accountId, to, cc, bcc, subject, html, 
     const accepted = (info.accepted || []).length;
     const rejected = (info.rejected || []).length;
     const response = String(info.response || "").slice(0, 200);
+    if (accepted === 0) {
+      const noAcceptedErr = new Error(`A szerver nem fogadott el egyetlen címzettet sem. SMTP válasz: ${response || "(üres válasz)"}`);
+      noAcceptedErr.code = "ENOACCEPTED";
+      noAcceptedErr.response = response || "";
+      noAcceptedErr.responseCode = info.responseCode || 0;
+      throw noAcceptedErr;
+    }
     console.log(
       `[smtp] sent acct=${account.id} ${account.smtpHost}:${port} secure=${secure} messageId=${info.messageId} accepted=${accepted} rejected=${rejected} response="${response}" duration=${dur}ms`,
     );
@@ -1823,6 +1833,7 @@ function buildRawMime(account, payload) {
     subject: payload.subject || "",
     html: payload.html || undefined,
     text: payload.text || undefined,
+    headers: { "X-Cozy-Email-Pad": "1" },
   });
   return new Promise((resolve, reject) => {
     composer.compile().build((err, message) => {
