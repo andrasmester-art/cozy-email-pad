@@ -1833,6 +1833,7 @@ function buildRawMime(account, payload) {
     subject: payload.subject || "",
     html: payload.html || undefined,
     text: payload.text || undefined,
+    headers: { "X-Cozy-Email-Pad": "1" },
   });
   return new Promise((resolve, reject) => {
     composer.compile().build((err, message) => {
